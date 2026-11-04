@@ -11,5 +11,7 @@ export interface RenderByFileTreeOptions {
  * Renders audit findings structured by file and ordered by line number in a Box-Drawing tree format.
  */
 export declare function renderFindingsByFileTree(fileSummaries: readonly AuditFileSummary[], options?: RenderByFileTreeOptions): string;
-export declare function formatSampleErrorLine(err: AuditFinding, index: number): string;
+export declare function formatSampleErrorLine(err: AuditFinding, index: number, options?: {
+  includeGuide?: boolean;
+}): string;
 export declare function renderSampleErrors(errorFindings: readonly AuditFinding[]): string[];

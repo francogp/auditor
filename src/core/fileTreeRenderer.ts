@@ -171,13 +171,17 @@ export function renderFindingsByFileTree(
   return lines.join('\n');
 }
 
-export function formatSampleErrorLine(err: AuditFinding, index: number): string {
+export function formatSampleErrorLine(
+  err: AuditFinding,
+  index: number,
+  options?: { includeGuide?: boolean }
+): string {
   const fileInfo = err.file ? (err.line ? `${err.file}:${err.line}` : err.file) : 'unknown';
   const relPosixFile = toPosixRelative(process.cwd(), fileInfo) || fileInfo;
   const ruleTag = err.ruleId ? `[${err.ruleId}] ` : '';
   const contextStr = err.context ? ` ("${err.context}")` : '';
   const mainLine = `    ${formatNumber(index + 1)}. ${styleText('red', relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;
-  if (err.ruleId) {
+  if (err.ruleId && options?.includeGuide !== false) {
     const guideLine = styleText('dim', `       👉 Guide: auditor guide ${err.ruleId}`);
     return `${mainLine}\n${guideLine}`;
   }

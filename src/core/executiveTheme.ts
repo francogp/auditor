@@ -7,8 +7,14 @@
 
 import { styleText } from 'node:util';
 
-import type { RatchetStatus, RemediationPhaseId, StandardAuditResult } from './auditContract.ts';
+import type {
+  AuditFinding,
+  RatchetStatus,
+  RemediationPhaseId,
+  StandardAuditResult
+} from './auditContract.ts';
 import { formatDurationMs, formatNumber } from './durationFormatter.ts';
+import { formatSampleErrorLine } from './fileTreeRenderer.ts';
 
 export interface ExecutivePassSummaryParams {
   totalSuites: number;
@@ -43,6 +49,7 @@ export interface ExecutiveFailSummaryParams {
     productionRef: string;
     error?: string;
   };
+  topFindings?: readonly AuditFinding[];
 }
 
 export interface ExecutiveSetupBlockingSummaryParams {
@@ -53,6 +60,7 @@ export interface ExecutiveSetupBlockingSummaryParams {
   blockingSuites: readonly string[];
   hasFixableErrors?: boolean;
   latestAuditJsonPath?: string;
+  topFindings?: readonly AuditFinding[];
 }
 
 export interface ExecutiveFixSummaryParams {
@@ -65,6 +73,28 @@ export interface ExecutiveFixSummaryParams {
 }
 
 const PHASE_NAME_PAD_LENGTH = 12;
+
+function renderTopFindingsLines(
+  title: string,
+  topFindings: readonly AuditFinding[],
+  totalCount: number,
+  remainderLabel: string
+): string[] {
+  const lines: string[] = [];
+  lines.push(styleText('bold', `  ${title} (first ${formatNumber(topFindings.length)}):`));
+  for (let i = 0; i < topFindings.length; i++) {
+    lines.push(formatSampleErrorLine(topFindings[i]!, i, { includeGuide: false }));
+  }
+  if (totalCount > topFindings.length) {
+    lines.push(
+      styleText(
+        'dim',
+        `    ... and ${formatNumber(totalCount - topFindings.length)} more ${remainderLabel}`
+      )
+    );
+  }
+  return lines;
+}
 
 export function renderExecutivePassSummary(params: ExecutivePassSummaryParams): string {
   const {
@@ -110,7 +140,8 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
     fixableErrors = 0,
     fixableWarnings = 0,
     latestAuditJsonPath = 'scratch/audits/latest_audit.json',
-    ratchetVerdict
+    ratchetVerdict,
+    topFindings
   } = params;
 
   const totalFixable = fixableErrors + fixableWarnings;
@@ -141,6 +172,18 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
     phaseLines.push(`  • ${p.phase.padEnd(PHASE_NAME_PAD_LENGTH)}: ${counts}`);
   }
 
+  const reportLine = styleText('dim', `  Full Report: ${latestAuditJsonPath}`);
+
+  if (topFindings && topFindings.length > 0) {
+    const errorLines = renderTopFindingsLines(
+      'Top Detected Errors',
+      topFindings,
+      totalErrors,
+      'error(s)'
+    );
+    return `${header}\n${status}\n\n${phaseLines.join('\n')}\n\n${errorLines.join('\n')}\n\n${reportLine}\n`;
+  }
+
   const nextActionLines: string[] = [];
   nextActionLines.push('  Next Actions for AI:');
   if (totalFixable > 0) {
@@ -158,8 +201,6 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
     );
   }
 
-  const reportLine = styleText('dim', `  Full Report: ${latestAuditJsonPath}`);
-
   return `${header}\n${status}\n\n${phaseLines.join('\n')}\n\n${nextActionLines.join('\n')}\n\n${reportLine}\n`;
 }
 
@@ -173,7 +214,8 @@ export function renderExecutiveSetupBlockingSummary(
     durationMs,
     blockingSuites,
     hasFixableErrors,
-    latestAuditJsonPath = 'scratch/audits/latest_audit.json'
+    latestAuditJsonPath = 'scratch/audits/latest_audit.json',
+    topFindings
   } = params;
 
   const header = styleText(
@@ -193,6 +235,18 @@ export function renderExecutiveSetupBlockingSummary(
     suitesLines.push(`  • ${s}`);
   }
 
+  const reportLine = styleText('dim', `  Full Report: ${latestAuditJsonPath}`);
+
+  if (topFindings && topFindings.length > 0) {
+    const errorLines = renderTopFindingsLines(
+      'Top Blocking Errors',
+      topFindings,
+      setupErrors,
+      'setup error(s)'
+    );
+    return `${header}\n${status}\n\n${suitesLines.join('\n')}\n\n${errorLines.join('\n')}\n\n${reportLine}\n`;
+  }
+
   const warning = styleText(
     ['bold', 'yellow'],
     '  MANDATE: STRICTLY FORBIDDEN to modify application code or styles while setup phase is blocked.'
@@ -205,8 +259,6 @@ export function renderExecutiveSetupBlockingSummary(
       ? '  2. Run setup auto-repair: npm run auditor:fix'
       : '  2. Fix configuration in .auditor/audit.config.ts or package.json'
   ];
-
-  const reportLine = styleText('dim', `  Full Report: ${latestAuditJsonPath}`);
 
   return `${header}\n${status}\n\n${suitesLines.join('\n')}\n\n${warning}\n\n${nextActionLines.join('\n')}\n\n${reportLine}\n`;
 }

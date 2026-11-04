@@ -15,6 +15,7 @@ import { COVERAGE_EXPECTED_SUITES_ENV, COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV,
 import { formatDurationMs, formatNumber } from "../core/durationFormatter.js";
 import { isSubAuditorFailed, isSubAuditorWarning, resolveEffectiveErrorsCount, resolveEffectiveWarningsCount } from "../core/subAuditorSeverity.js";
 import { formatFindingCountBadge } from "../core/streamingFormat.js";
+import { isProductionEnvironment } from "../core/auditorEnvironment.js";
 import { evaluateSuiteStatus } from "../core/suiteGating.js";
 import { stringWidth } from "../core/terminalVisuals.js";
 import { renderMarkdownReport } from "../core/markdownReport.js";
@@ -49,6 +50,7 @@ const CPU_CORE_DIVISOR = 2;
 const MIN_CONCURRENCY = 1;
 const DECIMAL_RADIX = 10;
 const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0;
+const DEPLOY_TOP_ERRORS_LIMIT = 10;
 function resolveTargetFamily(familyOption, positionals, activeFamilies) {
 	const positionalFamily = positionals.find((p) => activeFamilies.includes(p));
 	return familyOption || positionalFamily;
@@ -731,6 +733,50 @@ async function persistAuditReportsToDisk(params) {
 	await fs.writeFile(latestByFilePath, JSON.stringify(byFileReport, null, 2), "utf-8");
 	return latestAuditPath;
 }
+function printCompactExecutiveSummary(params) {
+	const isDeploy = isProductionEnvironment();
+	if (params.isSetupBlocking) {
+		const blockingSuites = params.setupResults.filter((r) => (r.summary?.errors ?? 0) > 0).map((r) => `${r.name} (${r.id})`);
+		const topFindings = isDeploy ? params.setupFindings.filter((f) => f.severity === "error").slice(0, DEPLOY_TOP_ERRORS_LIMIT) : void 0;
+		console.log("\n" + renderExecutiveSetupBlockingSummary({
+			totalSuites: params.results.length,
+			setupErrors: params.setupErrors,
+			postponedAppErrors: params.postponedAppErrors,
+			durationMs: params.totalDuration,
+			blockingSuites,
+			hasFixableErrors: params.hasFixableErrors,
+			topFindings
+		}));
+		return;
+	}
+	if (params.totalErrors === 0 && !params.anyFailed) {
+		console.log("\n" + renderExecutivePassSummary({
+			totalSuites: params.results.length,
+			passedSuites: params.suitesPassed,
+			skippedSuites: params.suitesSkipped,
+			totalErrors: params.totalErrors,
+			totalWarnings: params.totalWarnings,
+			durationMs: params.totalDuration,
+			ratchetStatus: params.ratchetStatus
+		}));
+		return;
+	}
+	const phaseBreakdown = extractPhaseBreakdown(params.results);
+	const failedSuites = params.results.filter((r) => (r.summary?.errors ?? 0) > 0).length;
+	const topFindings = isDeploy ? params.results.flatMap((r) => r.findings ?? []).filter((f) => f.severity === "error").slice(0, DEPLOY_TOP_ERRORS_LIMIT) : void 0;
+	console.log("\n" + renderExecutiveFailSummary({
+		totalSuites: params.results.length,
+		failedSuites,
+		totalErrors: params.totalErrors,
+		totalWarnings: params.totalWarnings,
+		durationMs: params.totalDuration,
+		phaseBreakdown,
+		fixableErrors: params.fixableErrors,
+		fixableWarnings: params.fixableWarnings,
+		ratchetVerdict: params.ratchetVerdict ?? void 0,
+		topFindings
+	}));
+}
 async function renderAndPersistMasterReport(ctx) {
 	const { results, tasksToRun, allAvailableTasks, omittedSuiteIds, totalDuration, activeFamilies, cliOptions, scratchAuditsDir } = ctx;
 	const totalErrors = results.reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
@@ -796,42 +842,26 @@ async function renderAndPersistMasterReport(ctx) {
 	const ratchet = applyWarningRatchet(ctx, isFullAudit, totalErrors);
 	const anyFailed = totalErrors > 0 || suitesPassed + suitesSkipped < results.length || ratchet?.status === "failed";
 	const { fixableErrors, fixableWarnings, autoFixRecommended } = computeFixableViolations(results, isFixMode);
-	if (cliOptions.consoleMode === "compact") {
-		if (isSetupBlocking) {
-			const blockingSuites = setupResults.filter((r) => (r.summary?.errors ?? 0) > 0).map((r) => `${r.name} (${r.id})`);
-			console.log("\n" + renderExecutiveSetupBlockingSummary({
-				totalSuites: results.length,
-				setupErrors,
-				postponedAppErrors,
-				durationMs: totalDuration,
-				blockingSuites,
-				hasFixableErrors
-			}));
-		} else if (totalErrors === 0 && !anyFailed) console.log("\n" + renderExecutivePassSummary({
-			totalSuites: results.length,
-			passedSuites: suitesPassed,
-			skippedSuites: suitesSkipped,
-			totalErrors,
-			totalWarnings,
-			durationMs: totalDuration,
-			ratchetStatus: ratchet?.status
-		}));
-		else {
-			const phaseBreakdown = extractPhaseBreakdown(results);
-			const failedSuites = results.filter((r) => (r.summary?.errors ?? 0) > 0).length;
-			console.log("\n" + renderExecutiveFailSummary({
-				totalSuites: results.length,
-				failedSuites,
-				totalErrors,
-				totalWarnings,
-				durationMs: totalDuration,
-				phaseBreakdown,
-				fixableErrors,
-				fixableWarnings,
-				ratchetVerdict: ratchet
-			}));
-		}
-	} else {
+	if (cliOptions.consoleMode === "compact") printCompactExecutiveSummary({
+		isSetupBlocking,
+		setupResults,
+		setupFindings,
+		setupErrors,
+		postponedAppErrors,
+		totalDuration,
+		hasFixableErrors,
+		results,
+		totalErrors,
+		totalWarnings,
+		suitesPassed,
+		suitesSkipped,
+		anyFailed,
+		ratchetStatus: ratchet?.status,
+		ratchetVerdict: ratchet,
+		fixableErrors,
+		fixableWarnings
+	});
+	else {
 		printFindingsSummary(results, sortedCategories, {
 			isSetupBlocking,
 			setupErrors,

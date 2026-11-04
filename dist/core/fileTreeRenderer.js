@@ -92,13 +92,13 @@ function renderFindingsByFileTree(fileSummaries, options = {}) {
 	if (fileSummaries.length > displayedFiles.length) lines.push(styleText("dim", `\n  ... and ${formatNumber(fileSummaries.length - displayedFiles.length)} more file(s) with findings. Use top=all or filter with file=<pattern>.`));
 	return lines.join("\n");
 }
-function formatSampleErrorLine(err, index) {
+function formatSampleErrorLine(err, index, options) {
 	const fileInfo = err.file ? err.line ? `${err.file}:${err.line}` : err.file : "unknown";
 	const relPosixFile = toPosixRelative(process.cwd(), fileInfo) || fileInfo;
 	const ruleTag = err.ruleId ? `[${err.ruleId}] ` : "";
 	const contextStr = err.context ? ` ("${err.context}")` : "";
 	const mainLine = `    ${formatNumber(index + 1)}. ${styleText("red", relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;
-	if (err.ruleId) return `${mainLine}\n${styleText("dim", `       👉 Guide: auditor guide ${err.ruleId}`)}`;
+	if (err.ruleId && options?.includeGuide !== false) return `${mainLine}\n${styleText("dim", `       👉 Guide: auditor guide ${err.ruleId}`)}`;
 	return mainLine;
 }
 function renderSampleErrors(errorFindings) {

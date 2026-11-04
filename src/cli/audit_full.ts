@@ -38,6 +38,7 @@ import {
   type ConsolidatedAuditReport,
   type AuditByFileReport,
   type AuditFileSummary,
+  type RatchetStatus,
   type AuditExecutionSpeed,
   type AuditExecutionPhase,
   resolveFamilyMetadata,
@@ -55,6 +56,7 @@ import {
   COVERAGE_EXPECTED_SUITES_ENV
 } from '../core/auditCoverage.ts';
 import { BaseAuditor } from '../core/auditorBase.ts';
+import { isProductionEnvironment } from '../core/auditorEnvironment.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -124,6 +126,7 @@ const CPU_CORE_DIVISOR = 2 as const;
 const MIN_CONCURRENCY = 1 as const;
 const DECIMAL_RADIX = 10 as const;
 const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0 as const;
+const DEPLOY_TOP_ERRORS_LIMIT = 10 as const;
 
 export interface AuditFullCliOptions {
   values: Record<string, unknown>;
@@ -1219,6 +1222,91 @@ async function persistAuditReportsToDisk(params: PersistAuditReportsParams): Pro
   return latestAuditPath;
 }
 
+interface CompactExecutiveSummaryParams {
+  isSetupBlocking: boolean;
+  setupResults: readonly StandardAuditResult[];
+  setupFindings: readonly AuditFinding[];
+  setupErrors: number;
+  postponedAppErrors: number;
+  totalDuration: number;
+  hasFixableErrors: boolean;
+  results: readonly StandardAuditResult[];
+  totalErrors: number;
+  totalWarnings: number;
+  suitesPassed: number;
+  suitesSkipped: number;
+  anyFailed: boolean;
+  ratchetStatus?: RatchetStatus;
+  ratchetVerdict?: RatchetVerdict | null;
+  fixableErrors: number;
+  fixableWarnings: number;
+}
+
+function printCompactExecutiveSummary(params: CompactExecutiveSummaryParams): void {
+  const isDeploy = isProductionEnvironment();
+  if (params.isSetupBlocking) {
+    const blockingSuites = params.setupResults
+      .filter((r) => (r.summary?.errors ?? 0) > 0)
+      .map((r) => `${r.name} (${r.id})`);
+    const topFindings = isDeploy
+      ? params.setupFindings.filter((f) => f.severity === 'error').slice(0, DEPLOY_TOP_ERRORS_LIMIT)
+      : undefined;
+    console.log(
+      '\n' +
+        renderExecutiveSetupBlockingSummary({
+          totalSuites: params.results.length,
+          setupErrors: params.setupErrors,
+          postponedAppErrors: params.postponedAppErrors,
+          durationMs: params.totalDuration,
+          blockingSuites,
+          hasFixableErrors: params.hasFixableErrors,
+          topFindings
+        })
+    );
+    return;
+  }
+
+  if (params.totalErrors === 0 && !params.anyFailed) {
+    console.log(
+      '\n' +
+        renderExecutivePassSummary({
+          totalSuites: params.results.length,
+          passedSuites: params.suitesPassed,
+          skippedSuites: params.suitesSkipped,
+          totalErrors: params.totalErrors,
+          totalWarnings: params.totalWarnings,
+          durationMs: params.totalDuration,
+          ratchetStatus: params.ratchetStatus
+        })
+    );
+    return;
+  }
+
+  const phaseBreakdown = extractPhaseBreakdown(params.results);
+  const failedSuites = params.results.filter((r) => (r.summary?.errors ?? 0) > 0).length;
+  const topFindings = isDeploy
+    ? params.results
+        .flatMap((r) => r.findings ?? [])
+        .filter((f) => f.severity === 'error')
+        .slice(0, DEPLOY_TOP_ERRORS_LIMIT)
+    : undefined;
+  console.log(
+    '\n' +
+      renderExecutiveFailSummary({
+        totalSuites: params.results.length,
+        failedSuites,
+        totalErrors: params.totalErrors,
+        totalWarnings: params.totalWarnings,
+        durationMs: params.totalDuration,
+        phaseBreakdown,
+        fixableErrors: params.fixableErrors,
+        fixableWarnings: params.fixableWarnings,
+        ratchetVerdict: params.ratchetVerdict ?? undefined,
+        topFindings
+      })
+  );
+}
+
 export async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<boolean> {
   const {
     results,
@@ -1353,52 +1441,25 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
   );
 
   if (cliOptions.consoleMode === 'compact') {
-    if (isSetupBlocking) {
-      const blockingSuites = setupResults
-        .filter((r) => (r.summary?.errors ?? 0) > 0)
-        .map((r) => `${r.name} (${r.id})`);
-      console.log(
-        '\n' +
-          renderExecutiveSetupBlockingSummary({
-            totalSuites: results.length,
-            setupErrors,
-            postponedAppErrors,
-            durationMs: totalDuration,
-            blockingSuites,
-            hasFixableErrors
-          })
-      );
-    } else if (totalErrors === 0 && !anyFailed) {
-      console.log(
-        '\n' +
-          renderExecutivePassSummary({
-            totalSuites: results.length,
-            passedSuites: suitesPassed,
-            skippedSuites: suitesSkipped,
-            totalErrors,
-            totalWarnings,
-            durationMs: totalDuration,
-            ratchetStatus: ratchet?.status
-          })
-      );
-    } else {
-      const phaseBreakdown = extractPhaseBreakdown(results);
-      const failedSuites = results.filter((r) => (r.summary?.errors ?? 0) > 0).length;
-      console.log(
-        '\n' +
-          renderExecutiveFailSummary({
-            totalSuites: results.length,
-            failedSuites,
-            totalErrors,
-            totalWarnings,
-            durationMs: totalDuration,
-            phaseBreakdown,
-            fixableErrors,
-            fixableWarnings,
-            ratchetVerdict: ratchet
-          })
-      );
-    }
+    printCompactExecutiveSummary({
+      isSetupBlocking,
+      setupResults,
+      setupFindings,
+      setupErrors,
+      postponedAppErrors,
+      totalDuration,
+      hasFixableErrors,
+      results,
+      totalErrors,
+      totalWarnings,
+      suitesPassed,
+      suitesSkipped,
+      anyFailed,
+      ratchetStatus: ratchet?.status,
+      ratchetVerdict: ratchet,
+      fixableErrors,
+      fixableWarnings
+    });
   } else {
     printFindingsSummary(
       results,

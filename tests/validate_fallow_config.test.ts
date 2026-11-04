@@ -228,6 +228,24 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('skips fallow binary execution during workspace diagnostics when FALLOW_SKIP_BINARY_VERIFY is active', async () => {
+      process.env.FALLOW_SKIP_BINARY_VERIFY = '1';
+      try {
+        const config = {
+          entry: ['src/main.ts']
+        };
+        fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
+
+        const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+        const result = await auditor.audit();
+        expect(result.findings.some((f) => f.ruleId === 'fallow-config-workspace-diagnostic')).toBe(
+          false
+        );
+      } finally {
+        delete process.env.FALLOW_SKIP_BINARY_VERIFY;
+      }
+    });
   });
 
   describe('Auto-Fix Verification', () => {

@@ -833,6 +833,13 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
           return mapped;
         }
 
+        if (
+          process.env.FALLOW_SKIP_BINARY_VERIFY === '1' ||
+          process.env.FALLOW_SKIP_BINARY_VERIFY === 'true'
+        ) {
+          return [];
+        }
+
         this.addViolation({
           ruleId: 'fallow-workspace-diagnostic',
           severity: 'error',

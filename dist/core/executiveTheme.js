@@ -1,4 +1,5 @@
 import { formatDurationMs, formatNumber } from "./durationFormatter.js";
+import { formatSampleErrorLine } from "./fileTreeRenderer.js";
 import { styleText } from "node:util";
 // src/core/executiveTheme.ts
 /**
@@ -8,6 +9,13 @@ import { styleText } from "node:util";
 * Emits high-density semantic text without heavy Unicode Box-Drawing decorations.
 */
 const PHASE_NAME_PAD_LENGTH = 12;
+function renderTopFindingsLines(title, topFindings, totalCount, remainderLabel) {
+	const lines = [];
+	lines.push(styleText("bold", `  ${title} (first ${formatNumber(topFindings.length)}):`));
+	for (let i = 0; i < topFindings.length; i++) lines.push(formatSampleErrorLine(topFindings[i], i, { includeGuide: false }));
+	if (totalCount > topFindings.length) lines.push(styleText("dim", `    ... and ${formatNumber(totalCount - topFindings.length)} more ${remainderLabel}`));
+	return lines;
+}
 function renderExecutivePassSummary(params) {
 	const { totalSuites, passedSuites, skippedSuites = 0, totalErrors, totalWarnings, durationMs, latestAuditJsonPath = "scratch/audits/latest_audit.json", ratchetStatus } = params;
 	const skippedText = skippedSuites > 0 ? ` (${skippedSuites} skipped)` : "";
@@ -17,7 +25,7 @@ function renderExecutivePassSummary(params) {
 	return `${styleText(isWarningPass ? ["bold", "yellow"] : ["bold", "green"], title)}\n${`  Errors: ${totalErrors} | Warnings: ${totalWarnings}${ratchetText}`}\n${styleText("dim", `  Report: ${latestAuditJsonPath}`)}\n`;
 }
 function renderExecutiveFailSummary(params) {
-	const { totalSuites, failedSuites, totalErrors, totalWarnings, durationMs, phaseBreakdown, fixableErrors = 0, fixableWarnings = 0, latestAuditJsonPath = "scratch/audits/latest_audit.json", ratchetVerdict } = params;
+	const { totalSuites, failedSuites, totalErrors, totalWarnings, durationMs, phaseBreakdown, fixableErrors = 0, fixableWarnings = 0, latestAuditJsonPath = "scratch/audits/latest_audit.json", ratchetVerdict, topFindings } = params;
 	const totalFixable = fixableErrors + fixableWarnings;
 	const fixableText = totalFixable > 0 ? ` (${totalFixable} auto-fixable)` : "";
 	const suiteText = failedSuites > 0 ? ` in ${failedSuites} suite(s)` : "";
@@ -33,28 +41,36 @@ function renderExecutiveFailSummary(params) {
 		const counts = [p.errors > 0 ? `${p.errors} error(s)` : "", p.warnings > 0 ? `${p.warnings} warning(s)` : ""].filter(Boolean).join(", ");
 		phaseLines.push(`  • ${p.phase.padEnd(PHASE_NAME_PAD_LENGTH)}: ${counts}`);
 	}
+	const reportLine = styleText("dim", `  Full Report: ${latestAuditJsonPath}`);
+	if (topFindings && topFindings.length > 0) {
+		const errorLines = renderTopFindingsLines("Top Detected Errors", topFindings, totalErrors, "error(s)");
+		return `${header}\n${status}\n\n${phaseLines.join("\n")}\n\n${errorLines.join("\n")}\n\n${reportLine}\n`;
+	}
 	const nextActionLines = [];
 	nextActionLines.push("  Next Actions for AI:");
 	if (totalFixable > 0) nextActionLines.push(`  1. Mandatory Auto-Fix: npm run auditor:fix (${totalFixable} auto-fixable)`);
 	else nextActionLines.push("  1. Focus critical phase: npm run auditor:next", "  2. Inspect findings:   npm run auditor:findings", phaseBreakdown[0] ? `  3. Inspect by phase:   npm run auditor:findings -- phase=${phaseBreakdown[0].phase}` : "  3. Inspect by rule:    npm run auditor:by-rule", "  4. Consult rule guide: npm run auditor -- guide <ruleId>");
-	const reportLine = styleText("dim", `  Full Report: ${latestAuditJsonPath}`);
 	return `${header}\n${status}\n\n${phaseLines.join("\n")}\n\n${nextActionLines.join("\n")}\n\n${reportLine}\n`;
 }
 function renderExecutiveSetupBlockingSummary(params) {
-	const { totalSuites, setupErrors, postponedAppErrors, durationMs, blockingSuites, hasFixableErrors, latestAuditJsonPath = "scratch/audits/latest_audit.json" } = params;
+	const { totalSuites, setupErrors, postponedAppErrors, durationMs, blockingSuites, hasFixableErrors, latestAuditJsonPath = "scratch/audits/latest_audit.json", topFindings } = params;
 	const header = styleText(["bold", "red"], `[BLOCKED] AUDIT BLOCKED: Setup Phase Failure [${totalSuites} suites] in ${formatDurationMs(durationMs)}`);
 	const postponedSuffix = postponedAppErrors > 0 ? ` (${formatNumber(postponedAppErrors)} downstream app errors postponed to prevent false positives)` : "";
 	const status = `  Status: ${formatNumber(setupErrors)} setup error(s)${postponedSuffix}`;
 	const suitesLines = [];
 	suitesLines.push("  Blocking Suites:");
 	for (const s of blockingSuites) suitesLines.push(`  • ${s}`);
+	const reportLine = styleText("dim", `  Full Report: ${latestAuditJsonPath}`);
+	if (topFindings && topFindings.length > 0) {
+		const errorLines = renderTopFindingsLines("Top Blocking Errors", topFindings, setupErrors, "setup error(s)");
+		return `${header}\n${status}\n\n${suitesLines.join("\n")}\n\n${errorLines.join("\n")}\n\n${reportLine}\n`;
+	}
 	const warning = styleText(["bold", "yellow"], "  MANDATE: STRICTLY FORBIDDEN to modify application code or styles while setup phase is blocked.");
 	const nextActionLines = [
 		"  Next Actions for AI:",
 		"  1. Inspect setup issues: npm run auditor:findings -- phase=setup",
 		hasFixableErrors ? "  2. Run setup auto-repair: npm run auditor:fix" : "  2. Fix configuration in .auditor/audit.config.ts or package.json"
 	];
-	const reportLine = styleText("dim", `  Full Report: ${latestAuditJsonPath}`);
 	return `${header}\n${status}\n\n${suitesLines.join("\n")}\n\n${warning}\n\n${nextActionLines.join("\n")}\n\n${reportLine}\n`;
 }
 function renderExecutiveFixSummary(params) {

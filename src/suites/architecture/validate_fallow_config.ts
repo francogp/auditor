@@ -1090,6 +1090,12 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
 
     this.runSubAuditorSync('fallow-config-workspace-diagnostic', () => {
       tryCatchSync(() => {
+        if (
+          process.env.FALLOW_SKIP_BINARY_VERIFY === '1' ||
+          process.env.FALLOW_SKIP_BINARY_VERIFY === 'true'
+        ) {
+          return;
+        }
         const candidates = [
           path.resolve(this.projectRoot, 'node_modules/fallow/bin/fallow'),
           path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow')

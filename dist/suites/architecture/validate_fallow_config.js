@@ -677,6 +677,7 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 		if (modified && this.isFixActive()) fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + "\n", "utf-8");
 		this.runSubAuditorSync("fallow-config-workspace-diagnostic", () => {
 			tryCatchSync(() => {
+				if (process.env.FALLOW_SKIP_BINARY_VERIFY === "1" || process.env.FALLOW_SKIP_BINARY_VERIFY === "true") return;
 				const fallowBin = [path.resolve(this.projectRoot, "node_modules/fallow/bin/fallow"), path.resolve(process.cwd(), "node_modules/fallow/bin/fallow")].find((c) => fs.existsSync(c));
 				if (fallowBin) {
 					const subcmd = fs.existsSync(path.join(this.projectRoot, "package.json")) ? "dead-code" : "list --workspaces";

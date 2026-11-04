@@ -471,6 +471,7 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 				const err = e;
 				const mapped = this.handleParsedFallowOutput(tryParseFallowJson(err.stdout), primaryRule, command);
 				if (mapped) return mapped;
+				if (process.env.FALLOW_SKIP_BINARY_VERIFY === "1" || process.env.FALLOW_SKIP_BINARY_VERIFY === "true") return [];
 				this.addViolation({
 					ruleId: "fallow-workspace-diagnostic",
 					severity: "error",

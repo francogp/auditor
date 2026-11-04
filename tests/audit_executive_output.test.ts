@@ -148,6 +148,42 @@ describe('Executive Console Output & AI-Friendly Theme', () => {
       expect(output).not.toContain('npm run auditor:next');
     });
 
+    it('replaces Next Actions for AI with Top Detected Errors when topFindings is provided in build:deploy', () => {
+      const output = renderExecutiveFailSummary({
+        totalSuites: 80,
+        failedSuites: 2,
+        totalErrors: 2,
+        totalWarnings: 0,
+        durationMs: 4000,
+        phaseBreakdown: [{ phase: 'hygiene', errors: 2, warnings: 0 }],
+        topFindings: [
+          {
+            severity: 'error',
+            ruleId: 'fallow-workspace-diagnostic',
+            file: 'src/main.ts',
+            line: 42,
+            message: 'Unused export found'
+          },
+          {
+            severity: 'error',
+            ruleId: 'oxlint-no-unused-vars',
+            file: 'src/util.ts',
+            line: 10,
+            message: 'Variable foo is unused'
+          }
+        ]
+      });
+
+      expect(output).toContain('Top Detected Errors (first 2):');
+      expect(output).toContain('src/main.ts:42');
+      expect(output).toContain('[fallow-workspace-diagnostic] Unused export found');
+      expect(output).toContain('src/util.ts:10');
+      expect(output).toContain('[oxlint-no-unused-vars] Variable foo is unused');
+      expect(output).not.toContain('Next Actions for AI');
+      expect(output).not.toContain('npm run auditor:next');
+      expect(output).not.toContain('👉 Guide:');
+    });
+
     it('emits explicit ratchet threshold exceeded explanation when run fails with 0 errors but ratchet status is failed', () => {
       const output = renderExecutiveFailSummary({
         totalSuites: 80,
@@ -193,6 +229,36 @@ describe('Executive Console Output & AI-Friendly Theme', () => {
       );
       expect(output).toContain('npm run auditor:findings -- phase=setup');
       expect(output).toContain('npm run auditor:fix');
+    });
+
+    it('replaces MANDATE and Next Actions for AI with Top Blocking Errors when topFindings is provided in build:deploy', () => {
+      const output = renderExecutiveSetupBlockingSummary({
+        totalSuites: 80,
+        setupErrors: 2,
+        postponedAppErrors: 5,
+        durationMs: 960,
+        blockingSuites: ['validate_fallow_config'],
+        hasFixableErrors: false,
+        topFindings: [
+          {
+            severity: 'error',
+            ruleId: 'fallow-undeclared-config-entry',
+            file: '.fallowrc.json',
+            line: 1,
+            message: 'Undeclared entry found in satellite config'
+          }
+        ]
+      });
+
+      expect(output).toContain('Top Blocking Errors (first 1):');
+      expect(output).toContain('.fallowrc.json:1');
+      expect(output).toContain(
+        '[fallow-undeclared-config-entry] Undeclared entry found in satellite config'
+      );
+      expect(output).not.toContain('MANDATE: STRICTLY FORBIDDEN');
+      expect(output).not.toContain('Next Actions for AI');
+      expect(output).not.toContain('npm run auditor:findings -- phase=setup');
+      expect(output).not.toContain('👉 Guide:');
     });
   });
 

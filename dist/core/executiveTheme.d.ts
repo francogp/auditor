@@ -1,5 +1,5 @@
 import { RemediationPhaseId } from "./remediationPhases.js";
-import { RatchetStatus, StandardAuditResult } from "./auditContract.js";
+import { AuditFinding, RatchetStatus, StandardAuditResult } from "./auditContract.js";
 export interface ExecutivePassSummaryParams {
   totalSuites: number;
   passedSuites: number;
@@ -31,6 +31,7 @@ export interface ExecutiveFailSummaryParams {
     productionRef: string;
     error?: string;
   };
+  topFindings?: readonly AuditFinding[];
 }
 export interface ExecutiveSetupBlockingSummaryParams {
   totalSuites: number;
@@ -40,6 +41,7 @@ export interface ExecutiveSetupBlockingSummaryParams {
   blockingSuites: readonly string[];
   hasFixableErrors?: boolean;
   latestAuditJsonPath?: string;
+  topFindings?: readonly AuditFinding[];
 }
 export interface ExecutiveFixSummaryParams {
   durationMs: number;

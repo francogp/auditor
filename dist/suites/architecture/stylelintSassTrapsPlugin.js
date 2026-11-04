@@ -1,5 +1,5 @@
-import valueParser from "postcss-value-parser";
 import stylelint from "stylelint";
+import valueParser from "postcss-value-parser";
 // src/suites/architecture/stylelintSassTrapsPlugin.ts
 /**
 * packages/auditor/src/suites/architecture/stylelintSassTrapsPlugin.ts
