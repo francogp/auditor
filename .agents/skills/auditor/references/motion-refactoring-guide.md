@@ -38,7 +38,7 @@ Scans `.ts`, `.js`, and `.vue` files for banned timers, layout properties, and l
 
 ```bash
 npm run auditor:motion discover
-npm run auditor:motion -- discover project=../pokeborrador
+npm run auditor:motion -- discover project=../my-app
 ```
 
 Renders a standardized 80-column Box-Drawing table with breakdown per file.

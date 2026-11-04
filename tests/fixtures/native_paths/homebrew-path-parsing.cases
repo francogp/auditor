@@ -19,10 +19,10 @@ const pathParts = pathString.match(/[^\\\/]+/g);
 ### R07 gemini-table expect=homebrew-path-parsing
 const segments = fullPath.split('/');
 
-### R08 host-facturacion2 expect=homebrew-path-parsing
+### R08 host-sample-app expect=homebrew-path-parsing
 const basename = rawPath.split('/').pop() ?? rawPath;
 
-### R09 host-facturacion2 expect=homebrew-path-parsing
+### R09 host-sample-app expect=homebrew-path-parsing
 const fileName = this.codeFile.split('/').pop() ?? this.codeFile;
 
 ### R10 dataflow-origin expect=homebrew-path-parsing line=2

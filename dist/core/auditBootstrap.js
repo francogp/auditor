@@ -105,8 +105,28 @@ async function ensureGitIgnoreSynchronized(projectRoot) {
 		return true;
 	}) ?? false;
 }
+const MANDATORY_PROJECT_DIRS = [
+	"scratch",
+	"scratch/audits",
+	"scratch/audits/architecture",
+	"scratch/audits/documentation",
+	"scratch/audits/domain_data",
+	"scratch/audits/persistence",
+	"dist",
+	".agents",
+	".agents/skills"
+];
+function ensureMandatoryDirectoriesExist(projectRoot) {
+	for (const relDir of MANDATORY_PROJECT_DIRS) {
+		const targetPath = path.resolve(projectRoot, relDir);
+		if (!fs.existsSync(targetPath)) fs.mkdirSync(targetPath, { recursive: true });
+	}
+	const scratchKeepPath = path.resolve(projectRoot, "scratch/.gitkeep");
+	if (!fs.existsSync(scratchKeepPath)) tryCatchSync(() => fs.writeFileSync(scratchKeepPath, "", "utf-8"));
+}
 async function ensureProjectBootstrapped(options = {}) {
 	const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
+	ensureMandatoryDirectoriesExist(projectRoot);
 	if (process.env.CI === "true" || isSelfProviderProject(projectRoot) && !options.force) return EMPTY_BOOTSTRAP_RESULT;
 	handleLegacyConfigMigration(projectRoot);
 	const configPath = path.resolve(projectRoot, AUDIT_CONFIG_FILE);
@@ -128,7 +148,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.7.10-build.20261103-225441")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.7.12-build.20261103-233754")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}
@@ -149,4 +169,4 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected
 	};
 }
-export { ensureProjectBootstrapped };
+export { MANDATORY_PROJECT_DIRS, ensureMandatoryDirectoriesExist, ensureProjectBootstrapped };

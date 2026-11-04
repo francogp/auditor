@@ -610,6 +610,28 @@ function mapStaleSuppressions(
   return findings;
 }
 
+function resolveWorkspaceDiagFile(
+  diag: { kind?: string; path?: string },
+  projectRoot: string
+): string {
+  if (diag.path && diag.path !== '.') {
+    return path.resolve(projectRoot, diag.path);
+  }
+  // Diagnostic kinds related to config entries or workspace structure belong to .fallowrc.json
+  const kind = typeof diag.kind === 'string' ? diag.kind : '';
+  if (
+    kind.includes('pattern') ||
+    kind.includes('redundant') ||
+    kind.includes('config') ||
+    kind.includes('ignore') ||
+    kind.includes('entry') ||
+    kind.includes('override')
+  ) {
+    return path.resolve(projectRoot, '.fallowrc.json');
+  }
+  return path.resolve(projectRoot, 'package.json');
+}
+
 function mapWorkspaceDiagFindings(
   diagnostics: readonly { kind?: string; message?: string; path?: string }[] | undefined,
   projectRoot: string
@@ -619,7 +641,7 @@ function mapWorkspaceDiagFindings(
     if (diag.kind === 'boundaries-not-configured' || diag.kind === 'rule-packs-not-configured')
       continue;
     findings.push({
-      file: path.resolve(projectRoot, diag.path || 'package.json'),
+      file: resolveWorkspaceDiagFile(diag, projectRoot),
       line: 1,
       message: `Workspace diagnostic (Fallow): [${diag.kind || 'diagnostic'}] ${diag.message || ''}`,
       context: diag.kind || 'diagnostic',

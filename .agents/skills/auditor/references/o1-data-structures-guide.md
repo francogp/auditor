@@ -49,7 +49,7 @@ npm run auditor:o1 -- <command> [options]
 
 ```bash
 npm run auditor:o1 discover
-npm run auditor:o1 -- discover project=../pokeborrador
+npm run auditor:o1 -- discover project=../my-app
 ```
 
 Renders a Box-Drawing table with counts for `Set.has`, `Clone`, and `Spread`.

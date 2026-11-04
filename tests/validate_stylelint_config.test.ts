@@ -213,7 +213,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(finding?.message).toContain(REQUIRED_STRICT_VALUE_RULE);
     });
 
-    it('detects multiple missing canonical properties (PokeBorrador regression scenario)', async () => {
+    it('detects multiple missing canonical properties (consumer regression scenario)', async () => {
       // Configuration with only 3 properties (missing the other 10)
       const config = {
         extends: ['stylelint-config-standard'],

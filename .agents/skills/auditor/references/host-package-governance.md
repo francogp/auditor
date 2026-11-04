@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.7.10 --allow-git=all
+npm install -D github:francogp/auditor#v10.7.12 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -48,6 +48,9 @@ npm install -D github:francogp/auditor#v10.7.10 --allow-git=all
 > 🔴 **NATIVE NPM UPDATE MANDATE (ZERO CLONING OR MAKESHIFT SCRIPTS)**:
 > When a user or task requests to _"update the auditor"_, _"pull latest auditor changes"_, _"update skills"_, or sync the static analysis engine, developers and AI agents **MUST NEVER** execute `git clone`, create submodules, run ad-hoc `node -e` scripts, inspect `git log` inside `node_modules`, or copy files between repositories.
 > Updates MUST be performed 100% natively through the official updater or npm.
+>
+> [!CAUTION]
+> **ABSOLUTE PROHIBITION ON MANUAL VERSION OR CONFIG BUMPS IN CONSUMER REPOSITORIES**: AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from manually editing (`write_file`, `edit_file`) `package.json`, `package-lock.json`, or `.auditor/audit.config.ts` (including `auditorVersion`) in consumer projects to simulate or apply an update. Modifying versions or configs by hand desynchronizes lockfiles, shims, installed modules, satellite configs, and environment scripts. Upgrades MUST be executed exclusively through `npm run auditor:update` (or `auditor-update`) or `node src/cli/update_package.ts --project <path>` from the auditor workspace.
 
 ### Canonical Update Command
 
@@ -263,10 +266,10 @@ During upstream `@francogp/auditor` development, you can test new suites, refact
 
 ```bash
 # In @francogp/auditor repository:
-npm run auditor -- project="../PokeBorrador"
-npm run auditor:lint -- project="../PokeBorrador"
-npm run auditor:fix -- project="../PokeBorrador"
-npm run auditor:findings -- project="../PokeBorrador"
+npm run auditor -- project="../my-app"
+npm run auditor:lint -- project="../my-app"
+npm run auditor:fix -- project="../my-app"
+npm run auditor:findings -- project="../my-app"
 ```
 
 ### Key Principles of Remote Execution
@@ -293,7 +296,7 @@ npm run auditor:findings -- project="../PokeBorrador"
   auditor-dependencies --commands
 
   # Inspect a remote host repository:
-  auditor-dependencies --project="../PokeBorrador"
+  auditor-dependencies --project="../my-app"
 
   # Include undeclared governed libraries:
   auditor-dependencies --all
@@ -319,7 +322,7 @@ When upgrading an older host project that triggers hundreds or thousands of `scs
 1. **Inherit Canonical Stylelint Config First**:
    Ensure `.stylelintrc.json` extends `./node_modules/@francogp/auditor/.stylelintrc.json`. This immediately resolves false-positive `selector-class-pattern` warnings on third-party icon classes (e.g. `.svg-inline--fa`) and prevents SVG keyword case collisions.
 2. **Calibrate Layout Nesting**:
-   If the host maintains deep component views, adjust `maxNestingDepth: 5` and `scopedMaxNestingDepth: 5` in `.auditor/audit.config.ts` under `scssArchitecture` (canonical threshold used in production apps like PokeBorrador and facturacion2).
+   If the host maintains deep component views, adjust `maxNestingDepth: 5` and `scopedMaxNestingDepth: 5` in `.auditor/audit.config.ts` under `scssArchitecture` (canonical threshold used in complex production applications).
 3. **Execute via Isolated Worktree & AST Codemod**:
    - Create an isolated git worktree (`scratch/wt-migration`) so `main` remains pristine during experimentation.
    - Map unique color hexes and literal values into token custom properties (`var(--slate-500)`, etc.) defined in `:root`.

@@ -111,7 +111,7 @@ npm run auditor:domain -- <command> [options]
 
 ```bash
 npm run auditor:domain discover
-npm run auditor:domain -- discover project=../pokeborrador
+npm run auditor:domain -- discover project=../my-app
 ```
 
 Renders a dynamic 80-column Box-Drawing table with breakdown counts for `NakedStr` (naked string parameters), `Unfrozen` (catalogs lacking `as const`), and `Unbranded` (IDs lacking `Brand`).
@@ -120,7 +120,7 @@ Renders a dynamic 80-column Box-Drawing table with breakdown counts for `NakedSt
 
 ```bash
 npm run auditor:domain inspect src/engine/heroCreator.ts
-npm run auditor:domain -- inspect src/engine/heroCreator.ts project=../codex-rpg
+npm run auditor:domain -- inspect src/engine/heroCreator.ts project=../my-app
 ```
 
 Extracts only the affected lines with precise line numbers, current violation snippets, recommended replacement code, explanation, and a ready-to-use declarative refactoring plan.

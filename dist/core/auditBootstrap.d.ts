@@ -30,4 +30,6 @@ export interface BootstrapOptions {
   readonly projectRoot?: string;
   readonly force?: boolean;
 }
+export declare const MANDATORY_PROJECT_DIRS: readonly ["scratch", "scratch/audits", "scratch/audits/architecture", "scratch/audits/documentation", "scratch/audits/domain_data", "scratch/audits/persistence", "dist", ".agents", ".agents/skills"];
+export declare function ensureMandatoryDirectoriesExist(projectRoot: string): void;
 export declare function ensureProjectBootstrapped(options?: BootstrapOptions): Promise<BootstrapResult>;

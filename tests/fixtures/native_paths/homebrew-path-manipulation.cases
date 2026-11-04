@@ -32,10 +32,10 @@ const clean = rawPath.replace(/[^a-zA-Z0-9_\- /.:\\]/g, '');
 ### M10 new expect=homebrew-path-manipulation
 const p = filePath.replaceAll('\\', '/');
 
-### M11 host-pokeborrador expect=homebrew-path-manipulation
+### M11 host-sample-app expect=homebrew-path-manipulation
 const isBackFile = res.filePath.split(path.sep).join('/').includes('/animated/Back');
 
-### M12 host-pokeborrador expect=homebrew-path-manipulation
+### M12 host-sample-app expect=homebrew-path-manipulation
 const normFile = topSuite.file.split('\\').join('/');
 
 ### M13 dataflow-origin expect=homebrew-path-manipulation line=2

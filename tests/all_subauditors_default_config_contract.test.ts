@@ -110,7 +110,7 @@ describe('All Sub-auditors Default Configuration Contract & Dynamic Injection', 
 import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 
 export default defineAuditConfig({
-  name: 'pokeborrador-mock',
+  name: 'mock-consumer-app',
   paths: { srcRoots: ['src'], testRoots: ['tests'], scriptsRoots: ['scripts'] },
   vitePlusConfig: {
     enabled: true,

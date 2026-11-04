@@ -390,7 +390,7 @@ export default defineAuditConfig({
     const codexFaultyConfig = `import { defineAuditConfig } from '@francogp/auditor';
 
 export default defineAuditConfig({
-  name: 'codex-rpg',
+  name: 'mock-consumer-app',
   coverage: {
     enabled: true,
     acknowledgedDegradations: [

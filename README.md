@@ -92,10 +92,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.7.10`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.7.12`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.7.10 --allow-git=all
+npm install -D github:francogp/auditor#v10.7.12 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -105,7 +105,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.7.10"
+    "@francogp/auditor": "github:francogp/auditor#v10.7.12"
   }
 }
 ```
@@ -140,9 +140,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.7.10
+npm run auditor:update -- v10.7.12
 # or directly:
-auditor-update v10.7.10
+auditor-update v10.7.12
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
@@ -228,7 +228,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.7.10-build.20261103-225441',
+  auditorVersion: '10.7.12-build.20261103-233754',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -287,7 +287,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.7.10"`), or install via `npm install -D github:francogp/auditor#v10.7.10 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.7.12"`), or install via `npm install -D github:francogp/auditor#v10.7.12 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -517,16 +517,16 @@ During framework development or refactoring of `@francogp/auditor`, you can test
 
 ```bash
 # Run full audit against another project on the local disk:
-npm run auditor -- project="../PokeBorrador"
+npm run auditor -- project="../my-app"
 
 # Run quick lint against remote project:
-npm run auditor:lint -- project="../PokeBorrador"
+npm run auditor:lint -- project="../my-app"
 
 # Run auto-fix on remote project:
-npm run auditor:fix -- project="../PokeBorrador"
+npm run auditor:fix -- project="../my-app"
 
 # Inspect findings report from remote project:
-npm run auditor:findings -- project="../PokeBorrador"
+npm run auditor:findings -- project="../my-app"
 ```
 
 #### Supported Flag Formats
@@ -539,13 +539,13 @@ npm run auditor:findings -- project="../PokeBorrador"
 
 ```mermaid
 flowchart TD
-  CLI["CLI: npm run auditor -- project='../PokeBorrador'"] --> B["bootstrapCliProject() en cliUtils.ts"]
+  CLI["CLI: npm run auditor -- project='../my-app'"] --> B["bootstrapCliProject() en cliUtils.ts"]
   B --> C{"¿Bandera de proyecto detectada?"}
   C -- No --> D["process.cwd() local sin cambios"]
   C -- Sí --> E["Validar targetDir y package.json con node:path & node:fs"]
   E --> F["AUDITOR_HOME_DIR = cwd() | AUDIT_PROJECT_ROOT = targetDir"]
   F --> G["process.chdir(targetDir)"]
-  G --> H["loadAuditConfig() en el Host (PokeBorrador)"]
+  G --> H["loadAuditConfig() en el Host (my-app)"]
   D --> H
   H --> I["Descubrir Suites Oficiales + Extensiones del Host"]
   I --> J["Ejecutar StreamingRunner & Workers (cwd = Host)"]

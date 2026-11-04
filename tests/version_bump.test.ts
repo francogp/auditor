@@ -302,7 +302,7 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       const pkgPath = path.join(tempDir, 'package.json');
       fs.writeFileSync(
         pkgPath,
-        JSON.stringify({ name: 'pokeborrador-host', version: '0.6.0' }, null, 2),
+        JSON.stringify({ name: 'mock-host-app', version: '0.6.0' }, null, 2),
         'utf-8'
       );
 

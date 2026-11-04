@@ -45,8 +45,8 @@ const PATH_TRAVERSAL_RE = new RegExp([String.raw`\.\.[/\\]`, String.raw`[/\\]\.\
 ### K13 regression expect=homebrew-path-containment
 export function sanitize(p: string): string { return p.replace(/(\.\.[\/\\])+/g, ''); }
 
-### K14 host-pokeborrador expect=homebrew-path-containment
+### K14 host-sample-app expect=homebrew-path-containment
 if (!targetPath.startsWith(projectRoot) || fileName.includes('..')) { throw new Error('x'); }
 
-### K15 host-pokeborrador expect=homebrew-path-containment
+### K15 host-sample-app expect=homebrew-path-containment
 if (normalized.includes('..')) { throw new Error('x'); }

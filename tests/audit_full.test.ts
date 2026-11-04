@@ -533,8 +533,8 @@ describe('audit_full CLI orchestration helpers', () => {
     });
 
     it('renders remote banner detail when cli.project is specified', () => {
-      const remoteCli = parseAuditFullCliArgs(activeFamilies, ['--project=../PokeBorrador']);
-      expect(remoteCli.project).toBe('../PokeBorrador');
+      const remoteCli = parseAuditFullCliArgs(activeFamilies, ['--project=../my-consumer-app']);
+      expect(remoteCli.project).toBe('../my-consumer-app');
 
       const details = createAuditBannerDetails({
         cliOptions: remoteCli,
@@ -544,7 +544,7 @@ describe('audit_full CLI orchestration helpers', () => {
         allAvailableCount: 50,
         omittedCount: 0
       });
-      expect(details.some((d) => d.includes('🎯 Remote: PokeBorrador'))).toBe(true);
+      expect(details.some((d) => d.includes('🎯 Remote: my-consumer-app'))).toBe(true);
     });
   });
 

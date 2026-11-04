@@ -10,16 +10,16 @@ During framework development, engine refactoring, or sub-auditor creation within
 
 ```bash
 # Full audit against a target local host repository:
-npm run auditor -- project="../PokeBorrador"
+npm run auditor -- project="../my-app"
 
 # Quick lint preset against target repository:
-npm run auditor:lint -- project="../PokeBorrador"
+npm run auditor:lint -- project="../my-app"
 
 # Auto-fix mode against target repository:
-npm run auditor:fix -- project="../PokeBorrador"
+npm run auditor:fix -- project="../my-app"
 
 # Interactive findings inspection on target repository:
-npm run auditor:findings -- project="../PokeBorrador"
+npm run auditor:findings -- project="../my-app"
 ```
 
 ---

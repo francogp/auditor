@@ -3,8 +3,7 @@
  *
  * Integration test suite subjecting all refactoring engines
  * (auditor-dupes, auditor-magic, auditor-motion, auditor-o1)
- * to complex, real-world patterns extracted from host projects
- * (pokeborrador and codex-rpg).
+ * to complex, real-world patterns extracted from host projects.
  */
 
 import fs from 'node:fs';
@@ -20,7 +19,7 @@ import { MotionRefactorEngine } from '../../../src/core/refactor/motionRefactorE
 import { O1RefactorEngine } from '../../../src/core/refactor/o1RefactorEngine.ts';
 import { ParamPermutationMapper } from '../../../src/core/refactor/paramPermutationMapper.ts';
 
-describe('Real-World Integration Test Suite (pokeborrador & codex-rpg patterns)', () => {
+describe('Real-World Integration Test Suite (complex host patterns)', () => {
   let tmpDir: string;
 
   beforeEach(() => {
@@ -32,8 +31,8 @@ describe('Real-World Integration Test Suite (pokeborrador & codex-rpg patterns)'
   });
 
   describe('1. auditor-dupes Real-World Patterns', () => {
-    it('handles combat damage parameter permutation extracted from codex-rpg', () => {
-      // Real-world pattern from codex-rpg/src/engine/damage.ts:
+    it('handles combat damage parameter permutation extracted from host project', () => {
+      // Real-world pattern from host project:
       // Function signature has evolved over time with multiple permutations of arguments:
       // Canonical: [rawDamage, targetArmor, magicResist, isSpell]
       // Legacy caller A: calls with [targetArmor, rawDamage, isSpell, magicResist]
@@ -78,7 +77,7 @@ describe('Real-World Integration Test Suite (pokeborrador & codex-rpg patterns)'
     });
 
     it('identifies and hoists shared procedural dungeon generator logic to common base class', () => {
-      // Real-world pattern from codex-rpg/src/engine/dungeon-generator.ts and abyss-dungeon-generator.ts
+      // Real-world pattern from host dungeon generator:
       const project = new Project({ useInMemoryFileSystem: true });
 
       const baseCode = `
@@ -128,8 +127,8 @@ export class AbyssDungeonGenerator extends BaseDungeonGenerator {
   });
 
   describe('2. auditor-magic Real-World Patterns', () => {
-    it('extracts and clusters combat formula constants from codex-rpg damage calculator', () => {
-      // Real-world pattern from codex-rpg/src/engine/damage.ts:
+    it('extracts and clusters combat formula constants from host damage calculator', () => {
+      // Real-world pattern from host project:
       // Grade multipliers (0.7, 0.5, 1.6, 2.25) and mitigation divisor (100)
       const damageCalcSnippet = `
 export function calculateGradeMultiplier(grade: string): number {
@@ -164,7 +163,7 @@ export function calculateGradeMultiplier(grade: string): number {
 
   describe('3. auditor-motion Real-World Patterns', () => {
     it('remediates complex Vue SFC setup hooks with debounce timers and layout animations', () => {
-      // Real-world pattern from pokeborrador/src/stores/pvp.ts & UI battle components:
+      // Real-world pattern from host store & UI battle components:
       // A Vue component with setTimeout debounce and GSAP tween with layout properties (left/top)
       const sfcCode = `
 <template>
@@ -232,7 +231,7 @@ onMounted(() => {
 
   describe('4. auditor-o1 Real-World Patterns', () => {
     it('optimizes linear catalog find, string includes, structuredClone and redundant return spreads', () => {
-      // Real-world pattern from pokeborrador/src/stores/events.ts & errorStore.ts:
+      // Real-world pattern from host event & error stores:
       // 1. JSON.parse(JSON.stringify(gameState)) for state snapshots
       // 2. return [...list] redundant spread
       // 3. repeated array.includes() check

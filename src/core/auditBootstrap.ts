@@ -171,10 +171,41 @@ async function ensureGitIgnoreSynchronized(projectRoot: string): Promise<boolean
   return result ?? false;
 }
 
+export const MANDATORY_PROJECT_DIRS = [
+  'scratch',
+  'scratch/audits',
+  'scratch/audits/architecture',
+  'scratch/audits/documentation',
+  'scratch/audits/domain_data',
+  'scratch/audits/persistence',
+  'dist',
+  '.agents',
+  '.agents/skills'
+] as const;
+
+export function ensureMandatoryDirectoriesExist(projectRoot: string): void {
+  for (const relDir of MANDATORY_PROJECT_DIRS) {
+    const targetPath = path.resolve(projectRoot, relDir);
+    if (!fs.existsSync(targetPath)) {
+      fs.mkdirSync(targetPath, { recursive: true });
+    }
+  }
+  // Ensure scratch directory contains a baseline placeholder so tools like Fallow
+  // recognize ignorePatterns: ['scratch/**'] as active rather than redundant on clean checkouts.
+  const scratchKeepPath = path.resolve(projectRoot, 'scratch/.gitkeep');
+  if (!fs.existsSync(scratchKeepPath)) {
+    tryCatchSync(() => fs.writeFileSync(scratchKeepPath, '', 'utf-8'));
+  }
+}
+
 export async function ensureProjectBootstrapped(
   options: BootstrapOptions = {}
 ): Promise<BootstrapResult> {
   const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
+
+  // Mandatory directory structure must exist unconditionally in ALL environments (including CI and self-provider)
+  ensureMandatoryDirectoriesExist(projectRoot);
+
   const isCi = process.env.CI === 'true';
 
   if (isCi || (isSelfProviderProject(projectRoot) && !options.force)) {

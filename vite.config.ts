@@ -388,17 +388,12 @@ export default defineConfig({
           '@francogp/domain-type/no-await-in-loops-query': 'off',
           '@francogp/domain-type/no-literal-suffix-constant': 'off',
           '@francogp/domain-type/no-raw-html-injection': 'off',
-          '@francogp/domain-type/no-redundant-constant-alias': 'off'
+          '@francogp/domain-type/no-tautological-integration-mocks': 'off',
+          'unicorn/no-thenable': 'off'
         }
       },
       {
-        files: [
-          '**/src/cli/**',
-          '**/src/core/**',
-          '**/src/suites/**',
-          '**/src/analyzers/**',
-          'vite.plugins.ts'
-        ],
+        files: ['**/src/cli/**', '**/src/core/**', '**/src/suites/**', '**/src/analyzers/**'],
         rules: {
           'no-console': 'off',
           'unicorn/prefer-global-this': 'off',
@@ -422,10 +417,22 @@ export default defineConfig({
           '@francogp/domain-type/no-homebrew-flag-parsing': 'off',
           '@francogp/domain-type/no-homebrew-file-walker': 'off',
           '@francogp/domain-type/auditor-rule-description-limit': 'off',
-          '@francogp/domain-type/no-raw-session-storage': 'off',
-          '@francogp/domain-type/no-hardcoded-secrets': 'off',
-          '@francogp/domain-type/no-playwright-polling-waits': 'off',
-          'no-unused-expressions': 'off'
+          '@francogp/domain-type/no-raw-session-storage': 'off'
+        }
+      },
+      {
+        files: ['vite.plugins.ts'],
+        rules: {
+          'no-console': 'off',
+          'unicorn/prefer-global-this': 'off',
+          'typescript/no-floating-promises': 'off',
+          '@typescript-eslint/no-floating-promises': 'off'
+        }
+      },
+      {
+        files: ['**/tests/integration/**'],
+        rules: {
+          '@francogp/domain-type/no-tautological-integration-mocks': 'error'
         }
       }
     ]
