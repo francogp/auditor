@@ -18,7 +18,8 @@ import {
   isRatchetScope,
   createAuditBannerDetails,
   renderAndPersistMasterReport,
-  formatSetupBlockingRemediationHint
+  formatSetupBlockingRemediationHint,
+  printCompactExecutiveSummary
 } from '../src/cli/audit_full.ts';
 import type {
   AuditTaskDefinition,
@@ -693,6 +694,180 @@ describe('audit_full CLI orchestration helpers', () => {
 
       expect(hint).toContain('npm run auditor:fix');
       expect(hint).toContain('3 configuration error(s)');
+    });
+  });
+
+  describe('printCompactExecutiveSummary (Deploy & CI Environment Visibility)', () => {
+    const mockFinding: AuditFinding = {
+      severity: 'error',
+      file: 'src/core/main.ts',
+      line: 42,
+      ruleId: 'oxlint-no-unused-vars',
+      message: 'Unused variable'
+    };
+
+    const mockResult: StandardAuditResult = {
+      id: 'validate_oxlint',
+      name: 'Oxlint Suite',
+      family: 'architecture',
+      status: 'failed',
+      durationMs: 100,
+      description: 'Linting',
+      metrics: {},
+      summary: { errors: 1, warnings: 0, info: 0 },
+      findings: [mockFinding]
+    };
+
+    it('emits Top Detected Errors and suppresses AI hints when AUDITOR_ENV is production', () => {
+      const prev = process.env.AUDITOR_ENV;
+      process.env.AUDITOR_ENV = 'production';
+      try {
+        const output = printCompactExecutiveSummary({
+          isSetupBlocking: false,
+          setupResults: [],
+          setupFindings: [],
+          setupErrors: 0,
+          postponedAppErrors: 0,
+          totalDuration: 100,
+          hasFixableErrors: false,
+          results: [mockResult],
+          totalErrors: 1,
+          totalWarnings: 0,
+          suitesPassed: 0,
+          suitesSkipped: 0,
+          anyFailed: true,
+          fixableErrors: 0,
+          fixableWarnings: 0
+        });
+
+        expect(output).toContain('Top Detected Errors (first 1):');
+        expect(output).toContain('src/core/main.ts:42');
+        expect(output).toContain('[oxlint-no-unused-vars] Unused variable');
+        expect(output).not.toContain('Next Actions for AI');
+      } finally {
+        if (prev === undefined) delete process.env.AUDITOR_ENV;
+        else process.env.AUDITOR_ENV = prev;
+      }
+    });
+
+    it('emits Top Detected Errors and suppresses AI hints when CI is true', () => {
+      const prev = process.env.CI;
+      process.env.CI = 'true';
+      try {
+        const output = printCompactExecutiveSummary({
+          isSetupBlocking: false,
+          setupResults: [],
+          setupFindings: [],
+          setupErrors: 0,
+          postponedAppErrors: 0,
+          totalDuration: 100,
+          hasFixableErrors: false,
+          results: [mockResult],
+          totalErrors: 1,
+          totalWarnings: 0,
+          suitesPassed: 0,
+          suitesSkipped: 0,
+          anyFailed: true,
+          fixableErrors: 0,
+          fixableWarnings: 0
+        });
+
+        expect(output).toContain('Top Detected Errors (first 1):');
+        expect(output).toContain('src/core/main.ts:42');
+        expect(output).toContain('[oxlint-no-unused-vars] Unused variable');
+        expect(output).not.toContain('Next Actions for AI');
+      } finally {
+        if (prev === undefined) delete process.env.CI;
+        else process.env.CI = prev;
+      }
+    });
+
+    it('emits Top Blocking Errors and suppresses MANDATE/AI hints during setup blocking in deploy', () => {
+      const prev = process.env.AUDITOR_ENV;
+      process.env.AUDITOR_ENV = 'production';
+      try {
+        const setupFinding: AuditFinding = {
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: 1,
+          ruleId: 'fallow-undeclared-config-entry',
+          message: 'Undeclared entry in satellite config'
+        };
+        const setupResult: StandardAuditResult = {
+          id: 'validate_fallow_config',
+          name: 'Fallow Config',
+          family: 'architecture',
+          status: 'failed',
+          durationMs: 50,
+          description: 'Fallow config',
+          metrics: {},
+          summary: { errors: 1, warnings: 0, info: 0 },
+          findings: [setupFinding]
+        };
+
+        const output = printCompactExecutiveSummary({
+          isSetupBlocking: true,
+          setupResults: [setupResult],
+          setupFindings: [setupFinding],
+          setupErrors: 1,
+          postponedAppErrors: 5,
+          totalDuration: 50,
+          hasFixableErrors: false,
+          results: [setupResult],
+          totalErrors: 1,
+          totalWarnings: 0,
+          suitesPassed: 0,
+          suitesSkipped: 0,
+          anyFailed: true,
+          fixableErrors: 0,
+          fixableWarnings: 0
+        });
+
+        expect(output).toContain('Top Blocking Errors (first 1):');
+        expect(output).toContain('.fallowrc.json:1');
+        expect(output).toContain(
+          '[fallow-undeclared-config-entry] Undeclared entry in satellite config'
+        );
+        expect(output).not.toContain('MANDATE: STRICTLY FORBIDDEN');
+        expect(output).not.toContain('Next Actions for AI');
+      } finally {
+        if (prev === undefined) delete process.env.AUDITOR_ENV;
+        else process.env.AUDITOR_ENV = prev;
+      }
+    });
+
+    it('preserves Next Actions for AI and MANDATE in local development without deploy flags', () => {
+      const prevEnv = process.env.AUDITOR_ENV;
+      const prevCi = process.env.CI;
+      delete process.env.AUDITOR_ENV;
+      delete process.env.CI;
+      delete process.env.GITHUB_ACTIONS;
+      delete process.env.CONTINUOUS_INTEGRATION;
+      try {
+        const output = printCompactExecutiveSummary({
+          isSetupBlocking: false,
+          setupResults: [],
+          setupFindings: [],
+          setupErrors: 0,
+          postponedAppErrors: 0,
+          totalDuration: 100,
+          hasFixableErrors: false,
+          results: [mockResult],
+          totalErrors: 1,
+          totalWarnings: 0,
+          suitesPassed: 0,
+          suitesSkipped: 0,
+          anyFailed: true,
+          fixableErrors: 0,
+          fixableWarnings: 0
+        });
+
+        expect(output).toContain('Next Actions for AI');
+        expect(output).not.toContain('Top Detected Errors');
+      } finally {
+        if (prevEnv !== undefined) process.env.AUDITOR_ENV = prevEnv;
+        if (prevCi !== undefined) process.env.CI = prevCi;
+      }
     });
   });
 });

@@ -1242,8 +1242,16 @@ interface CompactExecutiveSummaryParams {
   fixableWarnings: number;
 }
 
-function printCompactExecutiveSummary(params: CompactExecutiveSummaryParams): void {
-  const isDeploy = isProductionEnvironment();
+export function printCompactExecutiveSummary(
+  params: CompactExecutiveSummaryParams,
+  cliOptions?: AuditFullCliOptions
+): string {
+  const isDeploy =
+    isProductionEnvironment() ||
+    cliOptions?.values.mode === 'production' ||
+    cliOptions?.values.mode === 'deploy' ||
+    Boolean(cliOptions?.positionals.includes('deploy'));
+
   if (params.isSetupBlocking) {
     const blockingSuites = params.setupResults
       .filter((r) => (r.summary?.errors ?? 0) > 0)
@@ -1251,35 +1259,35 @@ function printCompactExecutiveSummary(params: CompactExecutiveSummaryParams): vo
     const topFindings = isDeploy
       ? params.setupFindings.filter((f) => f.severity === 'error').slice(0, DEPLOY_TOP_ERRORS_LIMIT)
       : undefined;
-    console.log(
+    const output =
       '\n' +
-        renderExecutiveSetupBlockingSummary({
-          totalSuites: params.results.length,
-          setupErrors: params.setupErrors,
-          postponedAppErrors: params.postponedAppErrors,
-          durationMs: params.totalDuration,
-          blockingSuites,
-          hasFixableErrors: params.hasFixableErrors,
-          topFindings
-        })
-    );
-    return;
+      renderExecutiveSetupBlockingSummary({
+        totalSuites: params.results.length,
+        setupErrors: params.setupErrors,
+        postponedAppErrors: params.postponedAppErrors,
+        durationMs: params.totalDuration,
+        blockingSuites,
+        hasFixableErrors: params.hasFixableErrors,
+        topFindings
+      });
+    console.log(output);
+    return output;
   }
 
   if (params.totalErrors === 0 && !params.anyFailed) {
-    console.log(
+    const output =
       '\n' +
-        renderExecutivePassSummary({
-          totalSuites: params.results.length,
-          passedSuites: params.suitesPassed,
-          skippedSuites: params.suitesSkipped,
-          totalErrors: params.totalErrors,
-          totalWarnings: params.totalWarnings,
-          durationMs: params.totalDuration,
-          ratchetStatus: params.ratchetStatus
-        })
-    );
-    return;
+      renderExecutivePassSummary({
+        totalSuites: params.results.length,
+        passedSuites: params.suitesPassed,
+        skippedSuites: params.suitesSkipped,
+        totalErrors: params.totalErrors,
+        totalWarnings: params.totalWarnings,
+        durationMs: params.totalDuration,
+        ratchetStatus: params.ratchetStatus
+      });
+    console.log(output);
+    return output;
   }
 
   const phaseBreakdown = extractPhaseBreakdown(params.results);
@@ -1290,21 +1298,22 @@ function printCompactExecutiveSummary(params: CompactExecutiveSummaryParams): vo
         .filter((f) => f.severity === 'error')
         .slice(0, DEPLOY_TOP_ERRORS_LIMIT)
     : undefined;
-  console.log(
+  const output =
     '\n' +
-      renderExecutiveFailSummary({
-        totalSuites: params.results.length,
-        failedSuites,
-        totalErrors: params.totalErrors,
-        totalWarnings: params.totalWarnings,
-        durationMs: params.totalDuration,
-        phaseBreakdown,
-        fixableErrors: params.fixableErrors,
-        fixableWarnings: params.fixableWarnings,
-        ratchetVerdict: params.ratchetVerdict ?? undefined,
-        topFindings
-      })
-  );
+    renderExecutiveFailSummary({
+      totalSuites: params.results.length,
+      failedSuites,
+      totalErrors: params.totalErrors,
+      totalWarnings: params.totalWarnings,
+      durationMs: params.totalDuration,
+      phaseBreakdown,
+      fixableErrors: params.fixableErrors,
+      fixableWarnings: params.fixableWarnings,
+      ratchetVerdict: params.ratchetVerdict ?? undefined,
+      topFindings
+    });
+  console.log(output);
+  return output;
 }
 
 export async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<boolean> {
@@ -1441,25 +1450,28 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
   );
 
   if (cliOptions.consoleMode === 'compact') {
-    printCompactExecutiveSummary({
-      isSetupBlocking,
-      setupResults,
-      setupFindings,
-      setupErrors,
-      postponedAppErrors,
-      totalDuration,
-      hasFixableErrors,
-      results,
-      totalErrors,
-      totalWarnings,
-      suitesPassed,
-      suitesSkipped,
-      anyFailed,
-      ratchetStatus: ratchet?.status,
-      ratchetVerdict: ratchet,
-      fixableErrors,
-      fixableWarnings
-    });
+    printCompactExecutiveSummary(
+      {
+        isSetupBlocking,
+        setupResults,
+        setupFindings,
+        setupErrors,
+        postponedAppErrors,
+        totalDuration,
+        hasFixableErrors,
+        results,
+        totalErrors,
+        totalWarnings,
+        suitesPassed,
+        suitesSkipped,
+        anyFailed,
+        ratchetStatus: ratchet?.status,
+        ratchetVerdict: ratchet,
+        fixableErrors,
+        fixableWarnings
+      },
+      cliOptions
+    );
   } else {
     printFindingsSummary(
       results,

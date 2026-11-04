@@ -1,6 +1,6 @@
 import { AuditEngineConfig } from "../core/auditConfigTypes.js";
 import "../core/auditConfig.js";
-import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditRunMode, AuditTaskDefinition, StandardAuditResult } from "../core/auditContract.js";
+import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditRunMetadata, AuditRunMode, AuditTaskDefinition, RatchetStatus, StandardAuditResult } from "../core/auditContract.js";
 import { BaseAuditor } from "../core/auditorBase.js";
 import { ConsoleOutputMode } from "../core/streamingFormat.js";
 import { TieredFindingsPhaseGroup } from "../core/unifiedTheme.js";
@@ -62,6 +62,7 @@ export declare function computeAuditCategoryCounts(results: readonly StandardAud
 }]>;
 export declare function computeTieredAuditCategoryCounts(results: readonly StandardAuditResult[]): TieredFindingsPhaseGroup[];
 export declare function formatSetupBlockingRemediationHint(setupErrors: number, hasFixableErrors?: boolean): string;
+type RatchetVerdict = NonNullable<AuditRunMetadata['ratchet']>;
 /** Ratchet applies only to the canonical full run: every default suite, no filters, no build/fix mode. */
 export declare function isRatchetScope(cliOptions: AuditFullCliOptions, isFullAudit: boolean): boolean;
 export interface FixableCountsResult {
@@ -76,6 +77,26 @@ export interface FixableCountsResult {
  * so fixableErrors and autoFixRecommended are always 0/false.
  */
 export declare const computeFixableViolations: (...args: Parameters<typeof BaseAuditor.computeFixableViolations>) => ReturnType<typeof BaseAuditor.computeFixableViolations>;
+interface CompactExecutiveSummaryParams {
+  isSetupBlocking: boolean;
+  setupResults: readonly StandardAuditResult[];
+  setupFindings: readonly AuditFinding[];
+  setupErrors: number;
+  postponedAppErrors: number;
+  totalDuration: number;
+  hasFixableErrors: boolean;
+  results: readonly StandardAuditResult[];
+  totalErrors: number;
+  totalWarnings: number;
+  suitesPassed: number;
+  suitesSkipped: number;
+  anyFailed: boolean;
+  ratchetStatus?: RatchetStatus;
+  ratchetVerdict?: RatchetVerdict | null;
+  fixableErrors: number;
+  fixableWarnings: number;
+}
+export declare function printCompactExecutiveSummary(params: CompactExecutiveSummaryParams, cliOptions?: AuditFullCliOptions): string;
 export declare function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<boolean>;
 export interface CreateAuditBannerDetailsOptions {
   readonly cliOptions: AuditFullCliOptions;
@@ -91,3 +112,4 @@ export declare function formatSubtitleDetails(details: readonly string[], maxLin
 export declare function resolveFixOrderWeight(task: AuditTaskDefinition): number;
 export declare function sortTasksByOrder(tasks: AuditTaskDefinition[], isFixMode?: boolean): void;
 export declare function runMasterAudit(): Promise<void>;
+export {};

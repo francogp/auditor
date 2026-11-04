@@ -92,10 +92,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.7.9`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.7.10`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.7.9 --allow-git=all
+npm install -D github:francogp/auditor#v10.7.10 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -105,7 +105,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.7.9"
+    "@francogp/auditor": "github:francogp/auditor#v10.7.10"
   }
 }
 ```
@@ -140,9 +140,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.7.9
+npm run auditor:update -- v10.7.10
 # or directly:
-auditor-update v10.7.9
+auditor-update v10.7.10
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
@@ -228,7 +228,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.7.9-build.20261103-223551',
+  auditorVersion: '10.7.10-build.20261103-225441',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -287,7 +287,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.7.9"`), or install via `npm install -D github:francogp/auditor#v10.7.9 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.7.10"`), or install via `npm install -D github:francogp/auditor#v10.7.10 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -496,7 +496,7 @@ Executes `validate_bundle_budget` post-compilation against `dist/` (ATTW and Pub
 
 ### 4.9. Deployment Build Runner (`build:deploy` / `auditor-build-deploy`)
 
-In headless deployment environments (Docker builds, deployment scripts, CI containers), execute:
+In headless deployment environments (Docker builds, deployment scripts, CI containers, GitHub Actions), execute:
 
 ```bash
 npm run build:deploy
@@ -504,13 +504,14 @@ npm run build:deploy
 auditor-build-deploy
 ```
 
-Under `AUDITOR_ENV=production`:
+Under `AUDITOR_ENV=production` or `CI=true`:
 
 - Automatically skips `validate_similar_code` (Candle CPU vector embeddings).
 - Automatically skips `validate_test_coverage` (coverage artifacts are git-ignored and not generated in production).
 - Executes all remaining static analysis suites and post-build verification (`auditor:post-build`) at 100% strictness.
+- In case of failure or setup blocking, automatically suppresses interactive local AI remediation hints and directly prints the **Top 10 errors** (`Top Blocking Errors` or `Top Detected Errors`) with file, line, rule, and message for fast headless CI diagnosis.
 
-### 4.9. Remote Project Execution (`--project`, `-p`)
+### 4.10. Remote Project Execution (`--project`, `-p`)
 
 During framework development or refactoring of `@francogp/auditor`, you can test changes, auto-fixers, and new sub-auditors against any local repository on the same machine **without publishing, linking (`npm link`), or committing to GitHub**:
 

@@ -733,12 +733,12 @@ async function persistAuditReportsToDisk(params) {
 	await fs.writeFile(latestByFilePath, JSON.stringify(byFileReport, null, 2), "utf-8");
 	return latestAuditPath;
 }
-function printCompactExecutiveSummary(params) {
-	const isDeploy = isProductionEnvironment();
+function printCompactExecutiveSummary(params, cliOptions) {
+	const isDeploy = isProductionEnvironment() || cliOptions?.values.mode === "production" || cliOptions?.values.mode === "deploy" || Boolean(cliOptions?.positionals.includes("deploy"));
 	if (params.isSetupBlocking) {
 		const blockingSuites = params.setupResults.filter((r) => (r.summary?.errors ?? 0) > 0).map((r) => `${r.name} (${r.id})`);
 		const topFindings = isDeploy ? params.setupFindings.filter((f) => f.severity === "error").slice(0, DEPLOY_TOP_ERRORS_LIMIT) : void 0;
-		console.log("\n" + renderExecutiveSetupBlockingSummary({
+		const output = "\n" + renderExecutiveSetupBlockingSummary({
 			totalSuites: params.results.length,
 			setupErrors: params.setupErrors,
 			postponedAppErrors: params.postponedAppErrors,
@@ -746,11 +746,12 @@ function printCompactExecutiveSummary(params) {
 			blockingSuites,
 			hasFixableErrors: params.hasFixableErrors,
 			topFindings
-		}));
-		return;
+		});
+		console.log(output);
+		return output;
 	}
 	if (params.totalErrors === 0 && !params.anyFailed) {
-		console.log("\n" + renderExecutivePassSummary({
+		const output = "\n" + renderExecutivePassSummary({
 			totalSuites: params.results.length,
 			passedSuites: params.suitesPassed,
 			skippedSuites: params.suitesSkipped,
@@ -758,13 +759,14 @@ function printCompactExecutiveSummary(params) {
 			totalWarnings: params.totalWarnings,
 			durationMs: params.totalDuration,
 			ratchetStatus: params.ratchetStatus
-		}));
-		return;
+		});
+		console.log(output);
+		return output;
 	}
 	const phaseBreakdown = extractPhaseBreakdown(params.results);
 	const failedSuites = params.results.filter((r) => (r.summary?.errors ?? 0) > 0).length;
 	const topFindings = isDeploy ? params.results.flatMap((r) => r.findings ?? []).filter((f) => f.severity === "error").slice(0, DEPLOY_TOP_ERRORS_LIMIT) : void 0;
-	console.log("\n" + renderExecutiveFailSummary({
+	const output = "\n" + renderExecutiveFailSummary({
 		totalSuites: params.results.length,
 		failedSuites,
 		totalErrors: params.totalErrors,
@@ -775,7 +777,9 @@ function printCompactExecutiveSummary(params) {
 		fixableWarnings: params.fixableWarnings,
 		ratchetVerdict: params.ratchetVerdict ?? void 0,
 		topFindings
-	}));
+	});
+	console.log(output);
+	return output;
 }
 async function renderAndPersistMasterReport(ctx) {
 	const { results, tasksToRun, allAvailableTasks, omittedSuiteIds, totalDuration, activeFamilies, cliOptions, scratchAuditsDir } = ctx;
@@ -860,7 +864,7 @@ async function renderAndPersistMasterReport(ctx) {
 		ratchetVerdict: ratchet,
 		fixableErrors,
 		fixableWarnings
-	});
+	}, cliOptions);
 	else {
 		printFindingsSummary(results, sortedCategories, {
 			isSetupBlocking,
@@ -1415,4 +1419,4 @@ if (isMainModule(import.meta.url)) runMasterAudit().catch((err) => {
 	console.error(styleText("red", `\n💥 Fatal error in audit_full: ${err.stack || err.message}`));
 	process.exit(1);
 });
-export { MAX_BANNER_SUBTITLE_WIDTH, buildTaskArgs, computeAuditCategoryCounts, computeFixableViolations, computeTieredAuditCategoryCounts, createAuditBannerDetails, determineRunMode, extractSubprocessErrorMessage, formatSetupBlockingRemediationHint, formatSubtitleDetails, isRatchetScope, parseAuditFullCliArgs, renderAndPersistMasterReport, resolveConcurrencyLimit, resolveConsoleMode, resolveFixOrderWeight, resolveFormattedRules, resolveSkipSimilar, resolveTargetFamily, resolveTargetPreset, resolveTargetSuites, runMasterAudit, sortTasksByOrder };
+export { MAX_BANNER_SUBTITLE_WIDTH, buildTaskArgs, computeAuditCategoryCounts, computeFixableViolations, computeTieredAuditCategoryCounts, createAuditBannerDetails, determineRunMode, extractSubprocessErrorMessage, formatSetupBlockingRemediationHint, formatSubtitleDetails, isRatchetScope, parseAuditFullCliArgs, printCompactExecutiveSummary, renderAndPersistMasterReport, resolveConcurrencyLimit, resolveConsoleMode, resolveFixOrderWeight, resolveFormattedRules, resolveSkipSimilar, resolveTargetFamily, resolveTargetPreset, resolveTargetSuites, runMasterAudit, sortTasksByOrder };

@@ -11,5 +11,10 @@
  * are cleanly omitted, while all other architectural and quality gates run with full rigor.
  */
 export function isProductionEnvironment(): boolean {
-  return process.env.AUDITOR_ENV === 'production';
+  return (
+    process.env.AUDITOR_ENV === 'production' ||
+    process.env.CI === 'true' ||
+    process.env.GITHUB_ACTIONS === 'true' ||
+    process.env.CONTINUOUS_INTEGRATION === 'true'
+  );
 }
