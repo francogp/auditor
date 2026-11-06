@@ -1,7 +1,7 @@
-import { normalizePosixPath } from "../../core/reportUtils.js";
-import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getVitePlusDefaultExcludeGlobs } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";

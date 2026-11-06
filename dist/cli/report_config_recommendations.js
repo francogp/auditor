@@ -1,9 +1,9 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
-import { buildNoticeBox, renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { appendMissingSectionsToConfigFile } from "../core/auditConfigAst.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { evaluateProjectConfigAsync } from "../core/configAdvisor.js";
+import { buildNoticeBox, renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import { styleText } from "node:util";

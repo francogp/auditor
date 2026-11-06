@@ -1,12 +1,12 @@
 import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
-import { safeJsonParse, safeReadFileSync, safeRmSync, tryOrNull } from "../../core/safeUtils.js";
+import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots } from "../../core/auditorBase.js";
 import { getPackageJson } from "../../core/packageJson.js";
+import { toPosixRelative } from "../../core/safePath.js";
+import { safeJsonParse, safeReadFileSync, safeRmSync, tryOrNull } from "../../core/safeUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

@@ -1,6 +1,6 @@
+import { CLI_CONTRACT_RULES, CliContractRuleId, CliContractViolation } from "../../analyzers/cliContracts/cliContractTypes.js";
 import { SharedAstContext } from "../../core/astContext.js";
 import { RuleFixContext } from "../../core/auditContract.js";
-import { CLI_CONTRACT_RULES, CliContractRuleId, CliContractViolation } from "../../analyzers/cliContracts/cliContractTypes.js";
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 export interface CliContractsAuditResult {
   readonly filesScanned: number;

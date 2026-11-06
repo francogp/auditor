@@ -20,7 +20,7 @@ import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from '../core/auditorBase.t
 import { getProcessExecutedScript } from '../core/cli/cittyHarness.ts';
 import { tryOrDefault, tryCatchSync } from '../core/safeUtils.ts';
 
-const DYNAMIC_IMPORT_TIMEOUT_MS = 2000 as const;
+const DYNAMIC_IMPORT_TIMEOUT_MS = 10000 as const;
 
 export interface ExtractedAuditorMetadata {
   readonly capabilities: AuditorCapabilities;
@@ -68,16 +68,24 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
     if (hasFull) speeds.push('full');
 
     const speed = speeds.length > 1 ? speeds : (speeds[0] ?? 'light');
-    const phase = content.includes("phase: 'post-build'")
-      ? 'post-build'
-      : content.includes("phase: 'post-run'")
-        ? 'post-run'
-        : 'normal';
-    const fix = content.includes("fix: 'priority'")
-      ? 'priority'
-      : content.includes("fix: 'normal'")
-        ? 'normal'
-        : 'none';
+    const phase = content.includes("phase: 'setup'")
+      ? 'setup'
+      : content.includes("phase: 'post-build'")
+        ? 'post-build'
+        : content.includes("phase: 'post-run'")
+          ? 'post-run'
+          : 'normal';
+    const hasFixers =
+      (content.includes('ruleFixers:') && !content.includes('ruleFixers: {}')) ||
+      content.includes('fixableRuleIds:') ||
+      content.includes("fix: 'priority'") ||
+      content.includes("fix: 'normal'");
+    const fix =
+      content.includes("fix: 'priority'") || (hasFixers && phase === 'setup')
+        ? 'priority'
+        : content.includes("fix: 'normal'") || hasFixers
+          ? 'normal'
+          : 'none';
 
     result.capabilities = {
       speed,

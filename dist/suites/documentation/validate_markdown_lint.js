@@ -1,12 +1,12 @@
-import { normalizePosixPath, parseJsonArrayOutput } from "../../core/reportUtils.js";
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs } from "../../core/canonicalIgnoreRegistry.js";
-import { toPosixRelative } from "../../core/safePath.js";
-import "../../core/auditConfig.js";
-import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/auditConfig.js";
+import { toPosixRelative } from "../../core/safePath.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { isDeclaredByCoverage } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs } from "../../core/canonicalIgnoreRegistry.js";
+import { normalizePosixPath, parseJsonArrayOutput } from "../../core/reportUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

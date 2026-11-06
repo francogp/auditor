@@ -1,9 +1,9 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
-import "../core/permissionGuard.js";
-import { isMainModule } from "./cliUtils.js";
 import { ensureMandatoryDirectoriesExist } from "../core/auditBootstrap.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import { runNpmCommandSync } from "../core/npmCommandUtils.js";
+import { isMainModule } from "./cliUtils.js";
+import "../core/permissionGuard.js";
 // src/cli/build_deploy.ts
 /**
 * src/cli/build_deploy.ts

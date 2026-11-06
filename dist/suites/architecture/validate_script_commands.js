@@ -1,12 +1,12 @@
+import "../../core/auditConfig.js";
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
-import { tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { isPathContained } from "../../core/safePath.js";
-import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { evaluateGenericCommandViolation, loadPackageScriptsAndBins } from "../../core/npmCommandUtils.js";
+import { isPathContained } from "../../core/safePath.js";
+import { tryOrNull } from "../../core/safeUtils.js";
 import { extractScriptCommands } from "../../core/scriptCommandExtractors.js";
 import path from "node:path";
 import fs from "node:fs";

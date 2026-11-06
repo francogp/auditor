@@ -1,9 +1,9 @@
 import { getAuditConfig } from "../auditConfigLoader.js";
 import { isTestPath } from "../auditTestPredicates.js";
-import { toPosixRelative } from "../safePath.js";
-import { isExemptFile } from "../auditPathPredicates.js";
 import "../auditConfig.js";
 import { collectRepositoryFiles } from "../auditorBase.js";
+import { isExemptFile } from "../auditPathPredicates.js";
+import { toPosixRelative } from "../safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import path from "node:path";
 import fs from "node:fs";

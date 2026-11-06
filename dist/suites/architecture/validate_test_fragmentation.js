@@ -1,8 +1,8 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { getProcessCliArgs, parseCittyArgs } from "../../core/cli/cittyHarness.js";
-import { renderBoxTable } from "../../core/unifiedTheme.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { renderBoxTable } from "../../core/unifiedTheme.js";
 import { enableCompileCache } from "node:module";
 // src/suites/architecture/validate_test_fragmentation.ts
 /**

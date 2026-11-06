@@ -1,6 +1,6 @@
 import { AuditFinding } from "../../core/auditContract.js";
-import { RawLintFileReport, RawLintMessage } from "../../core/reportUtils.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { RawLintFileReport, RawLintMessage } from "../../core/reportUtils.js";
 export type HtmlValidateRuleId = 'html-validate-issue';
 export declare const HTML_VALIDATE_RULES: readonly HtmlValidateRuleId[];
 export type RawHtmlValidateMessage = RawLintMessage;

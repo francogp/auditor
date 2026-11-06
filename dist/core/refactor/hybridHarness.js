@@ -1,5 +1,5 @@
-import { tryOrNull, tryOrNullAsync } from "../safeUtils.js";
 import { toPosixRelative } from "../safePath.js";
+import { tryOrNull, tryOrNullAsync } from "../safeUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import path from "node:path";
 import fs from "node:fs";

@@ -1,5 +1,5 @@
-import { toPosixRelative } from "../core/safePath.js";
 import { runGit } from "../core/configRatchet.js";
+import { toPosixRelative } from "../core/safePath.js";
 import path from "node:path";
 import fs from "node:fs";
 import { createHash } from "node:crypto";

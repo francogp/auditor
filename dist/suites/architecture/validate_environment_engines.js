@@ -1,8 +1,8 @@
-import { safeRmSync, tryOrNull } from "../../core/safeUtils.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { compareVersions, getAuditorEngines, parseSemver } from "../../cli/check_environment.js";
-import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { runNpmCommandSync } from "../../core/npmCommandUtils.js";
+import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
+import { safeRmSync, tryOrNull } from "../../core/safeUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

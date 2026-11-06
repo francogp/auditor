@@ -394,4 +394,56 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(config.typeAware).toBeUndefined();
     });
   });
+
+  describe('Fallow Doctor Integration (Full Mode)', () => {
+    const prevSpeed = process.env.AUDITOR_SPEED;
+    afterEach(() => {
+      if (prevSpeed !== undefined) {
+        process.env.AUDITOR_SPEED = prevSpeed;
+      } else {
+        delete process.env.AUDITOR_SPEED;
+      }
+    });
+
+    it('marks fallow-config-doctor as not applicable when speed is light', async () => {
+      process.env.AUDITOR_SPEED = 'light';
+      const configPath = path.join(scratchDir, '.fallowrc.json');
+      fs.writeFileSync(
+        configPath,
+        JSON.stringify({
+          $schema: 'https://fallow.tools/schema/config.json',
+          entry: ['src/index.ts']
+        }),
+        'utf-8'
+      );
+
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      await auditor.runAudit();
+
+      const recorder = auditor.getCoverageRecorder() as unknown as {
+        notApplicable: Map<string, string>;
+      };
+      expect(recorder.notApplicable.has('fallow-config-doctor')).toBe(true);
+      expect(recorder.notApplicable.get('fallow-config-doctor')).toContain('full');
+    });
+
+    it('evaluates fallow-config-doctor when speed is full', async () => {
+      process.env.AUDITOR_SPEED = 'full';
+      const configPath = path.join(scratchDir, '.fallowrc.json');
+      fs.writeFileSync(
+        configPath,
+        JSON.stringify({
+          $schema: 'https://fallow.tools/schema/config.json',
+          entry: ['src/index.ts']
+        }),
+        'utf-8'
+      );
+
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      await auditor.runAudit();
+
+      const evaluations = auditor.getCoverageRecorder().getEvaluations('fallow-config-doctor');
+      expect(evaluations).toBeGreaterThanOrEqual(1);
+    });
+  });
 });

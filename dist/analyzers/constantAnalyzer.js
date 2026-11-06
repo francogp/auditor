@@ -1,11 +1,11 @@
-import { safeReadFileAsync } from "../core/safeUtils.js";
 import { SharedAstContext, unwrapExpression } from "../core/astContext.js";
+import "../core/auditConfig.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
-import { isPathContained, toPosixRelative } from "../core/safePath.js";
+import { isPathIgnored } from "../core/auditorBase.js";
 import { isInCodeRoots, isScriptPath } from "../core/auditCodeRoots.js";
 import { isDataPath, isDemoPath, isExemptFile } from "../core/auditPathPredicates.js";
-import "../core/auditConfig.js";
-import { isPathIgnored } from "../core/auditorBase.js";
+import { isPathContained, toPosixRelative } from "../core/safePath.js";
+import { safeReadFileAsync } from "../core/safeUtils.js";
 import path from "node:path";
 import ts from "typescript";
 // src/analyzers/constantAnalyzer.ts

@@ -1,9 +1,9 @@
-import { isPathExempt } from "../reportUtils.js";
-import { getAuditConfig } from "../auditConfigLoader.js";
-import { isTestPath } from "../auditTestPredicates.js";
-import { isPathContained, stripGlobSuffix } from "../safePath.js";
 import "../auditConfig.js";
+import { getAuditConfig } from "../auditConfigLoader.js";
 import "../auditorBase.js";
+import { isTestPath } from "../auditTestPredicates.js";
+import { isPathExempt } from "../reportUtils.js";
+import { isPathContained, stripGlobSuffix } from "../safePath.js";
 import path from "node:path";
 // src/core/refactor/baseRefactorEngine.ts
 /**

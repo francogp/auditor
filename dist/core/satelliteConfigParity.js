@@ -54,7 +54,8 @@ const GOVERNED_SATELLITE_SET = new Set(GOVERNED_SATELLITE_FILES);
 */
 function isGovernedSatelliteFile(filePath) {
 	if (!filePath || typeof filePath !== "string") return false;
-	const basename = path.basename(filePath.trim());
+	const normalized = filePath.trim().replace(/\\/g, "/");
+	const basename = path.posix.basename(normalized);
 	return GOVERNED_SATELLITE_SET.has(basename);
 }
 function isPlainObject(val) {

@@ -17,6 +17,7 @@ You can also load the function from a file:
 playwright-cli run-code --filename=./my-script.js
 ```
 
+
 The code must be a single function expression, it is wrapped in `(...)` and evaluated.
 import/export/require syntax is not supported.
 
@@ -216,6 +217,8 @@ playwright-cli run-code "async page => {
   }
 }"
 ```
+
+Event listener errors are reported as console errors.
 
 ## Complex Workflows
 

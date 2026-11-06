@@ -1,12 +1,12 @@
-import { safeReadFileSync } from "../../core/safeUtils.js";
+import "../../core/auditConfig.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/safePath.js";
-import "../../core/auditConfig.js";
 import { isAuditableCodebaseFile } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { COMMAND_INVOCATION_TYPES, VALID_NPM_BUILTINS, evaluateGenericCommandViolation, extractCommandsFromLine, loadPackageScriptsAndBins } from "../../core/npmCommandUtils.js";
+import "../../core/safePath.js";
+import { safeReadFileSync } from "../../core/safeUtils.js";
 import path from "node:path";
 // src/suites/documentation/validate_documented_commands.ts
 /**

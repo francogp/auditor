@@ -1,11 +1,11 @@
 import { DEFAULT_CANONICAL_LINT_RULES } from "./auditConfigDefaults.js";
-import { safeReadFileSync, safeRmSync, tryOrNull } from "./safeUtils.js";
-import { getAuditConfig } from "./auditConfigLoader.js";
-import { CANONICAL_SYSTEM_IGNORE_GLOBS, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
-import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
-import { getPackageJson, writePackageJson } from "./packageJson.js";
+import { getAuditConfig } from "./auditConfigLoader.js";
 import { getAuditorCanonicalOverrides, getAuditorMinimumVersions, normalizeToCaretRange } from "./auditorMinimums.js";
+import { CANONICAL_SYSTEM_IGNORE_GLOBS, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
+import { getPackageJson, writePackageJson } from "./packageJson.js";
+import { toPosixRelative } from "./safePath.js";
+import { safeReadFileSync, safeRmSync, tryOrNull } from "./safeUtils.js";
 import { buildCanonicalVitePlusAstSource, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, parseLegacyTestPropertyNode, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst } from "./viteConfigAst.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -471,11 +471,11 @@ function syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions) {
 		}
 	}
 	if (nextDevDeps["vite-plus"] || nextDeps?.["vite-plus"]) {
-		if (nextDevDeps["vite"] && nextDevDeps["vite"].includes("vite-plus-core")) {
+		if (nextDevDeps["vite"]) {
 			delete nextDevDeps["vite"];
 			modified = true;
 		}
-		if (nextDeps?.["vite"] && nextDeps["vite"].includes("vite-plus-core")) {
+		if (nextDeps?.["vite"]) {
 			delete nextDeps["vite"];
 			modified = true;
 		}
@@ -543,35 +543,42 @@ function syncPackageJsonOverrides(nextOverrides, canonicalOverrides, nextDevDeps
 	if (syncSecurityOverrides(nextOverrides, canonicalOverrides)) modified = true;
 	return modified;
 }
-function syncVitestDevDeps(nextDevDeps, nextScripts, minVersions) {
+function syncVitestDevDeps(nextDevDeps, nextScripts, minVersions, nextDeps) {
 	let modified = false;
-	const vitestFloor = minVersions["@vitest/coverage-v8"] ?? minVersions.vitest ?? "^5.0.5";
+	const hasVitePlus = Boolean(nextDevDeps["vite-plus"] || nextDeps?.["vite-plus"]);
+	if (hasVitePlus && "vitest" in nextDevDeps) {
+		delete nextDevDeps.vitest;
+		modified = true;
+	}
+	if (hasVitePlus && nextDeps && "vitest" in nextDeps) {
+		delete nextDeps.vitest;
+		modified = true;
+	}
+	const vitestFloor = minVersions["@vitest/coverage-v8"] ?? minVersions.vitest ?? "^5.1.0";
 	const vitestCaret = normalizeToCaretRange(vitestFloor);
 	const reqVitestMin = semver.minVersion(vitestCaret);
 	if (nextScripts["test:coverage"] && !nextDevDeps["@vitest/coverage-v8"]) {
 		nextDevDeps["@vitest/coverage-v8"] = vitestCaret;
 		modified = true;
 	}
-	if ("vitest" in nextDevDeps || "@vitest/coverage-v8" in nextDevDeps || "@vue/test-utils" in nextDevDeps) {
-		if (nextDevDeps.vitest) {
-			const declMin = semver.minVersion(nextDevDeps.vitest);
-			if (declMin && reqVitestMin && semver.lt(declMin, reqVitestMin)) {
-				nextDevDeps.vitest = vitestCaret;
-				modified = true;
-			} else if (semver.valid(nextDevDeps.vitest)) {
-				nextDevDeps.vitest = `^${nextDevDeps.vitest}`;
-				modified = true;
-			}
+	if (!hasVitePlus && nextDevDeps.vitest) {
+		const declMin = semver.minVersion(nextDevDeps.vitest);
+		if (declMin && reqVitestMin && semver.lt(declMin, reqVitestMin)) {
+			nextDevDeps.vitest = vitestCaret;
+			modified = true;
+		} else if (semver.valid(nextDevDeps.vitest)) {
+			nextDevDeps.vitest = `^${nextDevDeps.vitest}`;
+			modified = true;
 		}
-		if (nextDevDeps["@vitest/coverage-v8"]) {
-			const declMin = semver.minVersion(nextDevDeps["@vitest/coverage-v8"]);
-			if (declMin && reqVitestMin && semver.lt(declMin, reqVitestMin)) {
-				nextDevDeps["@vitest/coverage-v8"] = vitestCaret;
-				modified = true;
-			} else if (semver.valid(nextDevDeps["@vitest/coverage-v8"])) {
-				nextDevDeps["@vitest/coverage-v8"] = `^${nextDevDeps["@vitest/coverage-v8"]}`;
-				modified = true;
-			}
+	}
+	if (nextDevDeps["@vitest/coverage-v8"]) {
+		const declMin = semver.minVersion(nextDevDeps["@vitest/coverage-v8"]);
+		if (declMin && reqVitestMin && semver.lt(declMin, reqVitestMin)) {
+			nextDevDeps["@vitest/coverage-v8"] = vitestCaret;
+			modified = true;
+		} else if (semver.valid(nextDevDeps["@vitest/coverage-v8"])) {
+			nextDevDeps["@vitest/coverage-v8"] = `^${nextDevDeps["@vitest/coverage-v8"]}`;
+			modified = true;
 		}
 	}
 	return modified;
@@ -590,7 +597,7 @@ function syncPackageJsonForVitePlus(projectRoot) {
 	if (removeLegacyDependencies(nextDeps, nextDevDeps, nextScripts)) modified = true;
 	if (syncPackageJsonOverrides(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) modified = true;
 	if (updateVitePlusScripts(nextScripts)) modified = true;
-	if (syncVitestDevDeps(nextDevDeps, nextScripts, minVersions)) modified = true;
+	if (syncVitestDevDeps(nextDevDeps, nextScripts, minVersions, nextDeps)) modified = true;
 	if (modified) writePackageJson(projectRoot, {
 		...pkg,
 		...nextDeps ? { dependencies: nextDeps } : {},

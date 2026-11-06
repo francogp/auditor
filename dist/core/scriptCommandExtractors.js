@@ -1,7 +1,7 @@
-import { safeJsonParse } from "./safeUtils.js";
+import { NPM_RUN_REGEX, NPX_REGEX, cleanTarget, extractCommandsFromLine, isPlaceholder } from "./npmCommandUtils.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import "./safePath.js";
-import { NPM_RUN_REGEX, NPX_REGEX, cleanTarget, extractCommandsFromLine, isPlaceholder } from "./npmCommandUtils.js";
+import { safeJsonParse } from "./safeUtils.js";
 import path from "node:path";
 import ts from "typescript";
 import { parse } from "unbash";

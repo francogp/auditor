@@ -1,7 +1,7 @@
+import { MagicNumbersAuditor as ValidateMagicNumbersAuditor, resolveSignedNumericLiteral } from "../../suites/architecture/validate_magic_numbers.js";
 import { safeReadFileSync, tryOrNull } from "../safeUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
-import { MagicNumbersAuditor as ValidateMagicNumbersAuditor, resolveSignedNumericLiteral } from "../../suites/architecture/validate_magic_numbers.js";
 import { MagicNumberHarness } from "./magicNumberHarness.js";
 import { ESTIMATED_TOKENS_PER_CHAR } from "./refactorContracts.js";
 import path from "node:path";

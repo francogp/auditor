@@ -1,6 +1,6 @@
-import { safeJsonParse, safeReadFileSync, tryOrNull } from "./safeUtils.js";
-import { normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
+import { normalizePosixPath } from "./reportUtils.js";
+import { safeJsonParse, safeReadFileSync, tryOrNull } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 // src/core/lockedSkills.ts

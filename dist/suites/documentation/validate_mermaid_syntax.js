@@ -1,5 +1,5 @@
-import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

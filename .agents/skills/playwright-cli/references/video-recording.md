@@ -67,13 +67,12 @@ await page.screencast.showActions({
     // Prefer `outline` over `border`, it does not shrink the box.
     highlight: 'outline: 2px solid #333; background: rgba(0, 128, 255, .15)',
     // The action title. Use 'display: none' to keep the cursor but drop the callout.
-    title: 'font-size: 16px'
-  }
+    title: 'font-size: 16px',
+  },
 });
 ```
 
 Notes:
-
 - All decorations fade out over `duration`. Override `animation` in a style to do something else.
 - The cursor stays on screen at the last action point between actions and across navigations,
   and travels along a slightly curved path, so it reads as a hand moving a mouse.
@@ -94,22 +93,22 @@ playwright-cli video-start recordings/checkout-test-run-42.webm
 When recording a video for the user or as a proof of work, it is best to create a code snippet and execute it with run-code.
 It allows inserting appropriate pauses between the actions and annotating the video. There are new Playwright APIs for that.
 
-1. Perform scenario using CLI and take note of all locators and actions. You'll need those locators to request their bounding boxes for highlight.
-2. Create a file with the intended script for video (below). Use pressSequentially w/ delay for nice typing, make reasonable pauses.
-3. Use playwright-cli run-code --filename your-script.js
+1) Perform scenario using CLI and take note of all locators and actions. You'll need those locators to request their bounding boxes for highlight.
+2) Create a file with the intended script for video (below). Use pressSequentially w/ delay for nice typing, make reasonable pauses.
+3) Use playwright-cli run-code --filename your-script.js
 
 **Important**: Overlays are `pointer-events: none` — they do not interfere with page interactions. You can safely keep sticky overlays visible while clicking, filling, or performing any actions on the page.
 
 ```js
-async (page) => {
+async page => {
   await page.screencast.start({ path: 'video.webm', size: { width: 1280, height: 800 }, fps: 60 });
   // Show the cursor and mark the click point, and pace actions by 800ms.
   await page.screencast.showActions({
     duration: 800,
     style: {
       point: 'width: 20px; height: 20px; border-radius: 50%; background: rgba(255, 0, 0, .7)',
-      title: 'display: none'
-    }
+      title: 'display: none',
+    },
   });
   await page.goto('https://demo.playwright.dev/todomvc');
 
@@ -119,20 +118,18 @@ async (page) => {
   // overlay via await page.screencast.showOverlay().
   await page.screencast.showChapter('Adding Todo Items', {
     description: 'We will add several items to the todo list.',
-    duration: 2000
+    duration: 2000,
   });
 
   // Perform action
-  await page
-    .getByRole('textbox', { name: 'What needs to be done?' })
-    .pressSequentially('Walk the dog', { delay: 60 });
+  await page.getByRole('textbox', { name: 'What needs to be done?' }).pressSequentially('Walk the dog', { delay: 60 });
   await page.getByRole('textbox', { name: 'What needs to be done?' }).press('Enter');
   await page.waitForTimeout(1000);
 
   // Show next chapter
   await page.screencast.showChapter('Verifying Results', {
     description: 'Checking the item appeared in the list.',
-    duration: 2000
+    duration: 2000,
   });
 
   // Add a sticky annotation that stays while you perform actions.
@@ -146,9 +143,7 @@ async (page) => {
   `);
 
   // Perform more actions while the annotation is visible
-  await page
-    .getByRole('textbox', { name: 'What needs to be done?' })
-    .pressSequentially('Buy groceries', { delay: 60 });
+  await page.getByRole('textbox', { name: 'What needs to be done?' }).pressSequentially('Buy groceries', { delay: 60 });
   await page.getByRole('textbox', { name: 'What needs to be done?' }).press('Enter');
   await page.waitForTimeout(1500);
 
@@ -157,8 +152,7 @@ async (page) => {
 
   // You can also highlight relevant locators and provide contextual annotations.
   const bounds = await page.getByText('Walk the dog').boundingBox();
-  await page.screencast.showOverlay(
-    `
+  await page.screencast.showOverlay(`
     <div style="position: absolute;
       top: ${bounds.y}px;
       left: ${bounds.x}px;
@@ -176,26 +170,24 @@ async (page) => {
       font-size: 14px;
       color: white;">Check it out, it is right above this text
     </div>
-  `,
-    { duration: 2000 }
-  );
+  `, { duration: 2000 });
 
   await page.screencast.stop();
-};
+}
 ```
 
 Embrace creativity, overlays are powerful.
 
 ### Overlay API Summary
 
-| Method                                                                         | Use Case                                                                       |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Method | Use Case |
+|--------|----------|
 | `page.screencast.showChapter(title, { description?, duration?, styleSheet? })` | Full-screen chapter card with blurred backdrop — ideal for section transitions |
-| `page.screencast.showOverlay(html, { duration? })`                             | Custom HTML overlay — use for callouts, labels, highlights                     |
-| `disposable.dispose()`                                                         | Remove a sticky overlay added without duration                                 |
-| `page.screencast.hideOverlays()` / `page.screencast.showOverlays()`            | Temporarily hide/show all overlays                                             |
-| `page.screencast.showActions({ cursor, duration, position, style })`           | Cursor, click point, target highlight and action title                         |
-| `page.screencast.hideActions()`                                                | Stop annotating actions and hide the cursor                                    |
+| `page.screencast.showOverlay(html, { duration? })` | Custom HTML overlay — use for callouts, labels, highlights |
+| `disposable.dispose()` | Remove a sticky overlay added without duration |
+| `page.screencast.hideOverlays()` / `page.screencast.showOverlays()` | Temporarily hide/show all overlays |
+| `page.screencast.showActions({ cursor, duration, position, style })` | Cursor, click point, target highlight and action title |
+| `page.screencast.hideActions()` | Stop annotating actions and hide the cursor |
 
 ### 3. Attach the recording to the pull request
 
@@ -211,12 +203,12 @@ gh issue comment 456 --body "Recording of the repro steps." --attach ./repro.web
 
 ## Tracing vs Video
 
-| Feature  | Video                | Tracing                                  |
-| -------- | -------------------- | ---------------------------------------- |
-| Output   | WebM file            | Trace file (viewable in Trace Viewer)    |
-| Shows    | Visual recording     | DOM snapshots, network, console, actions |
-| Use case | Demos, documentation | Debugging, analysis                      |
-| Size     | Larger               | Smaller                                  |
+| Feature | Video | Tracing |
+|---------|-------|---------|
+| Output | WebM file | Trace file (viewable in Trace Viewer) |
+| Shows | Visual recording | DOM snapshots, network, console, actions |
+| Use case | Demos, documentation | Debugging, analysis |
+| Size | Larger | Smaller |
 
 ## Limitations
 

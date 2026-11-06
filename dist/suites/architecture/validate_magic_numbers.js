@@ -1,9 +1,9 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { toPosixRelative } from "../../core/safePath.js";
+import "../../core/auditConfig.js";
 import { isInCodeRoots } from "../../core/auditCodeRoots.js";
 import { isDataPath } from "../../core/auditPathPredicates.js";
-import "../../core/auditConfig.js";
 import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
 // src/suites/architecture/validate_magic_numbers.ts

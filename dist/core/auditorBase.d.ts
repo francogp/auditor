@@ -1,19 +1,19 @@
 import { AUDITOR_DIR, AUDIT_CONFIG_FILE, AuditConfig, AuditEngineConfig, BaseAuditSubsystemConfig } from "./auditConfigTypes.js";
-import { SharedAstContext } from "./astContext.js";
-import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import { AnyRuleFixerFn, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorComputedCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutable, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, RuleFixContext, RuleFixerFn, RuleFixersMap, SatelliteConfigExplanationFn, SatelliteConfigFileExplanation, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
+import { COMMON_CLI_ARGS, CittyArgsDef, getProcessCliArgs, parseCittyArgs } from "./cli/cittyHarness.js";
 import { getAuditConfig, loadAuditConfig } from "./auditConfigLoader.js";
 import { isTestPath } from "./auditTestPredicates.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
 import { isExemptFile } from "./auditPathPredicates.js";
-import "./auditConfig.js";
 import { REMEDIATION_PHASE_IDS, RemediationPhaseId } from "./remediationPhases.js";
-import { AnyRuleFixerFn, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorComputedCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutable, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, RuleFixContext, RuleFixerFn, RuleFixersMap, SatelliteConfigExplanationFn, SatelliteConfigFileExplanation, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
-import { AuditedDocument, DocumentReplacement, LineColumnPosition } from "./auditedDocument.js";
-import { COMMON_CLI_ARGS, CittyArgsDef, getProcessCliArgs, parseCittyArgs } from "./cli/cittyHarness.js";
 import { safeReadFileSync, tryOrDefault, tryOrNull } from "./safeUtils.js";
-import { normalizePosixPath } from "./reportUtils.js";
-import { toPosixRelative } from "./safePath.js";
+import { SharedAstContext } from "./astContext.js";
+import "./auditConfig.js";
+import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { CoverageRecorder, deriveCoverageFromRoots } from "./auditCoverage.js";
+import { AuditedDocument, DocumentReplacement, LineColumnPosition } from "./auditedDocument.js";
+import { toPosixRelative } from "./safePath.js";
+import { normalizePosixPath } from "./reportUtils.js";
 import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
 import ts from "typescript";
 export interface FixableAuditorInstance {

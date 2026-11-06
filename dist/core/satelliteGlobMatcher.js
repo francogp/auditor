@@ -1,7 +1,7 @@
-import { normalizePosixPath } from "./reportUtils.js";
 import { getEffectiveIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
-import { stripGlobSuffix } from "./safePath.js";
 import { isPatternContainedInGlobs } from "./globContainment.js";
+import { stripGlobSuffix } from "./safePath.js";
+import { normalizePosixPath } from "./reportUtils.js";
 import { enableCompileCache } from "node:module";
 // src/core/satelliteGlobMatcher.ts
 /**

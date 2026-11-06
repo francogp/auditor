@@ -1,8 +1,8 @@
 import { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { getEffectiveIgnoreGlobs, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
-import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import { isPatternContainedInGlobs } from "./globContainment.js";
+import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import { getAllowedSatellitePathExcludes } from "./satelliteGlobMatcher.js";
 import path from "node:path";
 import fs from "node:fs";

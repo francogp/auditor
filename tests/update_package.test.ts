@@ -588,13 +588,13 @@ describe('preSyncHostPackageJson', () => {
     expect(modified).toBe(true);
 
     const updated = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
-    expect(updated.devDependencies['vite-plus']).toBe('^1.4.0');
+    expect(updated.devDependencies['vite-plus']).toBe('^1.5.0');
     expect(updated.devDependencies['vite']).toBeUndefined();
     expect(updated.devDependencies['citty']).toBe('^0.2.2');
     expect(updated.overrides.braces).toBeUndefined();
     expect(updated.overrides.micromatch).toBeUndefined();
     expect(updated.overrides.vite).toBe('$vite');
-    expect(updated.overrides.vitest).toBe('$vitest');
+    expect(updated.overrides.vitest).toBeUndefined();
   });
 
   it('returns false when package.json is already fully canonical', () => {
@@ -605,21 +605,20 @@ describe('preSyncHostPackageJson', () => {
         'check:fix': 'vp check --fix',
         fmt: 'vp fmt',
         'fmt:check': 'vp fmt --check',
-        test: 'vp test',
-        'test:coverage': 'vp test --coverage'
+        test: 'vp test run',
+        'test:coverage': 'vp test run --coverage'
       },
       devDependencies: {
         '@francogp/auditor': 'github:francogp/auditor#v10.1.0',
-        'vite-plus': '^1.4.0',
-        '@vitest/coverage-v8': '^5.0.5',
+        'vite-plus': '^1.5.0',
+        '@vitest/coverage-v8': '^5.1.0',
         citty: '^0.2.2'
       },
       overrides: {
         'js-yaml': '^5.5.0',
         katex: '^0.19.1',
         'smol-toml': '^1.9.1',
-        vite: '$vite',
-        vitest: '$vitest'
+        'stylelint-config-recommended': '^18.0.0'
       }
     };
     fs.writeFileSync(

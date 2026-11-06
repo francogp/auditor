@@ -1,5 +1,5 @@
-import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
 import { AuditorEngineSpecs, SemverVersion } from "../../cli/check_environment.js";
+import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
 import { PackageJsonDTO } from "../../core/packageJson.js";
 export declare const ENVIRONMENT_ENGINES_RULES: readonly ["environment-engines-missing", "environment-engines-below-floor", "environment-runtime-mismatch"];
 export type EnvironmentEnginesRuleId = (typeof ENVIRONMENT_ENGINES_RULES)[number];

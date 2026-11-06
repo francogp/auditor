@@ -1,16 +1,16 @@
-import { CANONICAL_RULE_SEVERITY_LEVELS } from "../../core/auditConfigTypes.js";
+import { ensureMandatoryDirectoriesExist } from "../../core/auditBootstrap.js";
+import "../../core/auditConfig.js";
 import { DEFAULT_SIMILAR_CODE_THRESHOLD } from "../../core/auditConfigDefaults.js";
-import { safeJsonParse, tryCatchSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
-import { isPathContained, toPosixRelative } from "../../core/safePath.js";
-import "../../core/auditConfig.js";
+import { CANONICAL_RULE_SEVERITY_LEVELS } from "../../core/auditConfigTypes.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { getAllowedSatellitePathExcludes, validateSatelliteUndeclaredEntries } from "../../core/satelliteGlobMatcher.js";
+import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
+import { isPathContained, toPosixRelative } from "../../core/safePath.js";
+import { safeJsonParse, tryCatchSync } from "../../core/safeUtils.js";
 import { deepCompareSatelliteConfig, mergeSatelliteConfigProjection } from "../../core/satelliteConfigParity.js";
-import { ensureMandatoryDirectoriesExist } from "../../core/auditBootstrap.js";
+import { getAllowedSatellitePathExcludes, validateSatelliteUndeclaredEntries } from "../../core/satelliteGlobMatcher.js";
 import "./validate_fallow.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -38,7 +38,8 @@ const FALLOW_CONFIG_RULES = [
 	"fallow-empty-export-list",
 	"fallow-duplicate-entry",
 	"fallow-config-workspace-diagnostic",
-	"fallow-undeclared-config-entry"
+	"fallow-undeclared-config-entry",
+	"fallow-config-doctor"
 ];
 const FALLOW_CONFIG_EXECUTION_TIMEOUT_MS = 3e4;
 function getBannedEntryGlobs(projectRoot) {
@@ -378,6 +379,32 @@ const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS = [
 	"ignore-patterns-entry-redundant"
 ];
 const REDUNDANT_CONFIG_DIAGNOSTIC_SET = new Set(FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS);
+function executeFallowJsonCommand(projectRoot, subcmd, timeoutMs = FALLOW_CONFIG_EXECUTION_TIMEOUT_MS) {
+	if (process.env.FALLOW_SKIP_BINARY_VERIFY === "1" || process.env.FALLOW_SKIP_BINARY_VERIFY === "true") return {
+		data: null,
+		skipped: "env"
+	};
+	const fallowBin = [path.resolve(projectRoot, "node_modules/fallow/bin/fallow"), path.resolve(process.cwd(), "node_modules/fallow/bin/fallow")].find((c) => fs.existsSync(c));
+	if (!fallowBin) return {
+		data: null,
+		skipped: "binary_not_found"
+	};
+	let stdout;
+	try {
+		stdout = execSync(`node "${fallowBin}" ${subcmd} --format json --root "${projectRoot}"`, {
+			encoding: "utf8",
+			stdio: [
+				"pipe",
+				"pipe",
+				"ignore"
+			],
+			timeout: timeoutMs
+		});
+	} catch (err) {
+		stdout = err?.stdout?.toString();
+	}
+	return { data: safeJsonParse(stdout ?? "") ?? null };
+}
 function validateFallowWorkspaceDiagnostics(diagnostics, auditor, config) {
 	if (!Array.isArray(diagnostics)) return false;
 	let modified = false;
@@ -564,14 +591,24 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 				fallbackRuleId: "fallow-config-workspace-diagnostic",
 				explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.fallow
 			},
-			ruleCapabilities: createRuleCapabilities(FALLOW_CONFIG_RULES, {
-				speed: "light",
-				phase: "setup",
-				md: false,
-				ast: false,
-				changedOnly: false,
-				critical: false
-			}),
+			ruleCapabilities: {
+				...createRuleCapabilities(FALLOW_CONFIG_RULES.filter((r) => r !== "fallow-config-doctor"), {
+					speed: "light",
+					phase: "setup",
+					md: false,
+					ast: false,
+					changedOnly: false,
+					critical: false
+				}),
+				"fallow-config-doctor": {
+					speed: "full",
+					phase: "setup",
+					md: false,
+					ast: false,
+					changedOnly: false,
+					critical: false
+				}
+			},
 			configFiles: [configRequirement],
 			cachePaths: ValidateFallowConfigAuditor.cachePaths,
 			id: "validate_fallow_config",
@@ -626,7 +663,8 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 				"fallow-empty-export-list": "Empty entry in ignoreExports",
 				"fallow-duplicate-entry": "Duplicate entry or export",
 				"fallow-config-workspace-diagnostic": "Workspace diagnostic",
-				"fallow-undeclared-config-entry": "Undeclared entry in config"
+				"fallow-undeclared-config-entry": "Undeclared entry in config",
+				"fallow-config-doctor": "Health and cache integrity"
 			},
 			ruleRemediations: {
 				"fallow-config-missing": "📖 REMEDIATION GUIDE: fallow-config-missing\n1. Root Cause: The .fallowrc.json configuration file does not exist in the project root. Fallow requires this file to map canonical entry points and exceptions.\n2. Diagnosis: Check if the .fallowrc.json file exists in the repository root directory.\n3. Canonical Solution: Run npm run auditor:fix or auditor fix to generate the default configuration automatically.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
@@ -637,7 +675,8 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 				"fallow-empty-export-list": "📖 REMEDIATION GUIDE: fallow-empty-export-list\n1. Root Cause: A file entry in ignoreExports has an empty exports array (exports: []).\n2. Diagnosis: Review entries in .fallowrc.json where no symbols are declared.\n3. Canonical Solution: Run npm run auditor:fix to remove the redundant entry.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
 				"fallow-duplicate-entry": "📖 REMEDIATION GUIDE: fallow-duplicate-entry\n1. Root Cause: The same file or symbol is repeated more than once within .fallowrc.json.\n2. Diagnosis: The message indicates the duplicate entry.\n3. Canonical Solution: Run npm run auditor:fix to deduplicate entries and symbols automatically.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
 				"fallow-config-workspace-diagnostic": "📖 REMEDIATION GUIDE: fallow-config-workspace-diagnostic\n1. Root Cause: The Fallow engine emitted a workspace-level diagnostic, redundant config entry warning, or boundary configuration warning.\n2. Diagnosis: Inspect the diagnostic message emitted by the Fallow engine in the report.\n3. Canonical Solution: Run npm run auditor:fix to automatically prune redundant config entries (entry-pattern-redundant, ignore-dependencies-entry-redundant, ignore-patterns-entry-redundant), or adjust package/boundary settings in .fallowrc.json.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
-				"fallow-undeclared-config-entry": "📖 REMEDIATION GUIDE: fallow-undeclared-config-entry\n1. Root Cause: .fallowrc.json declares ignorePatterns or ignoreDependencies that are not authorized in .auditor/audit.config.ts (SSoT violation).\n2. Diagnosis: Inspect the diagnostic message to identify the undeclared pattern or dependency.\n3. Canonical Solution: If the exemption is genuine, declare it in .auditor/audit.config.ts (under fallow.ignoreGlobs, paths.ignoreGlobs, or fallow.ignoreDependencies). Otherwise, remove it from .fallowrc.json.\n4. Example / Auto-fix command:\n   Declare in .auditor/audit.config.ts: fallow: { ignoreGlobs: ['path/**'] }"
+				"fallow-undeclared-config-entry": "📖 REMEDIATION GUIDE: fallow-undeclared-config-entry\n1. Root Cause: .fallowrc.json declares ignorePatterns or ignoreDependencies that are not authorized in .auditor/audit.config.ts (SSoT violation).\n2. Diagnosis: Inspect the diagnostic message to identify the undeclared pattern or dependency.\n3. Canonical Solution: If the exemption is genuine, declare it in .auditor/audit.config.ts (under fallow.ignoreGlobs, paths.ignoreGlobs, or fallow.ignoreDependencies). Otherwise, remove it from .fallowrc.json.\n4. Example / Auto-fix command:\n   Declare in .auditor/audit.config.ts: fallow: { ignoreGlobs: ['path/**'] }",
+				"fallow-config-doctor": "📖 REMEDIATION GUIDE: fallow-config-doctor\n1. Root Cause: Fallow doctor preflight check detected health, cache, or configuration issues.\n2. Diagnosis: Run npm run auditor:fallow:doctor to view detailed diagnostic output.\n3. Canonical Solution: Follow the recommended remediation commands emitted by fallow doctor (e.g. \"fallow dead-code --quiet\" to refresh cache).\n4. Example / Auto-fix command:\n   npm run auditor:fallow:doctor"
 			},
 			coverage: { include: [".fallowrc.json"] },
 			projectRoot
@@ -679,27 +718,54 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 		if (modified && this.isFixActive()) fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + "\n", "utf-8");
 		this.runSubAuditorSync("fallow-config-workspace-diagnostic", () => {
 			tryCatchSync(() => {
-				if (process.env.FALLOW_SKIP_BINARY_VERIFY === "1" || process.env.FALLOW_SKIP_BINARY_VERIFY === "true") return;
-				const fallowBin = [path.resolve(this.projectRoot, "node_modules/fallow/bin/fallow"), path.resolve(process.cwd(), "node_modules/fallow/bin/fallow")].find((c) => fs.existsSync(c));
-				if (fallowBin) {
-					const subcmd = fs.existsSync(path.join(this.projectRoot, "package.json")) ? "dead-code" : "list --workspaces";
-					let stdout;
-					try {
-						stdout = execSync(`node "${fallowBin}" ${subcmd} --no-type-aware --format json --root "${this.projectRoot}"`, {
-							encoding: "utf8",
-							stdio: [
-								"pipe",
-								"pipe",
-								"ignore"
-							],
-							timeout: FALLOW_CONFIG_EXECUTION_TIMEOUT_MS
+				const subcmd = `${fs.existsSync(path.join(this.projectRoot, "package.json")) ? "dead-code" : "list --workspaces"} --no-type-aware`;
+				const result = executeFallowJsonCommand(this.projectRoot, subcmd);
+				if (result.data?.workspace_diagnostics) {
+					if (validateFallowWorkspaceDiagnostics(result.data.workspace_diagnostics, this, validConfig) && this.isFixActive()) fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + "\n", "utf-8");
+				}
+			});
+		});
+		this.runSubAuditorSync("fallow-config-doctor", () => {
+			if (!this.isRuleActiveForCurrentRun("fallow-config-doctor")) {
+				this.markRuleNotApplicable("fallow-config-doctor", "Requires full speed mode");
+				return;
+			}
+			tryCatchSync(() => {
+				const result = executeFallowJsonCommand(this.projectRoot, "doctor");
+				if (result.skipped === "env") {
+					this.markRuleNotApplicable("fallow-config-doctor", "Fallow binary verification skipped");
+					return;
+				}
+				if (result.skipped === "binary_not_found") {
+					this.markRuleNotApplicable("fallow-config-doctor", "Fallow binary not found");
+					return;
+				}
+				const parsed = result.data;
+				if (!parsed || !parsed.status) return;
+				if (parsed.status === "fail" || parsed.status === "warn") {
+					const defectiveChecks = (Array.isArray(parsed.checks) ? parsed.checks : []).filter((c) => c.status === "fail" || c.status === "warn");
+					if (defectiveChecks.length > 0) for (const check of defectiveChecks) {
+						const severity = check.status === "fail" ? "error" : "warning";
+						const remediation = check.remediation ? ` | Remediation: ${check.remediation}` : "";
+						this.addViolation({
+							ruleId: "fallow-config-doctor",
+							severity,
+							file: ".fallowrc.json",
+							line: 1,
+							message: `[doctor:${check.name ?? "check"}] ${check.message ?? "Fallow health check failed"}${remediation}`,
+							context: check.name ?? "doctor"
 						});
-					} catch (err) {
-						stdout = err?.stdout?.toString();
 					}
-					const parsed = safeJsonParse(stdout ?? "");
-					if (parsed?.workspace_diagnostics) {
-						if (validateFallowWorkspaceDiagnostics(parsed.workspace_diagnostics, this, validConfig) && this.isFixActive()) fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + "\n", "utf-8");
+					else {
+						const severity = parsed.status === "fail" ? "error" : "warning";
+						this.addViolation({
+							ruleId: "fallow-config-doctor",
+							severity,
+							file: ".fallowrc.json",
+							line: 1,
+							message: `Fallow doctor reported ${parsed.status} status. Run 'npm run auditor:fallow:doctor' to inspect.`,
+							context: "doctor"
+						});
 					}
 				}
 			});

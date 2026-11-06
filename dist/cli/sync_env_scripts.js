@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { tryCatchSync } from "../core/safeUtils.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
+import { tryCatchSync } from "../core/safeUtils.js";
 import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";

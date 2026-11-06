@@ -1,7 +1,7 @@
 import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
+import "../../core/auditConfig.js";
 import { isAuditableCodebaseFile, isDeclaredByCoverage, readCoverageLedgers, resolveActiveCoverageRunId } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, isPathIgnored } from "../../core/auditorBase.js";
 import { getMatchingExemptionPolicies } from "../../core/exemptionPolicies.js";

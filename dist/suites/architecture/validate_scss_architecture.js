@@ -1,10 +1,10 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { MODERN_SCSS_RULES, analyzeModernScss } from "../../analyzers/scssModernAnalyzer.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { stripCommentsAndStrings } from "../../core/scannerUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
-import { MODERN_SCSS_RULES, analyzeModernScss } from "../../analyzers/scssModernAnalyzer.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

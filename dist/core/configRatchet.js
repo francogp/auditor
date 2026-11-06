@@ -1,9 +1,9 @@
-import { createDomainSet } from "./domainCollections.js";
-import { safeReadFileSync } from "./safeUtils.js";
-import { normalizePosixPath } from "./reportUtils.js";
 import { extractExportedConfigObjectLiteral } from "./astContext.js";
-import "./safePath.js";
+import { createDomainSet } from "./domainCollections.js";
+import { normalizePosixPath } from "./reportUtils.js";
 import { isPatternContainedInGlobs } from "./globContainment.js";
+import "./safePath.js";
+import { safeReadFileSync } from "./safeUtils.js";
 import { verifyTranscriptAuthorization } from "./transcriptAuthorizationVerifier.js";
 import path from "node:path";
 import ts from "typescript";

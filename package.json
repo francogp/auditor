@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "10.7.13-build.20261104-001838",
+  "version": "10.8.0-build.20261106-082312",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -166,6 +166,7 @@
     "auditor:summary": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts",
     "auditor:files": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts files",
     "auditor:fallow": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_fallow.ts category=all",
+    "auditor:fallow:doctor": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_fallow.ts category=doctor",
     "auditor:fallow:dupes": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_fallow.ts category=dupes",
     "auditor:fallow:circular": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_fallow.ts category=circular",
     "auditor:fallow:exports": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_fallow.ts category=exports",
@@ -288,11 +289,11 @@
     "boxen": "^9.0.0",
     "citty": "^0.2.2",
     "cli-table3": "^0.6.5",
-    "fallow": "^3.39.0",
+    "fallow": "^3.40.0",
     "franc-min": "^6.2.0",
     "html-validate": "^11.18.0",
     "html-validate-vue": "^9.3.1",
-    "jsdom": "^30.1.3",
+    "jsdom": "^31.0.0",
     "knip": "^6.44.1",
     "magic-string": "^1.4.5",
     "markdownlint-cli": "^0.50.0",
@@ -309,7 +310,7 @@
     "stylelint-order": "^8.1.3",
     "stylelint-scss": "^7.4.0",
     "ts-morph": "^28.0.0",
-    "type-coverage": "^2.31.1",
+    "type-coverage": "^2.31.2",
     "typescript": "^6.0.3",
     "unbash": "^6.0.3",
     "yaml": "^2.9.1"
@@ -319,28 +320,26 @@
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.6",
     "@types/semver": "^7.8.0",
-    "@vitest/coverage-v8": "^5.0.5",
+    "@vitest/coverage-v8": "^5.1.0",
     "pinia": "^4.1.0",
     "publint": "^0.3.25",
-    "vite-plus": "^1.4.0",
-    "vitest": "^5.0.5"
+    "vite-plus": "^1.5.0"
   },
   "peerDependencies": {
-    "@playwright/test": "^1.64.1",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
     "@vitejs/plugin-vue": "^6.0.10",
-    "@vitest/coverage-v8": "^5.0.5",
     "citty": "^0.2.2",
-    "fallow": "^3.39.0",
-    "gsap": "^3.15.0",
+    "fallow": "^3.40.0",
+    "gsap": "^3.15.1",
     "html-validate": "^11.18.0",
     "markdownlint-cli": "^0.50.0",
     "pinia": "^4.1.0",
-    "sass": "^1.107.1",
+    "sass": "^1.108.0",
     "typescript": "^6.0.3",
     "valibot": "^1.5.0",
-    "vite-plus": "^1.4.0",
-    "vue": "^3.5.44",
+    "vite-plus": "^1.5.0",
+    "vue": "^3.5.45",
     "vue-router": "^5.4.0"
   },
   "peerDependenciesMeta": {
@@ -351,9 +350,6 @@
       "optional": true
     },
     "@vitejs/plugin-vue": {
-      "optional": true
-    },
-    "@vitest/coverage-v8": {
       "optional": true
     },
     "typescript": {
@@ -397,8 +393,7 @@
     "js-yaml": "^5.5.0",
     "katex": "^0.19.1",
     "smol-toml": "^1.9.1",
-    "vite": "$vite",
-    "vitest": "$vitest"
+    "stylelint-config-recommended": "^18.0.0"
   },
   "engines": {
     "node": ">=26.12.1",

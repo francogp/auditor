@@ -1,6 +1,6 @@
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
-import { isMainModule } from "./cliUtils.js";
 import { generateBuildId, parseBaseSemver } from "../core/versionAnalyzer.js";
+import { isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";

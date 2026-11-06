@@ -1,14 +1,14 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { assertAuditConfigComplete } from "../core/auditConfigValidators.js";
-import { safeJsonParse, tryCatchSync, tryOrDefault, tryOrUndefined } from "../core/safeUtils.js";
+import "../core/auditConfig.js";
 import { normalizePosixPath } from "../core/reportUtils.js";
 import { getAuditConfig, loadAuditConfig } from "../core/auditConfigLoader.js";
-import "../core/safePath.js";
-import "../core/auditConfig.js";
 import "../core/auditContract.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { isHumanConsoleMode, isMainModule } from "./cliUtils.js";
+import "../core/safePath.js";
+import { safeJsonParse, tryCatchSync, tryOrDefault, tryOrUndefined } from "../core/safeUtils.js";
 import { formatStatusBadge, renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

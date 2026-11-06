@@ -1,6 +1,6 @@
 import { AuditFinding, RuleFixContext } from "../../core/auditContract.js";
-import { RawLintFileReport, RawLintMessage } from "../../core/reportUtils.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { RawLintFileReport, RawLintMessage } from "../../core/reportUtils.js";
 export declare const OXLINT_RULES: readonly ["oxlint-violation"];
 export type OxlintRuleId = (typeof OXLINT_RULES)[number];
 export type RawOxlintMessage = RawLintMessage;

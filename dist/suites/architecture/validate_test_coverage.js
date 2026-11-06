@@ -1,11 +1,11 @@
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import "../../core/auditConfig.js";
 import { buildTestCoverageConfig } from "../../core/auditConfigBuilders.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { toPosixRelative } from "../../core/safePath.js";
-import "../../core/auditConfig.js";
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../../core/testCoverageCore.js";
 import { enableCompileCache } from "node:module";
 import fs from "node:fs";

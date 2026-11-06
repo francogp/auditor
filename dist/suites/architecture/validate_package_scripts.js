@@ -1,11 +1,11 @@
 import { buildRatchetConfig } from "../../core/auditConfigBuilders.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
-import { DEFAULT_PERMISSIONS } from "../../core/permissionGuard.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { collectAllPackageScriptRequirements } from "../../cli/auditScanner.js";
-import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { describeBaselineDefect, resolveGitCommit } from "../../cli/auditRatchet.js";
+import { collectAllPackageScriptRequirements } from "../../cli/auditScanner.js";
+import "../../core/auditConfig.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
+import { DEFAULT_PERMISSIONS } from "../../core/permissionGuard.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

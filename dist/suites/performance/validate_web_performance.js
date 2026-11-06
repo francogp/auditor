@@ -1,10 +1,10 @@
-import { isPathExempt } from "../../core/reportUtils.js";
+import { MODERN_WEB_PERF_RULES, analyzeModernWebPerfMarkup, analyzeModernWebPerfStyles } from "../../analyzers/webPerfModernAnalyzer.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { isPathExempt } from "../../core/reportUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
-import { MODERN_WEB_PERF_RULES, analyzeModernWebPerfMarkup, analyzeModernWebPerfStyles } from "../../analyzers/webPerfModernAnalyzer.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

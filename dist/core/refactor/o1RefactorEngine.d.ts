@@ -1,6 +1,6 @@
+import { O1DataStructuresAuditor } from "../../suites/domain_data/validate_o1_data_structures.js";
 import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
 import { O1FindingItem, O1RefactorPlan } from "./refactorContracts.js";
-import { O1DataStructuresAuditor } from "../../suites/domain_data/validate_o1_data_structures.js";
 export type O1RefactorEngineOptions = RefactorEngineOptions<O1DataStructuresAuditor>;
 export declare class O1RefactorEngine extends BaseRefactorEngine<O1FindingItem, O1RefactorPlan, O1DataStructuresAuditor> {
   readonly toolId = "auditor-o1";

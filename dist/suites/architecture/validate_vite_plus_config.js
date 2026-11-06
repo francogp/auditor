@@ -1,9 +1,9 @@
-import { DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import "../../core/auditConfig.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { isPathContained, stripGlobSuffix, toPosixRelative } from "../../core/safePath.js";
-import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { isPatternContainedInGlobs } from "../../core/globContainment.js";
 import "../../core/satelliteGlobMatcher.js";
 import { buildAllowedCoverageExcludes, detectInlineVitePlugins, extractParsedConfigSummary, isRuleValueCompliant, parseTsSourceFile, resolveVitestRoots } from "../../core/viteConfigAst.js";

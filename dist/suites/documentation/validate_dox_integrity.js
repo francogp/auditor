@@ -1,9 +1,9 @@
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
-import { loadAuditConfig } from "../../core/auditConfigLoader.js";
-import { getEffectiveIgnoreDirs } from "../../core/canonicalIgnoreRegistry.js";
-import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { checkDoxIntegrity } from "../../analyzers/doxAnalyzer.js";
+import { loadAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/auditConfig.js";
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { getEffectiveIgnoreDirs } from "../../core/canonicalIgnoreRegistry.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 // src/suites/documentation/validate_dox_integrity.ts

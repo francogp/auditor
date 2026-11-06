@@ -1,9 +1,9 @@
 import { AUDIT_CONFIG_FILE } from "./auditConfigTypes.js";
-import { tryCatchSync } from "./safeUtils.js";
-import { normalizePosixPath } from "./reportUtils.js";
 import { dtoValueToTsExpression, extractExportedConfigObjectLiteral, formatTsNodeTwoSpaceIndent } from "./astContext.js";
-import "./safePath.js";
+import { normalizePosixPath } from "./reportUtils.js";
 import "./auditConfig.js";
+import "./safePath.js";
+import { tryCatchSync } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";

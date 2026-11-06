@@ -1,11 +1,11 @@
-import { safeReadFileAsync, safeReaddirAsync } from "../core/safeUtils.js";
+import "../core/auditConfig.js";
 import { normalizePosixPath } from "../core/reportUtils.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { isTestPath } from "../core/auditTestPredicates.js";
-import "../core/safePath.js";
-import "../core/auditConfig.js";
 import { collectRepositoryFiles } from "../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../core/gitignoreMatcher.js";
+import "../core/safePath.js";
+import { safeReadFileAsync, safeReaddirAsync } from "../core/safeUtils.js";
 import path from "node:path";
 // src/analyzers/doxAnalyzer.ts
 /**

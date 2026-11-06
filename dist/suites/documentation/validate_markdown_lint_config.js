@@ -1,6 +1,6 @@
-import { isConfigRuleDisabled } from "../../core/auditConfigLayout.js";
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { isConfigRuleDisabled } from "../../core/auditConfigLayout.js";
 import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";

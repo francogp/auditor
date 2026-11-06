@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite-plus';
 const LOCKED_SKILLS_IGNORE_PATTERNS = [
+  '.agents/skills/awesome-design-md/**',
   '.agents/skills/ci-cd-and-automation/**',
   '.agents/skills/code-review/**',
   '.agents/skills/code-simplification/**',
@@ -7,6 +8,7 @@ const LOCKED_SKILLS_IGNORE_PATTERNS = [
   '.agents/skills/context-engineering/**',
   '.agents/skills/create-adaptable-composable/**',
   '.agents/skills/design-motion-principles/**',
+  '.agents/skills/design-taste-frontend/**',
   '.agents/skills/docker-patterns/**',
   '.agents/skills/domain-modeling/**',
   '.agents/skills/fallow/**',

@@ -1,10 +1,10 @@
-import { safeRmSync, tryOrNull } from "./safeUtils.js";
+import { discoverAuditors } from "../cli/auditScanner.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
-import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
 import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, collectAuditorThirdPartyToolErrors, getActiveFamilies } from "./auditContract.js";
 import { BaseAuditor } from "./auditorBase.js";
-import { discoverAuditors } from "../cli/auditScanner.js";
+import { toPosixRelative } from "./safePath.js";
+import { safeRmSync, tryOrNull } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 // src/core/auditorContractConformance.ts

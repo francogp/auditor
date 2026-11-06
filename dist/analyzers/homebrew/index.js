@@ -1,4 +1,3 @@
-import { AUDITOR_HOMEBREW_RULES, createLineDetector, isInsideStringLiteral } from "./homebrewTypes.js";
 import { braceCountingDetector } from "./detectors/braceCountingDetector.js";
 import { commentStrippingDetector } from "./detectors/commentStrippingDetector.js";
 import { fileWalkerDetector } from "./detectors/fileWalkerDetector.js";
@@ -15,6 +14,7 @@ import { tsAstDetector } from "./detectors/tsAstDetector.js";
 import { unmeasuredRuleDetector } from "./detectors/unmeasuredRuleDetector.js";
 import { vueSfcRegexDetector } from "./detectors/vueSfcRegexDetector.js";
 import { HomebrewDetectorRegistry, HomebrewDetectorRegistryImpl } from "./homebrewRegistry.js";
+import { AUDITOR_HOMEBREW_RULES, createLineDetector, isInsideStringLiteral } from "./homebrewTypes.js";
 // src/analyzers/homebrew/index.ts
 /**
 * src/analyzers/homebrew/index.ts

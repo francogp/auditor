@@ -1,13 +1,13 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { parseJsonObjectOutput } from "../core/reportUtils.js";
-import { getAuditConfig } from "../core/auditConfigLoader.js";
-import { toPosixRelative } from "../core/safePath.js";
-import { isInCodeRoots } from "../core/auditCodeRoots.js";
 import "../core/auditConfig.js";
+import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule, resolveCoverageArgs } from "./cliUtils.js";
+import { isInCodeRoots } from "../core/auditCodeRoots.js";
+import { parseJsonObjectOutput } from "../core/reportUtils.js";
+import { toPosixRelative } from "../core/safePath.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule, resolveCoverageArgs } from "./cliUtils.js";
 import { runFlagsReport } from "./report_flags.js";
 import { runGuardReport } from "./report_guard.js";
 import path from "node:path";
@@ -45,6 +45,8 @@ const VALID_CATEGORY_ALIASES = /* @__PURE__ */ new Set([
 	"viz",
 	"cloud",
 	"inspect",
+	"doctor",
+	"aliases",
 	"all"
 ]);
 const FALLOW_REPORT_ARGS = {
@@ -283,17 +285,20 @@ function parseDeadCodeStructural(data) {
 		unusedDeps: getArrayField(data, "unused_dependencies"),
 		circular: getArrayField(data, "circular_dependencies"),
 		boundaryViolations: getArrayField(data, "boundary_violations"),
-		unresolvedImports: getArrayField(data, "unresolved_imports")
+		unresolvedImports: getArrayField(data, "unresolved_imports"),
+		unlistedBinaries: getArrayField(data, "unlisted_binaries")
 	};
 }
 function parseDeadCodeComponent(data) {
 	return {
 		unusedStoreMembers: getArrayField(data, "unused_store_members"),
 		unusedClassMembers: getArrayField(data, "unused_class_members"),
+		unusedNamespaceMembers: getArrayField(data, "unused_namespace_members"),
 		unusedTypes: getArrayField(data, "unused_types"),
 		unusedEmits: getArrayField(data, "unused_component_emits"),
 		unlistedDeps: getArrayField(data, "unlisted_dependencies"),
 		duplicateExports: getArrayField(data, "duplicate_exports"),
+		duplicateExportAliases: getArrayField(data, "duplicate_export_aliases"),
 		unusedProps: getArrayField(data, "unused_component_props"),
 		unrenderedComponents: getArrayField(data, "unrendered_components"),
 		unprovidedInjects: getArrayField(data, "unprovided_injects")
@@ -302,7 +307,7 @@ function parseDeadCodeComponent(data) {
 function parseDeadCodeReportData(data) {
 	const structural = parseDeadCodeStructural(data);
 	const component = parseDeadCodeComponent(data);
-	const totalGranular = structural.unusedFiles.length + structural.unusedExports.length + structural.unusedDeps.length + structural.circular.length + structural.boundaryViolations.length + component.unusedStoreMembers.length + component.unusedClassMembers.length + component.unusedTypes.length + component.unusedEmits.length + component.unlistedDeps.length + component.duplicateExports.length + component.unusedProps.length + component.unrenderedComponents.length + component.unprovidedInjects.length;
+	const totalGranular = structural.unusedFiles.length + structural.unusedExports.length + structural.unusedDeps.length + structural.circular.length + structural.boundaryViolations.length + structural.unlistedBinaries.length + component.unusedStoreMembers.length + component.unusedClassMembers.length + component.unusedNamespaceMembers.length + component.unusedTypes.length + component.unusedEmits.length + component.unlistedDeps.length + component.duplicateExports.length + component.duplicateExportAliases.length + component.unusedProps.length + component.unrenderedComponents.length + component.unprovidedInjects.length;
 	return {
 		...structural,
 		...component,
@@ -321,19 +326,25 @@ function renderDeadCodeJson(report, top) {
 		unusedTypesCount: report.unusedTypes.length,
 		unusedEmitsCount: report.unusedEmits.length,
 		unlistedDepsCount: report.unlistedDeps.length,
+		unlistedBinariesCount: report.unlistedBinaries.length,
 		duplicateExportsCount: report.duplicateExports.length,
+		duplicateExportAliasesCount: report.duplicateExportAliases.length,
 		boundaryViolationsCount: report.boundaryViolations.length,
 		unusedPropsCount: report.unusedProps.length,
+		unusedNamespaceMembersCount: report.unusedNamespaceMembers.length,
 		unrenderedComponentsCount: report.unrenderedComponents.length,
 		unprovidedInjectsCount: report.unprovidedInjects.length,
 		unusedFiles: report.unusedFiles.slice(0, top),
 		unusedExports: report.unusedExports.slice(0, top),
 		unusedStoreMembers: report.unusedStoreMembers.slice(0, top),
 		unusedClassMembers: report.unusedClassMembers.slice(0, top),
+		unusedNamespaceMembers: report.unusedNamespaceMembers.slice(0, top),
 		unusedTypes: report.unusedTypes.slice(0, top),
 		unusedEmits: report.unusedEmits.slice(0, top),
 		unlistedDeps: report.unlistedDeps.slice(0, top),
+		unlistedBinaries: report.unlistedBinaries.slice(0, top),
 		duplicateExports: report.duplicateExports.slice(0, top),
+		duplicateExportAliases: report.duplicateExportAliases.slice(0, top),
 		boundaryViolations: report.boundaryViolations,
 		unusedProps: report.unusedProps.slice(0, top),
 		unrenderedComponents: report.unrenderedComponents.slice(0, top),
@@ -415,9 +426,24 @@ function renderDeadCodeSummaryTable(report) {
 			status: report.unlistedDeps.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
+			category: "Unlisted script binaries",
+			count: String(report.unlistedBinaries.length),
+			status: report.unlistedBinaries.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
+		},
+		{
 			category: "Duplicate exports",
 			count: String(report.duplicateExports.length),
 			status: report.duplicateExports.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
+		},
+		{
+			category: "Duplicate export aliases",
+			count: String(report.duplicateExportAliases.length),
+			status: report.duplicateExportAliases.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
+		},
+		{
+			category: "Unused namespace members",
+			count: String(report.unusedNamespaceMembers.length),
+			status: report.unusedNamespaceMembers.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
 			category: "Component emits (Vue)",
@@ -599,6 +625,62 @@ function reportExports(top, json, human = false) {
 		location: `${x.path}:${x.line}`
 	}));
 	console.log(renderBoxTable(expCols, expRows));
+	console.log("");
+}
+function reportAliases(top, json, human = false) {
+	const aliases = runFallowCommand("dead-code", ["--duplicate-export-aliases"])?.duplicate_export_aliases || [];
+	if (json) {
+		console.log(JSON.stringify({
+			duplicateExportAliasesCount: aliases.length,
+			duplicateExportAliases: aliases.slice(0, top)
+		}, null, 2));
+		return;
+	}
+	if (!human) {
+		console.log(`[Fallow] Duplicate export aliases: ${aliases.length}`);
+		for (const a of aliases.slice(0, top)) console.log(`  [Alias] ${a.path}:${a.line} -> ${a.export_name} as ${a.alias_name}`);
+		return;
+	}
+	console.log("\n" + renderBanner("DUPLICATE EXPORT ALIASES (FALLOW)", `Total aliases: ${aliases.length}`));
+	if (aliases.length === 0) {
+		console.log("\n  " + styleText(["bold", "green"], "[OK] 0 duplicate export aliases detected.\n"));
+		return;
+	}
+	const showCount = Math.min(top, aliases.length);
+	console.log(`\n[Notice] Top Duplicate Export Aliases (${showCount} of ${aliases.length}):\n`);
+	const aliasCols = [
+		{
+			header: "#",
+			width: 3,
+			align: "center",
+			key: "index"
+		},
+		{
+			header: "ORIGINAL EXPORT",
+			width: 22,
+			align: "left",
+			key: "exportName"
+		},
+		{
+			header: "ALIAS NAME",
+			width: 22,
+			align: "left",
+			key: "aliasName"
+		},
+		{
+			header: "LOCATION",
+			width: 25,
+			align: "left",
+			key: "location"
+		}
+	];
+	const aliasRows = aliases.slice(0, top).map((a, idx) => ({
+		index: String(idx + 1),
+		exportName: a.export_name,
+		aliasName: a.alias_name,
+		location: `${a.path}:${a.line}`
+	}));
+	console.log(renderBoxTable(aliasCols, aliasRows));
 	console.log("");
 }
 function reportBoundaries(json, human = false) {
@@ -1111,7 +1193,67 @@ function reportCloud(json, human = false, extra = { positionals: [] }) {
 	}
 	executeCloudTerminal(options);
 }
+function reportDoctor(json, human = false) {
+	const data = runFallowCommand("doctor");
+	if (json) {
+		console.log(JSON.stringify(data ?? {}, null, 2));
+		return data?.status === "fail" ? 2 : 0;
+	}
+	const checks = data?.checks ?? [];
+	const summary = data?.summary ?? {
+		pass: 0,
+		warn: 0,
+		fail: 0
+	};
+	const overallStatus = data?.status ?? "pass";
+	if (!human) {
+		console.log(`[Fallow Doctor] Status: ${overallStatus.toUpperCase()} (pass: ${summary.pass}, warn: ${summary.warn}, fail: ${summary.fail})`);
+		for (const c of checks) if (c.status !== "pass") {
+			const rem = c.remediation?.command ? ` | Remediation: ${c.remediation.command}` : "";
+			console.log(`  [${c.status.toUpperCase()}] ${c.id}: ${c.message}${rem}`);
+		}
+		return overallStatus === "fail" ? 2 : 0;
+	}
+	console.log("\n" + renderBanner("PROJECT SETUP HEALTH & PREFLIGHT (FALLOW DOCTOR)", `Status: ${overallStatus.toUpperCase()} | Pass: ${summary.pass} | Warn: ${summary.warn} | Fail: ${summary.fail}`));
+	const doctorCols = [
+		{
+			header: "CHECK ID",
+			width: 14,
+			align: "left",
+			key: "id"
+		},
+		{
+			header: "STATUS",
+			width: 10,
+			align: "center",
+			key: "status"
+		},
+		{
+			header: "MESSAGE & REMEDIATION",
+			width: 54,
+			align: "left",
+			key: "message"
+		}
+	];
+	const doctorRows = checks.map((c) => {
+		let statusText;
+		if (c.status === "pass") statusText = styleText("green", "PASS");
+		else if (c.status === "warn") statusText = styleText("yellow", "WARN");
+		else if (c.status === "fail") statusText = styleText("red", "FAIL");
+		else statusText = styleText("dim", "SKIPPED");
+		const rem = c.remediation?.command ? `\n   -> Fix: ${c.remediation.command}` : "";
+		return {
+			id: c.id,
+			status: statusText,
+			message: `${c.message}${rem}`
+		};
+	});
+	console.log("\n" + renderBoxTable(doctorCols, doctorRows) + "\n");
+	return overallStatus === "fail" ? 2 : 0;
+}
 const REPORT_DISPATCH_MAP = {
+	doctor: (_top, json, human) => reportDoctor(json, human),
+	aliases: (top, json, human) => reportAliases(top, json, human),
 	dupes: (top, json, human) => reportDupes(top, json, human),
 	duplicates: (top, json, human) => reportDupes(top, json, human),
 	security: (top, json, human) => reportSecurity(top, json, human),

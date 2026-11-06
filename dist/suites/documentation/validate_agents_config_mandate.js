@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { extractContractSections, findLocalContractsHeaderLine, injectOrUpdateMandateInAgentsMd, matchesMandateLanguage } from "../../analyzers/agentsMandateAnalyzer.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { extractContractSections, findLocalContractsHeaderLine, injectOrUpdateMandateInAgentsMd, matchesMandateLanguage } from "../../analyzers/agentsMandateAnalyzer.js";
 import path from "node:path";
 import fs from "node:fs";
 // src/suites/documentation/validate_agents_config_mandate.ts

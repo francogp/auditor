@@ -1,9 +1,9 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { isTestPath } from "../../core/auditTestPredicates.js";
-import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { isTestPath } from "../../core/auditTestPredicates.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";

@@ -1,6 +1,6 @@
+import { MagicNumbersAuditor as ValidateMagicNumbersAuditor } from "../../suites/architecture/validate_magic_numbers.js";
 import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
 import { DiscoveredMagicItem, MagicRefactorPlan, SuperDiracClusterPacket } from "./magicContracts.js";
-import { MagicNumbersAuditor as ValidateMagicNumbersAuditor } from "../../suites/architecture/validate_magic_numbers.js";
 export type MagicNumberExtractorOptions = RefactorEngineOptions<ValidateMagicNumbersAuditor>;
 export declare class MagicNumberExtractor extends BaseRefactorEngine<DiscoveredMagicItem, MagicRefactorPlan, ValidateMagicNumbersAuditor> {
   readonly toolId = "auditor-magic";

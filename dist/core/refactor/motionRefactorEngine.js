@@ -1,5 +1,5 @@
-import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import { OxlintAuditor } from "../../suites/architecture/validate_oxlint.js";
+import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, isSameFilePath } from "./refactorFileScanner.js";
 import path from "node:path";

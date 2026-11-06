@@ -1,7 +1,7 @@
-import { createDomainSet } from "./domainCollections.js";
-import { normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig, sanitizePath } from "./auditConfigLoader.js";
+import { createDomainSet } from "./domainCollections.js";
 import { isLockedSkillPath } from "./lockedSkills.js";
+import { normalizePosixPath } from "./reportUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

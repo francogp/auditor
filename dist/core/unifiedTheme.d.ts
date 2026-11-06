@@ -1,7 +1,7 @@
-import { AuditListFilter } from "./auditConfigTypes.js";
-import { RemediationPhaseId } from "./remediationPhases.js";
 import { AuditFinding, AuditTaskDefinition, FamilyMetadata, StandardAuditResult } from "./auditContract.js";
+import { RemediationPhaseId } from "./remediationPhases.js";
 import { TEXT_ALIGNMENTS, TextAlignment, padVisual, stringWidth, truncateVisual } from "./terminalVisuals.js";
+import { AuditListFilter } from "./auditConfigTypes.js";
 import { DURATION_PAD_LENGTH, formatDuration, formatDurationMs, formatNumber } from "./durationFormatter.js";
 import { RenderByFileTreeOptions, formatFindingEntry, formatSampleErrorLine, groupFindingsByFile, renderFindingsByFileTree, renderFindingsDetail, renderSampleErrors } from "./fileTreeRenderer.js";
 import { renderMarkdownReport } from "./markdownReport.js";

@@ -1,7 +1,7 @@
-import { safeJsonParse, safeReadFileSync, tryOrDefault, tryOrNull } from "../core/safeUtils.js";
+import "../core/auditConfig.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import { getAuditConfig, sanitizePath } from "../core/auditConfigLoader.js";
-import "../core/auditConfig.js";
+import { safeJsonParse, safeReadFileSync, tryOrDefault, tryOrNull } from "../core/safeUtils.js";
 import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

@@ -59,7 +59,8 @@ export type FallowConfigRuleId =
   | 'fallow-empty-export-list'
   | 'fallow-duplicate-entry'
   | 'fallow-config-workspace-diagnostic'
-  | 'fallow-undeclared-config-entry';
+  | 'fallow-undeclared-config-entry'
+  | 'fallow-config-doctor';
 
 export const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[] = [
   'fallow-config-missing',
@@ -70,7 +71,8 @@ export const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[] = [
   'fallow-empty-export-list',
   'fallow-duplicate-entry',
   'fallow-config-workspace-diagnostic',
-  'fallow-undeclared-config-entry'
+  'fallow-undeclared-config-entry',
+  'fallow-config-doctor'
 ] as const;
 
 const FALLOW_CONFIG_EXECUTION_TIMEOUT_MS = 30000 as const;
@@ -597,6 +599,43 @@ const REDUNDANT_CONFIG_DIAGNOSTIC_SET: ReadonlySet<string> = new Set<string>(
   FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS
 );
 
+interface FallowExecutionResult<T> {
+  readonly data: T | null;
+  readonly skipped?: 'env' | 'binary_not_found';
+}
+
+function executeFallowJsonCommand<T>(
+  projectRoot: string,
+  subcmd: string,
+  timeoutMs = FALLOW_CONFIG_EXECUTION_TIMEOUT_MS
+): FallowExecutionResult<T> {
+  if (
+    process.env.FALLOW_SKIP_BINARY_VERIFY === '1' ||
+    process.env.FALLOW_SKIP_BINARY_VERIFY === 'true'
+  ) {
+    return { data: null, skipped: 'env' };
+  }
+  const candidates = [
+    path.resolve(projectRoot, 'node_modules/fallow/bin/fallow'),
+    path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow')
+  ];
+  const fallowBin = candidates.find((c) => fs.existsSync(c));
+  if (!fallowBin) {
+    return { data: null, skipped: 'binary_not_found' };
+  }
+  let stdout: string | undefined;
+  try {
+    stdout = execSync(`node "${fallowBin}" ${subcmd} --format json --root "${projectRoot}"`, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore'],
+      timeout: timeoutMs
+    });
+  } catch (err: unknown) {
+    stdout = (err as { stdout?: string | Buffer })?.stdout?.toString();
+  }
+  return { data: safeJsonParse<T>(stdout ?? '') ?? null };
+}
+
 export function validateFallowWorkspaceDiagnostics(
   diagnostics: readonly FallowWorkspaceDiagnosticItem[] | undefined,
   auditor: ValidateFallowConfigAuditor,
@@ -898,14 +937,27 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         fallbackRuleId: 'fallow-config-workspace-diagnostic',
         explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.fallow
       },
-      ruleCapabilities: createRuleCapabilities(FALLOW_CONFIG_RULES, {
-        speed: 'light',
-        phase: 'setup',
-        md: false,
-        ast: false,
-        changedOnly: false,
-        critical: false
-      }),
+      ruleCapabilities: {
+        ...createRuleCapabilities(
+          FALLOW_CONFIG_RULES.filter((r) => r !== 'fallow-config-doctor'),
+          {
+            speed: 'light',
+            phase: 'setup',
+            md: false,
+            ast: false,
+            changedOnly: false,
+            critical: false
+          }
+        ),
+        'fallow-config-doctor': {
+          speed: 'full',
+          phase: 'setup',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        }
+      },
       configFiles: [configRequirement],
       cachePaths: ValidateFallowConfigAuditor.cachePaths,
       id: 'validate_fallow_config',
@@ -964,7 +1016,8 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         'fallow-empty-export-list': 'Empty entry in ignoreExports',
         'fallow-duplicate-entry': 'Duplicate entry or export',
         'fallow-config-workspace-diagnostic': 'Workspace diagnostic',
-        'fallow-undeclared-config-entry': 'Undeclared entry in config'
+        'fallow-undeclared-config-entry': 'Undeclared entry in config',
+        'fallow-config-doctor': 'Health and cache integrity'
       },
       ruleRemediations: {
         'fallow-config-missing':
@@ -1029,7 +1082,14 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
           '2. Diagnosis: Inspect the diagnostic message to identify the undeclared pattern or dependency.\n' +
           '3. Canonical Solution: If the exemption is genuine, declare it in .auditor/audit.config.ts (under fallow.ignoreGlobs, paths.ignoreGlobs, or fallow.ignoreDependencies). Otherwise, remove it from .fallowrc.json.\n' +
           '4. Example / Auto-fix command:\n' +
-          "   Declare in .auditor/audit.config.ts: fallow: { ignoreGlobs: ['path/**'] }"
+          "   Declare in .auditor/audit.config.ts: fallow: { ignoreGlobs: ['path/**'] }",
+        'fallow-config-doctor':
+          '📖 REMEDIATION GUIDE: fallow-config-doctor\n' +
+          '1. Root Cause: Fallow doctor preflight check detected health, cache, or configuration issues.\n' +
+          '2. Diagnosis: Run npm run auditor:fallow:doctor to view detailed diagnostic output.\n' +
+          '3. Canonical Solution: Follow the recommended remediation commands emitted by fallow doctor (e.g. "fallow dead-code --quiet" to refresh cache).\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   npm run auditor:fallow:doctor'
       },
       coverage: {
         include: ['.fallowrc.json']
@@ -1092,45 +1152,80 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
 
     this.runSubAuditorSync('fallow-config-workspace-diagnostic', () => {
       tryCatchSync(() => {
-        if (
-          process.env.FALLOW_SKIP_BINARY_VERIFY === '1' ||
-          process.env.FALLOW_SKIP_BINARY_VERIFY === 'true'
-        ) {
+        const hasPackageJson = fs.existsSync(path.join(this.projectRoot, 'package.json'));
+        const subcmd = `${hasPackageJson ? 'dead-code' : 'list --workspaces'} --no-type-aware`;
+        const result = executeFallowJsonCommand<{
+          workspace_diagnostics?: FallowWorkspaceDiagnosticItem[];
+        }>(this.projectRoot, subcmd);
+        if (result.data?.workspace_diagnostics) {
+          const diagModified = validateFallowWorkspaceDiagnostics(
+            result.data.workspace_diagnostics,
+            this,
+            validConfig
+          );
+          if (diagModified && this.isFixActive()) {
+            fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + '\n', 'utf-8');
+          }
+        }
+      });
+    });
+
+    this.runSubAuditorSync('fallow-config-doctor', () => {
+      if (!this.isRuleActiveForCurrentRun('fallow-config-doctor')) {
+        this.markRuleNotApplicable('fallow-config-doctor', 'Requires full speed mode');
+        return;
+      }
+      tryCatchSync(() => {
+        const result = executeFallowJsonCommand<{
+          status?: string;
+          checks?: Array<{
+            name?: string;
+            status?: string;
+            message?: string;
+            remediation?: string;
+          }>;
+        }>(this.projectRoot, 'doctor');
+
+        if (result.skipped === 'env') {
+          this.markRuleNotApplicable('fallow-config-doctor', 'Fallow binary verification skipped');
           return;
         }
-        const candidates = [
-          path.resolve(this.projectRoot, 'node_modules/fallow/bin/fallow'),
-          path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow')
-        ];
-        const fallowBin = candidates.find((c) => fs.existsSync(c));
-        if (fallowBin) {
-          const hasPackageJson = fs.existsSync(path.join(this.projectRoot, 'package.json'));
-          const subcmd = hasPackageJson ? 'dead-code' : 'list --workspaces';
-          let stdout: string | undefined;
-          try {
-            stdout = execSync(
-              `node "${fallowBin}" ${subcmd} --no-type-aware --format json --root "${this.projectRoot}"`,
-              {
-                encoding: 'utf8',
-                stdio: ['pipe', 'pipe', 'ignore'],
-                timeout: FALLOW_CONFIG_EXECUTION_TIMEOUT_MS
-              }
-            );
-          } catch (err: unknown) {
-            stdout = (err as { stdout?: string | Buffer })?.stdout?.toString();
-          }
-          const parsed = safeJsonParse<{
-            workspace_diagnostics?: FallowWorkspaceDiagnosticItem[];
-          }>(stdout ?? '');
-          if (parsed?.workspace_diagnostics) {
-            const diagModified = validateFallowWorkspaceDiagnostics(
-              parsed.workspace_diagnostics,
-              this,
-              validConfig
-            );
-            if (diagModified && this.isFixActive()) {
-              fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + '\n', 'utf-8');
+        if (result.skipped === 'binary_not_found') {
+          this.markRuleNotApplicable('fallow-config-doctor', 'Fallow binary not found');
+          return;
+        }
+
+        const parsed = result.data;
+        if (!parsed || !parsed.status) {
+          return;
+        }
+
+        if (parsed.status === 'fail' || parsed.status === 'warn') {
+          const checks = Array.isArray(parsed.checks) ? parsed.checks : [];
+          const defectiveChecks = checks.filter((c) => c.status === 'fail' || c.status === 'warn');
+          if (defectiveChecks.length > 0) {
+            for (const check of defectiveChecks) {
+              const severity: 'error' | 'warning' = check.status === 'fail' ? 'error' : 'warning';
+              const remediation = check.remediation ? ` | Remediation: ${check.remediation}` : '';
+              this.addViolation({
+                ruleId: 'fallow-config-doctor',
+                severity,
+                file: '.fallowrc.json',
+                line: 1,
+                message: `[doctor:${check.name ?? 'check'}] ${check.message ?? 'Fallow health check failed'}${remediation}`,
+                context: check.name ?? 'doctor'
+              });
             }
+          } else {
+            const severity: 'error' | 'warning' = parsed.status === 'fail' ? 'error' : 'warning';
+            this.addViolation({
+              ruleId: 'fallow-config-doctor',
+              severity,
+              file: '.fallowrc.json',
+              line: 1,
+              message: `Fallow doctor reported ${parsed.status} status. Run 'npm run auditor:fallow:doctor' to inspect.`,
+              context: 'doctor'
+            });
           }
         }
       });

@@ -1,12 +1,12 @@
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
-import { safeRmSync } from "../../core/safeUtils.js";
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { toPosixRelative } from "../../core/safePath.js";
-import "../../core/auditConfig.js";
-import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
+import "../../core/auditConfig.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { toPosixRelative } from "../../core/safePath.js";
+import { safeRmSync } from "../../core/safeUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

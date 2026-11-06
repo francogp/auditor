@@ -1,11 +1,11 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
-import { isMainModule } from "./cliUtils.js";
+import { MagicNumberExtractor } from "../core/refactor/magicNumberExtractor.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { MagicNumberHarness } from "../core/refactor/magicNumberHarness.js";
-import { MagicNumberExtractor } from "../core/refactor/magicNumberExtractor.js";
-import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import { REFACTOR_POSITIONAL_CLI_ARGS, REFACTOR_SUBCOMMANDS, formatCliRelativeFilePath } from "../core/refactor/refactorCliHarness.js";
+import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
+import { isMainModule } from "./cliUtils.js";
 import { REFACTOR_DUPES_CLI_COMMAND } from "./refactor_dupes.js";
 import path from "node:path";
 import { styleText } from "node:util";

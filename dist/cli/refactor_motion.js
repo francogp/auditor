@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { isMainModule } from "./cliUtils.js";
 import { MotionRefactorEngine } from "../core/refactor/motionRefactorEngine.js";
 import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
+import { isMainModule } from "./cliUtils.js";
 import { styleText } from "node:util";
 // src/cli/refactor_motion.ts
 /**

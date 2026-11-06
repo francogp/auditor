@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { isMainModule } from "./cliUtils.js";
-import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { HygieneRefactorEngine } from "../core/refactor/hygieneRefactorEngine.js";
+import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
+import { isMainModule } from "./cliUtils.js";
 // src/cli/refactor_hygiene.ts
 /**
 * src/cli/refactor_hygiene.ts

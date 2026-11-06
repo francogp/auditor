@@ -1,6 +1,6 @@
+import { FallowArchitectureAuditor } from "../../suites/architecture/validate_fallow.js";
 import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
 import { CloneTopology, RefactorPlan, TriagedCloneCandidate } from "./refactorContracts.js";
-import { FallowArchitectureAuditor } from "../../suites/architecture/validate_fallow.js";
 export declare function runFallowJson<T>(cmd: string, args: string[], projectRoot: string): T;
 export declare function determineTopology(files: readonly string[]): CloneTopology;
 export type DupesRefactorEngineOptions = RefactorEngineOptions<FallowArchitectureAuditor>;

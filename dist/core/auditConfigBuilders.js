@@ -1,6 +1,6 @@
-import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES, CANONICAL_RULE_SEVERITY_LEVELS } from "./auditConfigTypes.js";
 import { assertCoverageReason, assertNarrowCoverageGlob, filterOutExemptRoots, getExemptRootsForPolicy } from "./auditConfigAntiAbuse.js";
 import { DEFAULT_AUDIT_CONFIG, collectDeclaredSubsystems } from "./auditConfigDefaults.js";
+import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES, CANONICAL_RULE_SEVERITY_LEVELS } from "./auditConfigTypes.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import path from "node:path";
 // src/core/auditConfigBuilders.ts

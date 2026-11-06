@@ -1,11 +1,11 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { safeJsonParse, safeReadFileSync } from "../core/safeUtils.js";
+import "../core/auditConfig.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { isSelfProviderProject } from "../core/auditProjectIdentity.js";
-import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
-import { isMainModule } from "./cliUtils.js";
 import { isGitSafetyHookActive, syncGitSafetyHook } from "../core/gitSafetyHook.js";
+import { safeJsonParse, safeReadFileSync } from "../core/safeUtils.js";
+import { isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 // src/cli/init_agent.ts

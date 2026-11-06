@@ -1,13 +1,13 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { AUDITOR_BUILD_DATE, AUDITOR_BUILD_ID, AUDITOR_VERSION } from "../core/version.js";
-import { safeJsonParse, safeReadFileSync, tryCatchSync, tryOrNull } from "../core/safeUtils.js";
-import { getAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { isMainModule } from "./cliUtils.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { syncDocumentationVersionReferences } from "../core/markdownVersionValidator.js";
+import { safeJsonParse, safeReadFileSync, tryCatchSync, tryOrNull } from "../core/safeUtils.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { AUDITOR_BUILD_DATE, AUDITOR_BUILD_ID, AUDITOR_VERSION } from "../core/version.js";
 import { VERSION_BUMP_TYPES, analyzeVersionBump, calculateNextBaseVersion, generateBuildId } from "../core/versionAnalyzer.js";
+import { isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";

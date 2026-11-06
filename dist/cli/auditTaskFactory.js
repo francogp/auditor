@@ -1,10 +1,10 @@
 import { normalizePosixPath } from "../core/reportUtils.js";
-import { toPosixRelative } from "../core/safePath.js";
 import "../core/auditConfig.js";
 import { resolveEffectiveSpeed, resolveFamilyMetadata } from "../core/auditContract.js";
-import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
 import { GitIgnoreRegistry } from "../core/gitIgnoreRegistry.js";
 import { PackageScriptRegistry } from "../core/packageScriptRegistry.js";
+import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
+import { toPosixRelative } from "../core/safePath.js";
 import { extractAuditorMetadataFromFile } from "./auditorMetadata.js";
 import path from "node:path";
 // src/cli/auditTaskFactory.ts

@@ -1,10 +1,10 @@
-import { tryCatchSync } from "../../core/safeUtils.js";
+import "../../core/auditConfig.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { toPosixRelative } from "../../core/safePath.js";
-import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { toPosixRelative } from "../../core/safePath.js";
+import { tryCatchSync } from "../../core/safeUtils.js";
 import { stripComments } from "../../core/scannerUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { getEffectiveGlobalUtilityClasses } from "./validate_dead_css.js";

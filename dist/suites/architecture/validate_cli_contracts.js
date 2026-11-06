@@ -1,13 +1,13 @@
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import { scanCliContractAst } from "../../analyzers/cliContracts/cliContractScanner.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
+import { CLI_CONTRACT_RULES } from "../../analyzers/cliContracts/cliContractTypes.js";
 import "../../core/auditConfig.js";
-import "../../core/auditCoverage.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import "../../core/auditCoverage.js";
 import { BaseAuditor, FileScanAuditor, SCANNABLE_EXTENSIONS, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
-import { CLI_CONTRACT_RULES } from "../../analyzers/cliContracts/cliContractTypes.js";
-import { scanCliContractAst } from "../../analyzers/cliContracts/cliContractScanner.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

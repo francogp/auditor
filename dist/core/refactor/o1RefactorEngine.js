@@ -1,6 +1,6 @@
+import { O1DataStructuresAuditor } from "../../suites/domain_data/validate_o1_data_structures.js";
 import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
-import { O1DataStructuresAuditor } from "../../suites/domain_data/validate_o1_data_structures.js";
 // src/core/refactor/o1RefactorEngine.ts
 /**
 * src/core/refactor/o1RefactorEngine.ts

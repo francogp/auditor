@@ -1,5 +1,5 @@
-import { tryCatchSync } from "./safeUtils.js";
 import { normalizePosixPath } from "./reportUtils.js";
+import { tryCatchSync } from "./safeUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

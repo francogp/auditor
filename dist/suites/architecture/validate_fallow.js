@@ -1,14 +1,14 @@
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { toPosixRelative } from "../../core/safePath.js";
+import { ensureMandatoryDirectoriesExist } from "../../core/auditBootstrap.js";
 import { isCliPath } from "../../core/auditCodeRoots.js";
 import "../../core/auditConfig.js";
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { resolveFallowBinary } from "./validate_similar_code.js";
-import { ensureMandatoryDirectoriesExist } from "../../core/auditBootstrap.js";
 import path from "node:path";
 import fs from "node:fs";
 import { execSync } from "node:child_process";

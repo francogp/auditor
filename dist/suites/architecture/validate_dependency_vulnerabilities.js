@@ -1,8 +1,8 @@
-import { safeJsonParse, safeReadFileSync, tryCatchSync } from "../../core/safeUtils.js";
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { runNpmCommandSync } from "../../core/npmCommandUtils.js";
+import { safeJsonParse, safeReadFileSync, tryCatchSync } from "../../core/safeUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

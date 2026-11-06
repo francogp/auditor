@@ -1,5 +1,5 @@
-import { tryOrNull } from "./safeUtils.js";
 import "./auditContract.js";
+import { tryOrNull } from "./safeUtils.js";
 import { spawn } from "node:child_process";
 // src/core/streamingRunner.ts
 /**

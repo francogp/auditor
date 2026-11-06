@@ -69,7 +69,8 @@ const GOVERNED_SATELLITE_SET: ReadonlySet<string> = new Set<string>(GOVERNED_SAT
  */
 export function isGovernedSatelliteFile(filePath: string): boolean {
   if (!filePath || typeof filePath !== 'string') return false;
-  const basename = path.basename(filePath.trim());
+  const normalized = filePath.trim().replace(/\\/g, '/');
+  const basename = path.posix.basename(normalized);
   return GOVERNED_SATELLITE_SET.has(basename);
 }
 

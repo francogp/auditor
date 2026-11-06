@@ -1,16 +1,16 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { AUDITOR_VERSION } from "../core/version.js";
-import { tryCatchSync } from "../core/safeUtils.js";
+import "../core/auditConfig.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import { buildTestCoverageConfig } from "../core/auditConfigBuilders.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { isPathContained, toPosixRelative } from "../core/safePath.js";
-import "../core/auditConfig.js";
-import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import "../core/permissionGuard.js";
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, isHumanConsoleMode, isMainModule, resolvePackageBin } from "./cliUtils.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { tryCatchSync } from "../core/safeUtils.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../core/testCoverageCore.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { AUDITOR_VERSION } from "../core/version.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, isHumanConsoleMode, isMainModule, resolvePackageBin } from "./cliUtils.js";
+import "../core/permissionGuard.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";

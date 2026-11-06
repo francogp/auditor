@@ -1,12 +1,12 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { isMainModule } from "./cliUtils.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
-import { HybridHarnessEngine } from "../core/refactor/hybridHarness.js";
-import { DupesRefactorEngine, runFallowJson } from "../core/refactor/dupesRefactorEngine.js";
-import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
-import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import { REFACTOR_POSITIONAL_CLI_ARGS, REFACTOR_SUBCOMMANDS } from "../core/refactor/refactorCliHarness.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { isMainModule } from "./cliUtils.js";
+import { DupesRefactorEngine, runFallowJson } from "../core/refactor/dupesRefactorEngine.js";
+import { HybridHarnessEngine } from "../core/refactor/hybridHarness.js";
+import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
+import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
 import path from "node:path";
 import { styleText } from "node:util";
 // src/cli/refactor_dupes.ts

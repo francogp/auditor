@@ -1,6 +1,6 @@
 import { OxlintAuditor } from "../../suites/architecture/validate_oxlint.js";
-import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { applyAstReplacementsAcrossFiles, createUnifiedAstSourceFile } from "../astScriptExtractor.js";
+import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import fs from "node:fs";
 import ts from "typescript";
 // src/core/refactor/hygieneRefactorEngine.ts

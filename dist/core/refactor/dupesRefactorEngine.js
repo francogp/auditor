@@ -1,8 +1,8 @@
-import { tryOrNull } from "../safeUtils.js";
-import { toPosixRelative } from "../safePath.js";
-import { resolveFallowBinary } from "../../suites/architecture/validate_similar_code.js";
-import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { FallowArchitectureAuditor } from "../../suites/architecture/validate_fallow.js";
+import { resolveFallowBinary } from "../../suites/architecture/validate_similar_code.js";
+import { toPosixRelative } from "../safePath.js";
+import { tryOrNull } from "../safeUtils.js";
+import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { HybridHarnessEngine } from "./hybridHarness.js";
 import path from "node:path";
 import { execSync } from "node:child_process";

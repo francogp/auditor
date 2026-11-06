@@ -1,6 +1,6 @@
-import { toPosixRelative } from "./safePath.js";
 import "./auditContract.js";
 import { formatNumber } from "./durationFormatter.js";
+import { toPosixRelative } from "./safePath.js";
 import { padVisual } from "./terminalVisuals.js";
 import path from "node:path";
 import { styleText } from "node:util";

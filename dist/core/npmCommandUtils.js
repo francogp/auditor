@@ -1,5 +1,5 @@
-import { tryOrNull } from "./safeUtils.js";
 import { getPackageJson } from "./packageJson.js";
+import { tryOrNull } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import childProcess from "node:child_process";

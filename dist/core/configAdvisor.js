@@ -1,9 +1,9 @@
-import { isSupabaseExclusivePersistenceKey } from "./auditConfigTypes.js";
-import { safeReadFileSync } from "./safeUtils.js";
-import { validateAuditConfigAst } from "./auditConfigAstValidator.js";
 import { discoverAuditors } from "../cli/auditScanner.js";
-import { parseAuditConfigTextToRecord } from "./configRatchet.js";
 import { buildUnifiedExpectedConfigTree } from "../suites/architecture/validate_audit_config.js";
+import { validateAuditConfigAst } from "./auditConfigAstValidator.js";
+import { isSupabaseExclusivePersistenceKey } from "./auditConfigTypes.js";
+import { parseAuditConfigTextToRecord } from "./configRatchet.js";
+import { safeReadFileSync } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 // src/core/configAdvisor.ts

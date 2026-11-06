@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "awesome-design-md": {
+      "source": "wearescientist/awesome-design-md",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "13c11ef2913f40773e221ae0601762a0677ff8726f6dc1fa0f4af012d2a64161"
+    },
     "ci-cd-and-automation": {
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
@@ -43,6 +49,12 @@
       "skillPath": "skills/design-motion-principles/SKILL.md",
       "computedHash": "6410c1844f511249f11f38d30d217cfecf7f595f45a868d74284b6380bab47d7"
     },
+    "design-taste-frontend": {
+      "source": "Leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/taste-skill/SKILL.md",
+      "computedHash": "23b3930015c478034b222e1a015da03a962c8ab48aee9fb4f3f69d977034feaa"
+    },
     "docker-patterns": {
       "source": "affaan-m/ecc",
       "sourceType": "github",
@@ -59,7 +71,7 @@
       "source": "fallow-rs/fallow-skills",
       "sourceType": "github",
       "skillPath": "fallow/skills/fallow/SKILL.md",
-      "computedHash": "b9bd70996fc6d91375b5f0da3bd3e71cf60327128c83ebf04207f074a756ea10"
+      "computedHash": "2ac33867923022580cb59657d61593292ca2a812267bdfd4051d994180359c7a"
     },
     "fallow-review": {
       "source": "fallow-rs/fallow-skills",
@@ -191,7 +203,7 @@
       "source": "microsoft/playwright-cli",
       "sourceType": "github",
       "skillPath": "skills/playwright-cli/SKILL.md",
-      "computedHash": "56941c3c0464ad22ccdf3ec975fc4bd518c5daea34b73329c232bc1f37f9a6b7"
+      "computedHash": "835a0ebe31ba7481dd23afcb14782f8ef2d4195aad44ae296ccfbc6cfaadcb3f"
     },
     "ponytail": {
       "source": "DietrichGebert/ponytail",
@@ -269,7 +281,7 @@
       "source": "antfu/skills",
       "sourceType": "github",
       "skillPath": "skills/vite/SKILL.md",
-      "computedHash": "88ee465fd10f711efecc76e91e96accae2b229dda371614dcf219099c264a486"
+      "computedHash": "2dc52cad867c2673ab37f83fe992c25610d19f60587a308a262d091d0f36c1ad"
     },
     "vitest": {
       "source": "antfu/skills",

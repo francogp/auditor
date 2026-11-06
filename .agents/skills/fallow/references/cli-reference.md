@@ -136,6 +136,7 @@ Common global flags for this command: [`--format`](#global-flags), [`--quiet`](#
 | `--unused-enum-members` | Unused enum members |
 | `--unused-class-members` | Unused class members |
 | `--unused-store-members` | Unused Pinia store members |
+| `--unused-namespace-members` | Namespace member is never referenced |
 | `--unprovided-injects` | inject() / getContext() reads a key that no provide() / setContext() supplies |
 | `--unrendered-components` | A Vue / Svelte component is reachable through a barrel but rendered nowhere |
 | `--unused-component-props` | A Vue defineProps prop or React component prop is referenced nowhere in its own component |
@@ -151,7 +152,9 @@ Common global flags for this command: [`--format`](#global-flags), [`--quiet`](#
 | `--unused-load-data-keys` | A SvelteKit load() return-object key is read by no consumer |
 | `--unresolved-imports` | Unresolved imports |
 | `--unlisted-deps` | Unlisted dependencies |
+| `--unlisted-binaries` | Binary used but provided by no installed package |
 | `--duplicate-exports` | Duplicate exports |
+| `--duplicate-export-aliases` | One module exports one binding under two or more names |
 | `--circular-deps` | Circular dependencies |
 | `--re-export-cycles` | Re-export cycles (`kind: multi-node` for barrel files re-exporting from each other in a loop, `kind: self-loop` for a barrel re-exporting from itself). File-scoped finding; chain propagation through the loop is a no-op so imports may silently come up empty. Distinct from `--circular-deps` (runtime cycles). |
 | `--package-cycles` | Two or more workspace packages import each other in a loop |
@@ -527,7 +530,7 @@ Human output groups paths under "Shared with your team (commit these)" and "Loca
 {
   "kind": "agent-install",
   "schema_version": 1,
-  "fallow_version": "3.39.0",
+  "fallow_version": "3.40.0",
   "root": "/abs/path",
   "mode": "install",
   "dry_run": false,
@@ -739,7 +742,7 @@ fallow health --format json --quiet --trend
 {
   "kind": "health",
   "schema_version": 7,
-  "version": "3.39.0",
+  "version": "3.40.0",
   "elapsed_ms": 32,
   "summary": {
     "files_analyzed": 482,
@@ -1214,7 +1217,7 @@ fallow audit \
 {
   "kind": "audit",
   "schema_version": 7,
-  "version": "3.39.0",
+  "version": "3.40.0",
   "command": "audit",
   "verdict": "fail",
   "changed_files_count": 12,
@@ -1302,7 +1305,7 @@ fallow flags --format json --quiet --workspace my-package
 ```json
 {
   "schema_version": 7,
-  "version": "3.39.0",
+  "version": "3.40.0",
   "elapsed_ms": 116,
   "feature_flags": [],
   "total_flags": 0
@@ -1403,7 +1406,7 @@ fallow security --gate newly-reachable --changed-since origin/main
 {
   "kind": "security",
   "schema_version": "4",
-  "version": "3.39.0",
+  "version": "3.40.0",
   "elapsed_ms": 42,
   "config": {
     "rules": {
@@ -1432,7 +1435,7 @@ fallow security --gate newly-reachable --changed-since origin/main
 {
   "kind": "security",
   "schema_version": "4",
-  "version": "3.39.0",
+  "version": "3.40.0",
   "elapsed_ms": 42,
   "config": {
     "rules": {
@@ -2241,7 +2244,7 @@ The `kill_matrix` object has these fields:
 | Field | Meaning |
 |---|---|
 | `status` | `complete`, `incomplete`, or `unavailable`, separate from mutation completion. |
-| `reasons` | Evidence limitations, such as `kill-matrix-disabled`, `incomplete-mutant-results`, `baseline-failure`, `partial-mutation-run`, or `missing-test-file-metadata`. |
+| `reasons` | Evidence limitations, such as `kill-matrix-disabled`, `incomplete-mutant-results`, `baseline-failure`, `partial-mutation-run`, `missing-test-file-metadata`, or `unmatched-target`. |
 | `tests` | Entries with `test_id`, `file`, `kills`, `unique_kills`, `subsuming_tests`, and `notes`. |
 | `candidates` | Test IDs whose observed kill sets other tests cover. |
 | `coverage_without_kills` | Test IDs with runtime coverage and no observed kills. |
@@ -2249,6 +2252,21 @@ The `kill_matrix` object has these fields:
 Each mutant and attempt records `killing_tests` and `kill_matrix_complete`. The existing `killed_by` field keeps the first observed killer. Outside matrix mode, `killing_tests` is empty.
 
 Matrix mode does not add the other tests of the covering test files to the retry of a survivor. A survivor that normal mode kills in that retry can stay `survived` in matrix mode, so the two modes can give different scores.
+
+### `mutation --kill-matrix-for`: Check named tests
+
+```bash
+fallow mutation src/math.ts --kill-matrix-for "test/math.test.ts::adds" --format json --quiet
+```
+
+Use this mode to check whether specific tests are redundant without a full kill matrix. Repeat the flag for each target. A target is a test file (each test in it) or a test ID (`file::name`). It is exclusive with `--kill-matrix`.
+
+- Only the mutants that a target test covers run. The other mutants are `pruned` with `prune_reason: "no-target-coverage"`.
+- Each mutant runs its target tests with bail disabled, then its other covering tests with bail enabled, up to the first failure.
+- `kill_matrix.targets` lists each target with the `test_ids` that it selects. A target that selects no test exits `2` with `FALLOW_MUTATION_TARGET_UNMATCHED`.
+- `kill_matrix.tests` has rows for target tests only. `unique_kills` are kills that no other test detects, target or not. `target_only_kills` lists kills that only other targets share, each with those `targets`. `subsuming_tests` is empty (note `subsumers-not-computed`).
+- A target with kills and no `unique_kills` is a candidate. With `target_only_kills`, it stays redundant only while one of the sharing targets stays. Do not remove all sharing targets together.
+- The evidence covers the planned scope only. A unique kill outside the scope is not visible.
 
 ## `ci`: Provider-Aware Review Automation
 
@@ -2312,7 +2330,7 @@ The HTTP layer mirrors the bash `gh_api_retry` / `curl_retry` helpers: `FALLOW_A
 {
   "kind": "dead-code",
   "schema_version": 7,
-  "version": "3.39.0",
+  "version": "3.40.0",
   "elapsed_ms": 45,
   "total_issues": 12,
   "entry_points": {
@@ -2472,7 +2490,7 @@ When `--baseline` is used in combined output, the JSON includes a `baseline_delt
 {
   "kind": "dupes",
   "schema_version": 7,
-  "version": "3.39.0",
+  "version": "3.40.0",
   "elapsed_ms": 82,
   "total_clones": 15,
   "total_lines_duplicated": 230,
@@ -2516,11 +2534,11 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
 {
   "kind": "combined",
   "schema_version": 7,
-  "version": "3.39.0",
+  "version": "3.40.0",
   "elapsed_ms": 159,
   "check": {
     "schema_version": 7,
-    "version": "3.39.0",
+    "version": "3.40.0",
     "elapsed_ms": 45,
     "total_issues": 12,
     "unused_files": [],
@@ -2740,7 +2758,7 @@ preset = "bulletproof"
 - `resolve.conditions`: additional package.json `exports` / `imports` condition names to honor during module resolution. Baseline conditions (`development`, `import`, `require`, `default`, `types`, `node`, plus `react-native` / `browser` under RN/Expo) are always included; user entries prepend ahead of them. Use for community conditions like `worker`, `edge-light`, `deno`, or custom bundler conditions. Example: `{ "resolve": { "conditions": ["worker", "edge-light"] } }`
 - `unusedComponentProps.ignorePattern`: opt-in regex that exempts a component prop from `unused-component-props` when the prop's LOCAL destructure binding name matches (the leading-underscore "accepted-but-intentionally-unused" convention, mirroring TS `noUnusedParameters` + ESLint `varsIgnorePattern` / `argsIgnorePattern`). Applies to Vue, Svelte, Astro, and React/Preact props. The match is on the local alias (`_stage` in `let { stage: _stage } = $props()`), not the public prop name the finding reports (`stage`); matching is unanchored like ESLint's `RegExp.test`, so anchor with `^_`. An invalid regex fails config load. Example: `{ "unusedComponentProps": { "ignorePattern": "^_" } }`
 - `circularDependencies.ignoreLazyImports`: opt-in boolean, default `false`. When `true`, `circular-dependencies` skips an import edge on which every import loads its target on demand or on another thread: an `import()` inside a function, a template `import()`, a lazy `import.meta.glob`, a worker URL, or a webpack worker loader request such as `worker-loader!./work.js`. A top-level `await import()`, `require()`, an eager `import.meta.glob`, and an edge that also has a static import stay. The filter runs before cycles are counted, so lazy cycles do not use the per-group cycle limit. Example: `{ "circularDependencies": { "ignoreLazyImports": true } }`
-- `effect.schemaExportsAsTypes`: opt-in boolean, default `false`. When `true`, an unused exported Effect schema is reported under `unused-types`, not `unused-exports`, so `"unused-types": "off"` hides it. A schema is a class that extends a `Schema` class factory (`Schema.Class`, `Schema.TaggedClass`, `Schema.TaggedError`, `Schema.TaggedRequest`, `Schema.Error`, `Schema.Opaque`) or a const whose value is a `Schema` constructor, member or pipe chain (`Schema.Struct({...})`, `Schema.String.pipe(Schema.brand("Id"))`). `Schema` must be an import from `effect`, `effect/Schema` or `@effect/schema`. Each `pipe` argument must be a `Schema` transform such as `Schema.brand(...)`. Decoders such as `Schema.decodeUnknownSync(User)` and `pipe(Schema.decodeUnknownSync)` stay unused exports. Example: `{ "effect": { "schemaExportsAsTypes": true } }`
+- `effect.schemaExportsAsTypes`: opt-in boolean, default `false`. When `true`, an unused exported Effect schema is reported under `unused-types`, not `unused-exports`, so `"unused-types": "off"` hides it. A schema is a class that extends a `Schema` class factory (`Schema.Class`, `Schema.TaggedClass`, `Schema.TaggedError`, `Schema.TaggedRequest`, `Schema.Error`, `Schema.Opaque`) or a const whose value is a `Schema` constructor, member or pipe chain (`Schema.Struct({...})`, `Schema.String.pipe(Schema.brand("Id"))`). `Schema` must be an import from `effect`, `effect/Schema` or `@effect/schema`. Each `pipe` argument must be a `Schema` transform such as `Schema.brand(...)`. A re-export of a schema from another module (`export { User } from "./schemas"`, or an import that the module exports again) also counts. In a module that imports Effect, a chain on an imported schema (`User.pipe(Schema.brand("Id"))`, `User.annotations({...})`) and an alias (`export const Copy = User`) also count. A chain on a member of a namespace import (`S.User.pipe(...)`) does not count. Decoders such as `Schema.decodeUnknownSync(User)` and `pipe(Schema.decodeUnknownSync)` stay unused exports. Example: `{ "effect": { "schemaExportsAsTypes": true } }`
 
 ---
 

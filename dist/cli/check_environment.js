@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { safeJsonParse, safeReadFileSync } from "../core/safeUtils.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
+import { safeJsonParse, safeReadFileSync } from "../core/safeUtils.js";
 import { isMainModule } from "./cliUtils.js";
 import { runSetup } from "./setup_env.js";
 import path from "node:path";

@@ -1,8 +1,8 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { isMainModule } from "./cliUtils.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { StylelintAuditor } from "../suites/architecture/validate_stylelint.js";
+import { isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import { styleText } from "node:util";
 // src/cli/report_css.ts

@@ -1,5 +1,5 @@
-import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

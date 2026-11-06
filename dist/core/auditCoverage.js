@@ -1,9 +1,9 @@
 import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
-import { safeJsonParse, safeReadFileAsync, tryOrDefaultAsync } from "./safeUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
-import { CANONICAL_BINARY_EXTENSIONS } from "./canonicalIgnoreRegistry.js";
-import { toPosixRelative } from "./safePath.js";
 import { COVERAGE_SOURCES } from "./auditContract.js";
+import { CANONICAL_BINARY_EXTENSIONS } from "./canonicalIgnoreRegistry.js";
+import { safeJsonParse, safeReadFileAsync, tryOrDefaultAsync } from "./safeUtils.js";
+import { toPosixRelative } from "./safePath.js";
 import path from "node:path";
 import fs from "node:fs";
 import fs$1 from "node:fs/promises";

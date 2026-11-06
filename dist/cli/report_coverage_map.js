@@ -1,15 +1,15 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { AUDITOR_VERSION } from "../core/version.js";
-import { loadAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
-import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import "../core/permissionGuard.js";
-import { isHumanConsoleMode, isMainModule } from "./cliUtils.js";
+import { loadAuditConfig } from "../core/auditConfigLoader.js";
 import { readCoverageLedgers, readLatestCoverageLedgers } from "../core/auditCoverage.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isPathIgnored } from "../core/auditorBase.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { getMatchingExemptionPolicies } from "../core/exemptionPolicies.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { AUDITOR_VERSION } from "../core/version.js";
 import { isCoveredBy, listTrackedFiles } from "../suites/architecture/validate_audit_coverage.js";
+import { isHumanConsoleMode, isMainModule } from "./cliUtils.js";
+import "../core/permissionGuard.js";
 import path from "node:path";
 import { styleText } from "node:util";
 // src/cli/report_coverage_map.ts

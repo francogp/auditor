@@ -1,10 +1,10 @@
-import { isConfigRuleDisabled } from "../../core/auditConfigLayout.js";
-import { tryOrNull } from "../../core/safeUtils.js";
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
+import { isConfigRuleDisabled } from "../../core/auditConfigLayout.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getPackageJson } from "../../core/packageJson.js";
+import { toPosixRelative } from "../../core/safePath.js";
+import { tryOrNull } from "../../core/safeUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

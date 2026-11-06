@@ -201,9 +201,10 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     expect(updatedPkg.overrides['js-yaml']).toBe('^5.5.0');
     expect(updatedPkg.overrides.braces).toBeUndefined();
     expect(updatedPkg.overrides.micromatch).toBeUndefined();
+    expect(updatedPkg.devDependencies.vitest).toBeUndefined();
   });
 
-  it('C-SCR-08: syncPackageJsonForVitePlus migrates hardcoded exact vite override to $vite and normalizes exact devDependencies', () => {
+  it('C-SCR-08: syncPackageJsonForVitePlus migrates hardcoded exact vite override to $vite, normalizes vite-plus and purges redundant vitest', () => {
     const pkgWithHardcodedVite = {
       name: 'test-hardcoded-consumer',
       version: '1.0.0',
@@ -228,7 +229,7 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
     expect(updatedPkg.overrides.vite).toBe('$vite');
     expect(updatedPkg.overrides.vitest).toBe('$vitest');
-    expect(updatedPkg.devDependencies['vite-plus']).toBe('^1.4.0');
-    expect(updatedPkg.devDependencies.vitest).toBe('^5.0.5');
+    expect(updatedPkg.devDependencies['vite-plus']).toBe('^1.5.0');
+    expect(updatedPkg.devDependencies.vitest).toBeUndefined();
   });
 });

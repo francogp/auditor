@@ -1,12 +1,12 @@
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
-import { safeJsonParse, safeReadFileSync, tryOrNull } from "../../core/safeUtils.js";
-import { normalizePosixPath } from "../../core/reportUtils.js";
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { CANONICAL_IGNORE_DIRS } from "../../core/canonicalIgnoreRegistry.js";
 import "../../core/auditConfig.js";
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { CANONICAL_IGNORE_DIRS } from "../../core/canonicalIgnoreRegistry.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
+import { safeJsonParse, safeReadFileSync, tryOrNull } from "../../core/safeUtils.js";
 import { SASS_TRAPS_RULE_NAME, sassTrapsPlugin } from "./stylelintSassTrapsPlugin.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";

@@ -1,17 +1,17 @@
 import { AUDIT_CONFIG_FILE, AUDIT_CONFIG_JSON_FILE, LEGACY_ROOT_CONFIG_FILES } from "./auditConfigTypes.js";
-import { AUDITOR_VERSION } from "./version.js";
-import { tryCatchSync, tryOrNull, tryOrNullAsync, tryOrUndefinedAsync } from "./safeUtils.js";
-import { loadAuditConfig, resetAuditConfig } from "./auditConfigLoader.js";
-import { isSelfProviderProject } from "./auditProjectIdentity.js";
-import "./auditConfig.js";
-import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "./gitignoreMatcher.js";
 import { collectAllGitIgnoreRequirements, discoverAuditors } from "../cli/auditScanner.js";
 import { initAgentSkill } from "../cli/init_agent.js";
+import { loadAuditConfig, resetAuditConfig } from "./auditConfigLoader.js";
+import { isSelfProviderProject } from "./auditProjectIdentity.js";
 import { migrateLegacyAuditConfig } from "../cli/migrateAuditConfig.js";
-import { getPackageJson } from "./packageJson.js";
-import { appendMissingSectionsToConfigFile } from "./auditConfigAst.js";
 import { collectMissingSections, createDefaultAuditConfigContent, enforceCriticalConfigurations, syncAuditorVersionInConfigFile } from "../suites/architecture/validate_audit_config.js";
+import "./auditConfig.js";
+import { appendMissingSectionsToConfigFile } from "./auditConfigAst.js";
+import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "./gitignoreMatcher.js";
 import { ensureNpmrcAllowGit } from "./npmrcAllowGit.js";
+import { getPackageJson } from "./packageJson.js";
+import { tryCatchSync, tryOrNull, tryOrNullAsync, tryOrUndefinedAsync } from "./safeUtils.js";
+import { AUDITOR_VERSION } from "./version.js";
 import { repairVitePlusProject } from "./vitePlusConfigSync.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -148,7 +148,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.7.13-build.20261104-001838")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.8.0-build.20261106-082312")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}

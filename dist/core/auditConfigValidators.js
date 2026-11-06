@@ -1,7 +1,7 @@
-import "./auditConfigTypes.js";
+import "./auditConfigSubsystems.js";
 import { checkInfrastructureSubsystems } from "./auditConfigInfra.js";
 import { checkUiSubsystems } from "./auditConfigUi.js";
-import "./auditConfigSubsystems.js";
+import "./auditConfigTypes.js";
 // src/core/auditConfigValidators.ts
 /**
 * packages/auditor/src/core/auditConfigValidators.ts

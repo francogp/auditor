@@ -1,16 +1,16 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { AUDITOR_VERSION } from "../core/version.js";
-import { safeJsonParse, safeReadFileSync, tryOrNull } from "../core/safeUtils.js";
-import { isSelfProviderProject } from "../core/auditProjectIdentity.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
+import { isSelfProviderProject } from "../core/auditProjectIdentity.js";
+import { runNpmCommandSync } from "../core/npmCommandUtils.js";
+import { ensureNpmrcAllowGit } from "../core/npmrcAllowGit.js";
+import { safeJsonParse, safeReadFileSync, tryOrNull } from "../core/safeUtils.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { AUDITOR_VERSION } from "../core/version.js";
+import { syncPackageJsonForVitePlus } from "../core/vitePlusConfigSync.js";
+import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import { initAgentSkill } from "./init_agent.js";
 import { syncEnvScripts } from "./sync_env_scripts.js";
-import { ensureNpmrcAllowGit } from "../core/npmrcAllowGit.js";
-import { syncPackageJsonForVitePlus } from "../core/vitePlusConfigSync.js";
-import { runNpmCommandSync } from "../core/npmCommandUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";

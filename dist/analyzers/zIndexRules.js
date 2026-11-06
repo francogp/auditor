@@ -1,8 +1,8 @@
-import { safeReadFileSync } from "../core/safeUtils.js";
+import "../core/auditConfig.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { Z_LAYERS } from "../core/auditZLayers.js";
 import { isExemptFile } from "../core/auditPathPredicates.js";
-import "../core/auditConfig.js";
+import { safeReadFileSync } from "../core/safeUtils.js";
 import { normalizeFilePath } from "./auditRuleTypes.js";
 import path from "node:path";
 // src/analyzers/zIndexRules.ts

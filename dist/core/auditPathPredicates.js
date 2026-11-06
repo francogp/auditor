@@ -1,7 +1,7 @@
 import { getAuditConfig } from "./auditConfigLoader.js";
 import { matchesAnyRoot } from "./auditRootMatcher.js";
-import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
 import { isCliPath, isInCodeRoots, isScriptPath, isSrcPath } from "./auditCodeRoots.js";
+import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
 import { isSelfProviderProject } from "./auditProjectIdentity.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
 // src/core/auditPathPredicates.ts

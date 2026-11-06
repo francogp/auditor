@@ -1,11 +1,11 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { getAuditConfig } from "../core/auditConfigLoader.js";
-import { toPosixRelative } from "../core/safePath.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule } from "./cliUtils.js";
+import { toPosixRelative } from "../core/safePath.js";
 import { renderBanner, renderBoxTable, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { checkOrInitializeModel, resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import { styleText } from "node:util";
 import { execSync } from "node:child_process";

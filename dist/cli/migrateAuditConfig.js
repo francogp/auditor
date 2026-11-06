@@ -1,6 +1,6 @@
 import { AUDITOR_DIR, LEGACY_ROOT_CONFIG_FILES } from "../core/auditConfigTypes.js";
-import { toPosixRelative } from "../core/safePath.js";
 import "../core/auditConfig.js";
+import { toPosixRelative } from "../core/safePath.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";

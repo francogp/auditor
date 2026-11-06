@@ -1,10 +1,10 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
-import "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
+import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
 // src/suites/domain_data/validate_o1_data_structures.ts

@@ -1,7 +1,7 @@
-import { tryCatchSync, tryOrDefault } from "../core/safeUtils.js";
 import "../core/auditContract.js";
-import { getProcessExecutedScript } from "../core/cli/cittyHarness.js";
 import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from "../core/auditorBase.js";
+import { getProcessExecutedScript } from "../core/cli/cittyHarness.js";
+import { tryCatchSync, tryOrDefault } from "../core/safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 *
 * Dedicated metadata extractor for auditor suites and tasks.
 */
-const DYNAMIC_IMPORT_TIMEOUT_MS = 2e3;
+const DYNAMIC_IMPORT_TIMEOUT_MS = 1e4;
 function extractStaticMetadataFromFile(fullPath) {
 	const result = {
 		capabilities: {
@@ -32,8 +32,9 @@ function extractStaticMetadataFromFile(fullPath) {
 		if (hasHeavy) speeds.push("heavy");
 		if (hasFull) speeds.push("full");
 		const speed = speeds.length > 1 ? speeds : speeds[0] ?? "light";
-		const phase = content.includes("phase: 'post-build'") ? "post-build" : content.includes("phase: 'post-run'") ? "post-run" : "normal";
-		const fix = content.includes("fix: 'priority'") ? "priority" : content.includes("fix: 'normal'") ? "normal" : "none";
+		const phase = content.includes("phase: 'setup'") ? "setup" : content.includes("phase: 'post-build'") ? "post-build" : content.includes("phase: 'post-run'") ? "post-run" : "normal";
+		const hasFixers = content.includes("ruleFixers:") && !content.includes("ruleFixers: {}") || content.includes("fixableRuleIds:") || content.includes("fix: 'priority'") || content.includes("fix: 'normal'");
+		const fix = content.includes("fix: 'priority'") || hasFixers && phase === "setup" ? "priority" : content.includes("fix: 'normal'") || hasFixers ? "normal" : "none";
 		result.capabilities = {
 			speed,
 			phase,

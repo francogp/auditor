@@ -1,7 +1,7 @@
 import { OxlintAuditor } from "../../suites/architecture/validate_oxlint.js";
+import { AstTextReplacement } from "../astScriptExtractor.js";
 import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
 import { HygieneFindingItem, HygieneRefactorPlan } from "./refactorContracts.js";
-import { AstTextReplacement } from "../astScriptExtractor.js";
 /**
  * Inspects a file for code hygiene findings and prepares exact AST text replacements.
  */

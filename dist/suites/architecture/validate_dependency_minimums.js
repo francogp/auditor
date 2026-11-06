@@ -1,6 +1,6 @@
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { findDeclaredDependency, getAuditorMaximumVersions, getAuditorMinimumVersions } from "../../core/auditorMinimums.js";
+import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
