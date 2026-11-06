@@ -702,6 +702,29 @@ export function validateFallowDoctorResults(
   }
 }
 
+function repairSkippedSourceDotdir(
+  d: FallowWorkspaceDiagnosticItem,
+  config: FallowConfigSchema
+): boolean {
+  const cleanPath = d.path ? normalizePosixPath(d.path) : '.auditor';
+  const baseDir = cleanPath.startsWith('!') ? cleanPath.slice(1) : cleanPath;
+  const dotdir = `${baseDir}/**`;
+  const patterns = Array.isArray(config.ignorePatterns) ? [...config.ignorePatterns] : [];
+  let modified = false;
+  const invertedDotdir = `!${dotdir}`;
+  const invertedIdx = patterns.indexOf(invertedDotdir);
+  if (invertedIdx !== -1) {
+    patterns.splice(invertedIdx, 1);
+    modified = true;
+  }
+  if (!patterns.includes(dotdir)) {
+    patterns.push(dotdir);
+    config.ignorePatterns = patterns;
+    modified = true;
+  }
+  return modified;
+}
+
 export function validateFallowWorkspaceDiagnostics(
   diagnostics: readonly FallowWorkspaceDiagnosticItem[] | undefined,
   auditor: ValidateFallowConfigAuditor,
@@ -725,11 +748,7 @@ export function validateFallowWorkspaceDiagnostics(
     }
 
     if (d.kind === 'skipped-source-dotdir' && auditor.isFixActive() && config) {
-      const dotdir = d.path ? `!${normalizePosixPath(d.path)}/**` : '!.auditor/**';
-      const patterns = Array.isArray(config.ignorePatterns) ? [...config.ignorePatterns] : [];
-      if (!patterns.includes(dotdir)) {
-        patterns.push(dotdir);
-        config.ignorePatterns = patterns;
+      if (repairSkippedSourceDotdir(d, config)) {
         modified = true;
         continue;
       }

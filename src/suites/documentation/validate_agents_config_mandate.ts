@@ -627,17 +627,36 @@ export interface AgentsConfigMandateOptions {
   readonly chatLanguage?: DocumentationLanguage;
 }
 
+export function createDefaultAgentsMdContent(
+  targetLanguage: DocumentationLanguage = 'en',
+  chatLanguage: DocumentationLanguage = 'es'
+): string {
+  const isEs = targetLanguage === 'es';
+  const header = isEs
+    ? `# Purpose\n\nGobernanza y directivas de arquitectura para agentes de IA en este repositorio.\n\n## Subagentes\n\n| Agente | Rol | Descripción |\n| --- | --- | --- |\n| \`developer\` | Desarrollo General | Implementación de código y mantenimiento. |\n\n## Directivas Locales\n\n`
+    : `# Purpose\n\nArchitecture governance and directives for AI agents in this repository.\n\n## Subagents\n\n| Agent | Role | Description |\n| --- | --- | --- |\n| \`developer\` | General Developer | Code implementation and maintenance. |\n\n## Local Contracts\n\n`;
+
+  const snippets = MANDATE_DEFINITIONS.map((m) => m.getSnippet(targetLanguage, chatLanguage));
+  return header + snippets.join('\n') + '\n';
+}
+
 export function fixSingleAgentsMandate(
   context: RuleFixContext<AgentsConfigMandateRuleId>
 ): boolean {
   const mandate = MANDATE_DEFINITIONS.find((m) => m.ruleId === context.ruleId);
   if (!mandate) return false;
   const agentsMdPath = path.resolve(context.projectRoot, 'AGENTS.md');
-  if (!fsSync.existsSync(agentsMdPath)) return false;
-  const currentContent = fsSync.readFileSync(agentsMdPath, 'utf8');
   const config = getAuditConfig(context.projectRoot);
   const targetLanguage = config.documentation?.language ?? 'en';
   const chatLanguage = config.documentation?.chatLanguage ?? 'es';
+
+  if (!fsSync.existsSync(agentsMdPath)) {
+    const defaultContent = createDefaultAgentsMdContent(targetLanguage, chatLanguage);
+    fsSync.writeFileSync(agentsMdPath, defaultContent, 'utf8');
+    return true;
+  }
+
+  const currentContent = fsSync.readFileSync(agentsMdPath, 'utf8');
 
   injectOrUpdateMandateInAgentsMd({
     agentsMdPath,
@@ -799,7 +818,18 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
     const agentsMdPath = path.resolve(this.rootDir, 'AGENTS.md');
     this.recordScanned('AGENTS.md');
 
+    const config = getAuditConfig(this.rootDir);
+    const targetLanguage: DocumentationLanguage =
+      this.languageOption ?? config.documentation?.language ?? 'en';
+    const chatLanguage: DocumentationLanguage =
+      this.chatLanguageOption ?? config.documentation?.chatLanguage ?? 'es';
+
     if (!fsSync.existsSync(agentsMdPath)) {
+      if (this.isFixActive()) {
+        const defaultContent = createDefaultAgentsMdContent(targetLanguage, chatLanguage);
+        fsSync.writeFileSync(agentsMdPath, defaultContent, 'utf8');
+        return;
+      }
       for (const rule of AGENTS_CONFIG_MANDATE_RULES) {
         this.runSubAuditorSync(rule, () => {
           this.addViolation({
@@ -821,12 +851,6 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
       // Unreadable AGENTS.md
       return;
     }
-
-    const config = getAuditConfig(this.rootDir);
-    const targetLanguage: DocumentationLanguage =
-      this.languageOption ?? config.documentation?.language ?? 'en';
-    const chatLanguage: DocumentationLanguage =
-      this.chatLanguageOption ?? config.documentation?.chatLanguage ?? 'es';
 
     for (const mandate of MANDATE_DEFINITIONS) {
       this.runSubAuditorSync(mandate.ruleId, () => {

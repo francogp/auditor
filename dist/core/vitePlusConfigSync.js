@@ -451,7 +451,12 @@ function updateVitePlusScripts(scripts) {
 	}
 	return modified;
 }
-const OBSOLETE_OVERRIDES = ["braces", "micromatch"];
+const OBSOLETE_OVERRIDES = [
+	"braces",
+	"micromatch",
+	"vite",
+	"vitest"
+];
 function syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions) {
 	let modified = false;
 	const vitePlusFloor = minVersions["vite-plus"] ?? "^1.4.0";
@@ -482,34 +487,6 @@ function syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions) {
 	}
 	return modified;
 }
-function syncViteOverride(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps) {
-	if (nextOverrides.vite) {
-		if (nextOverrides.vite !== "$vite") {
-			if (nextOverrides.vite.includes("@voidzero-dev/vite-plus-core") || semver.valid(nextOverrides.vite)) {
-				nextOverrides.vite = "$vite";
-				return true;
-			}
-		}
-	} else if (canonicalOverrides.vite === "$vite" || nextDevDeps.vite || nextDeps?.vite) {
-		nextOverrides.vite = "$vite";
-		return true;
-	}
-	return false;
-}
-function syncVitestOverride(nextOverrides, canonicalOverrides) {
-	if (nextOverrides.vitest) {
-		if (nextOverrides.vitest !== "$vitest") {
-			if (semver.valid(nextOverrides.vitest) || nextOverrides.vitest.includes("vitest")) {
-				nextOverrides.vitest = "$vitest";
-				return true;
-			}
-		}
-	} else if (canonicalOverrides.vitest === "$vitest") {
-		nextOverrides.vitest = "$vitest";
-		return true;
-	}
-	return false;
-}
 function syncSecurityOverrides(nextOverrides, canonicalOverrides) {
 	let modified = false;
 	for (const [ovKey, ovVal] of Object.entries(canonicalOverrides)) {
@@ -532,10 +509,8 @@ function syncSecurityOverrides(nextOverrides, canonicalOverrides) {
 	}
 	return modified;
 }
-function syncPackageJsonOverrides(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps) {
+function syncPackageJsonOverrides(nextOverrides, canonicalOverrides) {
 	let modified = false;
-	if (syncViteOverride(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) modified = true;
-	if (syncVitestOverride(nextOverrides, canonicalOverrides)) modified = true;
 	for (const obsKey of OBSOLETE_OVERRIDES) if (nextOverrides[obsKey]) {
 		delete nextOverrides[obsKey];
 		modified = true;
@@ -595,7 +570,7 @@ function syncPackageJsonForVitePlus(projectRoot) {
 	const canonicalOverrides = getAuditorCanonicalOverrides();
 	if (syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions)) modified = true;
 	if (removeLegacyDependencies(nextDeps, nextDevDeps, nextScripts)) modified = true;
-	if (syncPackageJsonOverrides(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) modified = true;
+	if (syncPackageJsonOverrides(nextOverrides, canonicalOverrides)) modified = true;
 	if (updateVitePlusScripts(nextScripts)) modified = true;
 	if (syncVitestDevDeps(nextDevDeps, nextScripts, minVersions, nextDeps)) modified = true;
 	if (modified) writePackageJson(projectRoot, {

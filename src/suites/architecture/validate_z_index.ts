@@ -383,8 +383,19 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       return;
     }
 
-    // Si el proyecto explícitamente no tiene SCSS configurado
+    // Si el proyecto no tiene SCSS configurado o detectado
     if (!this.scssPath) {
+      if (!this.isExplicit) {
+        // En proyectos sin SCSS configurado explícitamente y sin archivos SCSS en disco (ej. CLI, backend, Day 0)
+        // no bloquear el setup: marcar las reglas como no aplicables limpiamente.
+        for (const r of Z_INDEX_RULES) {
+          this.runSubAuditorSync(r, () => {
+            this.markRuleNotApplicable(r, 'No SCSS stylesheets found in project');
+          });
+        }
+        return;
+      }
+
       this.runSubAuditorSync('z-index-read-error', () => {
         this.addViolation({
           ruleId: 'z-index-read-error',
@@ -392,7 +403,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
           file: AUDIT_CONFIG_FILE,
           line: 1,
           message:
-            "Missing Z-Layers configuration in audit.config.ts: no SCSS file found. Define 'styles.zLayersScssFile' pointing to your base SCSS file, or explicitly configure 'styles.zLayersEnabled: false' if this project does not use SCSS Z-layers.",
+            "Missing Z-Layers configuration in audit.config.ts: configured SCSS file was not found. Define 'styles.zLayersScssFile' pointing to your base SCSS file, or explicitly configure 'styles.zLayersEnabled: false' if this project does not use SCSS Z-layers.",
           context: AUDIT_CONFIG_FILE
         });
       });

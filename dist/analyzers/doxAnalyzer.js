@@ -301,9 +301,13 @@ function maskCodeBlocksPreservingLines(content) {
 		return match.replace(/[^\n]/g, " ");
 	});
 }
-function isGarbageOrEmptyContent(rawContent) {
+function isGarbageOrEmptyContent(rawContent, sectionTitle) {
 	const stripped = rawContent.replace(/<!--[\s\S]*?-->/g, "").trim();
 	if (!stripped) return true;
+	if (sectionTitle === "child dox index") {
+		const lower = stripped.toLowerCase();
+		if (lower.includes("leaf directory") || lower.includes("directorio hoja") || lower.includes("leaf node") || lower.includes("nodo hoja")) return false;
+	}
 	const cleanOneLiner = stripped.toLowerCase().replace(/^[-*_\s]+/, "").replace(/[:.?!]+$/, "").trim();
 	if (PLACEHOLDER_KEYWORDS.has(cleanOneLiner)) return true;
 	if (cleanOneLiner.startsWith("todo") || cleanOneLiner.startsWith("tbd") || cleanOneLiner.startsWith("pendiente")) {
@@ -353,19 +357,22 @@ function parseDoxHeaders(maskedLines) {
 	}
 	return headerInfos;
 }
-function checkMandatoryDoxSections(headerInfos, agentsPath, rootDir) {
+function checkMandatoryDoxSections(headerInfos, agentsPath, rootDir, isLeafDir = false) {
 	const violations = [];
-	for (const mandatory of MANDATORY_DOX_SECTIONS) if (!headerInfos.find((h) => h.level === mandatory.level && h.normalizedTitle === mandatory.normalized)) violations.push({
-		file: agentsPath,
-		line: 1,
-		message: `Missing required section '${mandatory.raw}' in '${path.relative(rootDir, agentsPath)}'.`,
-		context: mandatory.raw,
-		severity: "error",
-		fixable: false,
-		packageName: "DOX",
-		ruleId: "dox-missing-section",
-		ruleDescription: "Missing required section in AGENTS.md"
-	});
+	for (const mandatory of MANDATORY_DOX_SECTIONS) {
+		if (isLeafDir && mandatory.normalized === "child dox index") continue;
+		if (!headerInfos.find((h) => h.level === mandatory.level && h.normalizedTitle === mandatory.normalized)) violations.push({
+			file: agentsPath,
+			line: 1,
+			message: `Missing required section '${mandatory.raw}' in '${path.relative(rootDir, agentsPath)}'.`,
+			context: mandatory.raw,
+			severity: "error",
+			fixable: false,
+			packageName: "DOX",
+			ruleId: "dox-missing-section",
+			ruleDescription: "Missing required section in AGENTS.md"
+		});
+	}
 	return violations;
 }
 function checkDoxSectionOrder(headerInfos, agentsPath, rootDir) {
@@ -398,7 +405,7 @@ function checkDoxSectionContent(headerInfos, originalLines, agentsPath, rootDir)
 		const h = headerInfos[idx];
 		const nextH = headerInfos[idx + 1];
 		const endLineIndex = nextH ? nextH.lineIndex : originalLines.length;
-		if (isGarbageOrEmptyContent(originalLines.slice(h.lineIndex + 1, endLineIndex).join("\n"))) violations.push({
+		if (isGarbageOrEmptyContent(originalLines.slice(h.lineIndex + 1, endLineIndex).join("\n"), h.normalizedTitle)) violations.push({
 			file: agentsPath,
 			line: h.line,
 			message: `Required section '${h.rawHeader}' in '${path.relative(rootDir, agentsPath)}' (line ${h.line}) is empty or contains placeholder text. It must contain substantial and useful information.`,
@@ -412,12 +419,12 @@ function checkDoxSectionContent(headerInfos, originalLines, agentsPath, rootDir)
 	}
 	return violations;
 }
-function validateDoxSectionStructure(agentsPath, rootDir, content) {
+function validateDoxSectionStructure(agentsPath, rootDir, content, isLeafDir = false) {
 	const maskedLines = maskCodeBlocksPreservingLines(content).split("\n");
 	const originalLines = content.split("\n");
 	const headerInfos = parseDoxHeaders(maskedLines);
 	return [
-		...checkMandatoryDoxSections(headerInfos, agentsPath, rootDir),
+		...checkMandatoryDoxSections(headerInfos, agentsPath, rootDir, isLeafDir),
 		...checkDoxSectionOrder(headerInfos, agentsPath, rootDir),
 		...checkDoxSectionContent(headerInfos, originalLines, agentsPath, rootDir)
 	];
@@ -430,9 +437,12 @@ async function checkDoxIntegrity(rootDir, ignoreDirs, extraIgnorePatterns = []) 
 		...validateChildRegistration(rootDir, doxFilesMap),
 		...await validateUnindexedCodeFiles(rootDir, doxFilesMap, gitIgnoreMatcher)
 	];
+	const doxDirSet = new Set(Array.from(doxDirs).map((d) => normalizeDirPath(d)));
 	for (const [dirPath, content] of doxFilesMap.entries()) {
+		const normDir = normalizeDirPath(dirPath);
+		const hasChildren = Array.from(doxDirSet).some((other) => other !== normDir && other.startsWith(normDir + "/"));
 		const agentsPath = path.join(dirPath, "AGENTS.md");
-		violations.push(...validateDoxSectionStructure(agentsPath, rootDir, content));
+		violations.push(...validateDoxSectionStructure(agentsPath, rootDir, content, !hasChildren));
 	}
 	return violations;
 }

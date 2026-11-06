@@ -186,6 +186,12 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
       return;
     }
 
+    // Day 0 proportionality clause: exempt initial scaffolding suites with <= 2 test files
+    const totalFiles = this.context.collectFiles(this.roots, this.allowedExtensions).length;
+    if (totalFiles <= 2) {
+      return;
+    }
+
     this.addViolation({
       ruleId: 'no-fragmented-tests',
       severity: 'error',

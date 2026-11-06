@@ -182,6 +182,16 @@ function isInsideLocateFileProperty(node) {
 	}
 	return false;
 }
+const AUDITOR_RULE_SIBLING_KEYS = /* @__PURE__ */ new Set([
+	"remediationPhase",
+	"defaultSeverity",
+	"fixable",
+	"ruleId",
+	"suiteId",
+	"ruleDescriptions",
+	"ruleRemediations",
+	"ruleCapabilities"
+]);
 const domainTypeOxlintPlugin = {
 	meta: {
 		name: "@francogp/domain-type",
@@ -1819,16 +1829,6 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Enforces maximum length of 60 chars on auditor rule descriptions" }
 			},
 			create(context) {
-				const AUDITOR_RULE_SIBLING_KEYS = /* @__PURE__ */ new Set([
-					"remediationPhase",
-					"defaultSeverity",
-					"fixable",
-					"ruleId",
-					"suiteId",
-					"ruleDescriptions",
-					"ruleRemediations",
-					"ruleCapabilities"
-				]);
 				return { Property(node) {
 					const keyName = getNodePropKeyName(node);
 					const val = node.value;

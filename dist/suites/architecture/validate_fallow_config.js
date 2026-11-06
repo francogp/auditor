@@ -15,7 +15,7 @@ import "./validate_fallow.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 // src/suites/architecture/validate_fallow_config.ts
 /**
 * scripts/auditors/architecture/validate_fallow_config.ts
@@ -379,7 +379,7 @@ const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS = [
 	"ignore-patterns-entry-redundant"
 ];
 const REDUNDANT_CONFIG_DIAGNOSTIC_SET = new Set(FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS);
-function executeFallowJsonCommand(projectRoot, subcmd, timeoutMs = FALLOW_CONFIG_EXECUTION_TIMEOUT_MS) {
+function executeFallowJsonCommand(projectRoot, subcmdArgs, timeoutMs = FALLOW_CONFIG_EXECUTION_TIMEOUT_MS) {
 	if (process.env.FALLOW_SKIP_BINARY_VERIFY === "1" || process.env.FALLOW_SKIP_BINARY_VERIFY === "true") return {
 		data: null,
 		skipped: "env"
@@ -391,7 +391,14 @@ function executeFallowJsonCommand(projectRoot, subcmd, timeoutMs = FALLOW_CONFIG
 	};
 	let stdout;
 	try {
-		stdout = execSync(`node "${fallowBin}" ${subcmd} --format json --root "${projectRoot}"`, {
+		stdout = spawnSync(process.execPath, [
+			fallowBin,
+			...subcmdArgs,
+			"--format",
+			"json",
+			"--root",
+			projectRoot
+		], {
 			encoding: "utf8",
 			stdio: [
 				"pipe",
@@ -399,11 +406,63 @@ function executeFallowJsonCommand(projectRoot, subcmd, timeoutMs = FALLOW_CONFIG
 				"ignore"
 			],
 			timeout: timeoutMs
-		});
+		}).stdout;
 	} catch (err) {
 		stdout = err?.stdout?.toString();
 	}
 	return { data: safeJsonParse(stdout ?? "") ?? null };
+}
+function formatDoctorRemediation(remediation) {
+	if (typeof remediation === "string" && remediation) return ` | Remediation: ${remediation}`;
+	if (remediation && typeof remediation === "object" && remediation.command) return ` | Remediation: ${remediation.command}`;
+	return "";
+}
+function validateFallowDoctorResults(parsed, auditor) {
+	if (parsed.status !== "fail" && parsed.status !== "warn") return;
+	const defectiveChecks = (Array.isArray(parsed.checks) ? parsed.checks : []).filter((c) => c.status === "fail" || c.status === "warn");
+	if (defectiveChecks.length === 0) {
+		const severity = parsed.status === "fail" ? "error" : "warning";
+		auditor.addViolation({
+			ruleId: "fallow-config-doctor",
+			severity,
+			file: ".fallowrc.json",
+			line: 1,
+			message: `Fallow doctor reported ${parsed.status} status. Run 'npm run auditor:fallow:doctor' to inspect.`,
+			context: "doctor"
+		});
+		return;
+	}
+	for (const check of defectiveChecks) {
+		const severity = check.status === "fail" ? "error" : "warning";
+		const remediation = formatDoctorRemediation(check.remediation);
+		const checkId = check.id ?? check.name ?? "check";
+		auditor.addViolation({
+			ruleId: "fallow-config-doctor",
+			severity,
+			file: ".fallowrc.json",
+			line: 1,
+			message: `[doctor:${checkId}] ${check.message ?? "Fallow health check failed"}${remediation}`,
+			context: checkId
+		});
+	}
+}
+function repairSkippedSourceDotdir(d, config) {
+	const cleanPath = d.path ? normalizePosixPath(d.path) : ".auditor";
+	const dotdir = `${cleanPath.startsWith("!") ? cleanPath.slice(1) : cleanPath}/**`;
+	const patterns = Array.isArray(config.ignorePatterns) ? [...config.ignorePatterns] : [];
+	let modified = false;
+	const invertedDotdir = `!${dotdir}`;
+	const invertedIdx = patterns.indexOf(invertedDotdir);
+	if (invertedIdx !== -1) {
+		patterns.splice(invertedIdx, 1);
+		modified = true;
+	}
+	if (!patterns.includes(dotdir)) {
+		patterns.push(dotdir);
+		config.ignorePatterns = patterns;
+		modified = true;
+	}
+	return modified;
 }
 function validateFallowWorkspaceDiagnostics(diagnostics, auditor, config) {
 	if (!Array.isArray(diagnostics)) return false;
@@ -416,11 +475,7 @@ function validateFallowWorkspaceDiagnostics(diagnostics, auditor, config) {
 			continue;
 		}
 		if (d.kind === "skipped-source-dotdir" && auditor.isFixActive() && config) {
-			const dotdir = d.path ? `!${normalizePosixPath(d.path)}/**` : "!.auditor/**";
-			const patterns = Array.isArray(config.ignorePatterns) ? [...config.ignorePatterns] : [];
-			if (!patterns.includes(dotdir)) {
-				patterns.push(dotdir);
-				config.ignorePatterns = patterns;
+			if (repairSkippedSourceDotdir(d, config)) {
 				modified = true;
 				continue;
 			}
@@ -718,8 +773,12 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 		if (modified && this.isFixActive()) fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + "\n", "utf-8");
 		this.runSubAuditorSync("fallow-config-workspace-diagnostic", () => {
 			tryCatchSync(() => {
-				const subcmd = `${fs.existsSync(path.join(this.projectRoot, "package.json")) ? "dead-code" : "list --workspaces"} --no-type-aware`;
-				const result = executeFallowJsonCommand(this.projectRoot, subcmd);
+				const subcmdArgs = fs.existsSync(path.join(this.projectRoot, "package.json")) ? ["dead-code", "--no-type-aware"] : [
+					"list",
+					"--workspaces",
+					"--no-type-aware"
+				];
+				const result = executeFallowJsonCommand(this.projectRoot, subcmdArgs);
 				if (result.data?.workspace_diagnostics) {
 					if (validateFallowWorkspaceDiagnostics(result.data.workspace_diagnostics, this, validConfig) && this.isFixActive()) fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + "\n", "utf-8");
 				}
@@ -731,7 +790,7 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 				return;
 			}
 			tryCatchSync(() => {
-				const result = executeFallowJsonCommand(this.projectRoot, "doctor");
+				const result = executeFallowJsonCommand(this.projectRoot, ["doctor"]);
 				if (result.skipped === "env") {
 					this.markRuleNotApplicable("fallow-config-doctor", "Fallow binary verification skipped");
 					return;
@@ -740,37 +799,10 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 					this.markRuleNotApplicable("fallow-config-doctor", "Fallow binary not found");
 					return;
 				}
-				const parsed = result.data;
-				if (!parsed || !parsed.status) return;
-				if (parsed.status === "fail" || parsed.status === "warn") {
-					const defectiveChecks = (Array.isArray(parsed.checks) ? parsed.checks : []).filter((c) => c.status === "fail" || c.status === "warn");
-					if (defectiveChecks.length > 0) for (const check of defectiveChecks) {
-						const severity = check.status === "fail" ? "error" : "warning";
-						const remediation = check.remediation ? ` | Remediation: ${check.remediation}` : "";
-						this.addViolation({
-							ruleId: "fallow-config-doctor",
-							severity,
-							file: ".fallowrc.json",
-							line: 1,
-							message: `[doctor:${check.name ?? "check"}] ${check.message ?? "Fallow health check failed"}${remediation}`,
-							context: check.name ?? "doctor"
-						});
-					}
-					else {
-						const severity = parsed.status === "fail" ? "error" : "warning";
-						this.addViolation({
-							ruleId: "fallow-config-doctor",
-							severity,
-							file: ".fallowrc.json",
-							line: 1,
-							message: `Fallow doctor reported ${parsed.status} status. Run 'npm run auditor:fallow:doctor' to inspect.`,
-							context: "doctor"
-						});
-					}
-				}
+				if (result.data?.status) validateFallowDoctorResults(result.data, this);
 			});
 		});
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateFallowConfigAuditor());
-export { BANNED_ENTRY_GLOBS, FALLOW_CONFIG_REQUIREMENT, FALLOW_CONFIG_RULES, FALLOW_CYCLOMATIC_POLICIES, FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS, ValidateFallowConfigAuditor, createDefaultFallowConfigContent, escapeRegExp, getBannedEntryGlobs, isSymbolExportedInContent, projectFallowConfigFromAuditConfig, validateFallowWorkspaceDiagnostics, validateUndeclaredFallowEntries };
+export { BANNED_ENTRY_GLOBS, FALLOW_CONFIG_REQUIREMENT, FALLOW_CONFIG_RULES, FALLOW_CYCLOMATIC_POLICIES, FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS, ValidateFallowConfigAuditor, createDefaultFallowConfigContent, escapeRegExp, formatDoctorRemediation, getBannedEntryGlobs, isSymbolExportedInContent, projectFallowConfigFromAuditConfig, validateFallowDoctorResults, validateFallowWorkspaceDiagnostics, validateUndeclaredFallowEntries };

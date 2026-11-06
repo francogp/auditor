@@ -115,6 +115,7 @@ var TestFragmentationAuditor = class extends FileScanAuditor {
 	checkMicroTestFragmentation(relPath, lineCount) {
 		if (this.minTestLines <= 0 || lineCount >= this.minTestLines) return;
 		if (this.fragmentationWhitelist.has(relPath) || TEST_FRAGMENTATION_WHITELIST.has(relPath)) return;
+		if (this.context.collectFiles(this.roots, this.allowedExtensions).length <= 2) return;
 		this.addViolation({
 			ruleId: "no-fragmented-tests",
 			severity: "error",

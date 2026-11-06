@@ -45,4 +45,5 @@ export interface ValidateTsconfigOptions {
 export declare class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
   constructor(options?: ValidateTsconfigOptions);
   runAudit(): Promise<void>;
+  private verifyVitePlusCompilerOptions;
 }

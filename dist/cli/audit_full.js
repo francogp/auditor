@@ -736,15 +736,20 @@ async function persistAuditReportsToDisk(params) {
 function printCompactExecutiveSummary(params, cliOptions) {
 	const isDeploy = isProductionEnvironment() || cliOptions?.values.mode === "production" || cliOptions?.values.mode === "deploy" || Boolean(cliOptions?.positionals.includes("deploy"));
 	if (params.isSetupBlocking) {
-		const blockingSuites = params.setupResults.filter((r) => (r.summary?.errors ?? 0) > 0).map((r) => `${r.name} (${r.id})`);
-		const topFindings = isDeploy ? params.setupFindings.filter((f) => f.severity === "error").slice(0, DEPLOY_TOP_ERRORS_LIMIT) : void 0;
+		const setupResults = params.setupContext?.setupResults ?? params.setupResults ?? [];
+		const setupFindings = params.setupContext?.setupFindings ?? params.setupFindings ?? [];
+		const setupErrors = params.setupContext?.setupErrors ?? params.setupErrors ?? 0;
+		const postponedAppErrors = params.setupContext?.postponedAppErrors ?? params.postponedAppErrors ?? 0;
+		const hasFixableErrors = params.setupContext?.hasFixableErrors ?? params.hasFixableErrors ?? false;
+		const blockingSuites = setupResults.filter((r) => (r.summary?.errors ?? 0) > 0).map((r) => `${r.name} (${r.id})`);
+		const topFindings = isDeploy ? setupFindings.filter((f) => f.severity === "error").slice(0, DEPLOY_TOP_ERRORS_LIMIT) : void 0;
 		const output = "\n" + renderExecutiveSetupBlockingSummary({
 			totalSuites: params.results.length,
-			setupErrors: params.setupErrors,
-			postponedAppErrors: params.postponedAppErrors,
+			setupErrors,
+			postponedAppErrors,
 			durationMs: params.totalDuration,
 			blockingSuites,
-			hasFixableErrors: params.hasFixableErrors,
+			hasFixableErrors,
 			topFindings
 		});
 		console.log(output);
@@ -848,12 +853,14 @@ async function renderAndPersistMasterReport(ctx) {
 	const { fixableErrors, fixableWarnings, autoFixRecommended } = computeFixableViolations(results, isFixMode);
 	if (cliOptions.consoleMode === "compact") printCompactExecutiveSummary({
 		isSetupBlocking,
-		setupResults,
-		setupFindings,
-		setupErrors,
-		postponedAppErrors,
+		setupContext: {
+			setupResults,
+			setupFindings,
+			setupErrors,
+			postponedAppErrors,
+			hasFixableErrors
+		},
 		totalDuration,
-		hasFixableErrors,
 		results,
 		totalErrors,
 		totalWarnings,
@@ -1061,7 +1068,15 @@ function handleGuideCommand(cliOptions, allAvailableTasks, activeFamilies) {
 	console.error(styleText("dim", `   Run 'auditor guide' to view the global catalog of available rules.\n`));
 	process.exit(1);
 }
-function handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config) {
+async function handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config) {
+	if (Boolean(cliOptions.values.subcommand === "init" || cliOptions.positionals.includes("init"))) {
+		const { initProject } = await import("./init_project.js");
+		await initProject({
+			projectRoot: typeof cliOptions.values.project === "string" && cliOptions.values.project.trim() !== "" ? cliOptions.values.project.trim() : void 0,
+			quiet: cliOptions.consoleMode === "compact"
+		});
+		process.exit(0);
+	}
 	if (cliOptions.values.help || cliOptions.positionals.includes("help")) handleHelpCommand(cliOptions, allAvailableTasks, activeFamilies);
 	if (Boolean(cliOptions.values.guide !== void 0 || cliOptions.positionals.includes("guide"))) handleGuideCommand(cliOptions, allAvailableTasks, activeFamilies);
 	if (Boolean(cliOptions.values.list || cliOptions.positionals.includes("list") || cliOptions.positionals.includes("list:enabled") || cliOptions.positionals.includes("list:disabled") || cliOptions.isEnabledFilter || cliOptions.isDisabledFilter)) handleListCommand(cliOptions, allAvailableTasks, activeFamilies, config);
@@ -1354,7 +1369,7 @@ async function runMasterAudit() {
 		buildOnly: true,
 		phase: "post-build"
 	} : { withBuild });
-	handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config);
+	await handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config);
 	const tasksToRun = await discoverAuditors({
 		...discoveryBase,
 		family: cliOptions.targetFamily,

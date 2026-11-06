@@ -129,6 +129,10 @@ var MarkdownSyntaxAuditor = class extends FileScanAuditor {
 			if (fs.existsSync(targetMarkdownPath)) fs.writeFileSync(targetMarkdownPath, lines.join("\n"), "utf-8");
 		}
 	}
+	async runAudit() {
+		await super.runAudit();
+		if (this.getEvaluations("npm-script-exclusivity-in-docs") === 0) this.markRuleNotApplicable("npm-script-exclusivity-in-docs", "No fenced code blocks found in scanned markdown documentation");
+	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new MarkdownSyntaxAuditor());
 export { MARKDOWN_SYNTAX_RULES, MarkdownSyntaxAuditor };

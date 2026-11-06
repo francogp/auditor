@@ -63,6 +63,27 @@ export interface FallowWorkspaceDiagnosticItem {
 }
 export declare const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS: readonly ["entry-pattern-redundant", "ignore-dependencies-entry-redundant", "ignore-patterns-entry-redundant"];
 export type FallowRedundantConfigDiagnosticKind = (typeof FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS)[number];
+export interface FallowDoctorCheck {
+  readonly id?: string;
+  readonly name?: string;
+  readonly status?: string;
+  readonly message?: string;
+  readonly remediation?: {
+    command?: string;
+    cwd?: string;
+    mutating?: boolean;
+  } | string;
+}
+export interface FallowDoctorOutput {
+  readonly status?: string;
+  readonly checks?: readonly FallowDoctorCheck[];
+}
+export declare function formatDoctorRemediation(remediation?: {
+  command?: string;
+  cwd?: string;
+  mutating?: boolean;
+} | string): string;
+export declare function validateFallowDoctorResults(parsed: FallowDoctorOutput, auditor: ValidateFallowConfigAuditor): void;
 export declare function validateFallowWorkspaceDiagnostics(diagnostics: readonly FallowWorkspaceDiagnosticItem[] | undefined, auditor: ValidateFallowConfigAuditor, config?: FallowConfigSchema): boolean;
 export declare function projectFallowConfigFromAuditConfig(auditConfig: ReturnType<typeof getAuditConfig>): Partial<FallowConfigSchema>;
 export declare function validateUndeclaredFallowEntries(config: FallowConfigSchema, auditor: ValidateFallowConfigAuditor): boolean;

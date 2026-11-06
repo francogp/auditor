@@ -374,10 +374,22 @@ function maskCodeBlocksPreservingLines(content: string): string {
   });
 }
 
-function isGarbageOrEmptyContent(rawContent: string): boolean {
+function isGarbageOrEmptyContent(rawContent: string, sectionTitle?: string): boolean {
   // Strip HTML comments <!-- ... -->
   const stripped = rawContent.replace(/<!--[\s\S]*?-->/g, '').trim();
   if (!stripped) return true;
+
+  if (sectionTitle === 'child dox index') {
+    const lower = stripped.toLowerCase();
+    if (
+      lower.includes('leaf directory') ||
+      lower.includes('directorio hoja') ||
+      lower.includes('leaf node') ||
+      lower.includes('nodo hoja')
+    ) {
+      return false;
+    }
+  }
 
   // Single-line placeholder check
   const cleanOneLiner = stripped
@@ -464,10 +476,14 @@ function parseDoxHeaders(maskedLines: readonly string[]): DoxHeaderInfo[] {
 function checkMandatoryDoxSections(
   headerInfos: readonly DoxHeaderInfo[],
   agentsPath: string,
-  rootDir: string
+  rootDir: string,
+  isLeafDir = false
 ): Violation[] {
   const violations: Violation[] = [];
   for (const mandatory of MANDATORY_DOX_SECTIONS) {
+    if (isLeafDir && mandatory.normalized === 'child dox index') {
+      continue;
+    }
     const found = headerInfos.find(
       (h) => h.level === mandatory.level && h.normalizedTitle === mandatory.normalized
     );
@@ -556,7 +572,7 @@ function checkDoxSectionContent(
     const bodyLines = originalLines.slice(h.lineIndex + 1, endLineIndex);
     const bodyText = bodyLines.join('\n');
 
-    if (isGarbageOrEmptyContent(bodyText)) {
+    if (isGarbageOrEmptyContent(bodyText, h.normalizedTitle)) {
       violations.push({
         file: agentsPath,
         line: h.line,
@@ -576,14 +592,15 @@ function checkDoxSectionContent(
 export function validateDoxSectionStructure(
   agentsPath: string,
   rootDir: string,
-  content: string
+  content: string,
+  isLeafDir = false
 ): Violation[] {
   const maskedLines = maskCodeBlocksPreservingLines(content).split('\n');
   const originalLines = content.split('\n');
   const headerInfos = parseDoxHeaders(maskedLines);
 
   return [
-    ...checkMandatoryDoxSections(headerInfos, agentsPath, rootDir),
+    ...checkMandatoryDoxSections(headerInfos, agentsPath, rootDir, isLeafDir),
     ...checkDoxSectionOrder(headerInfos, agentsPath, rootDir),
     ...checkDoxSectionContent(headerInfos, originalLines, agentsPath, rootDir)
   ];
@@ -608,9 +625,15 @@ export async function checkDoxIntegrity(
     ...(await validateUnindexedCodeFiles(rootDir, doxFilesMap, gitIgnoreMatcher))
   ];
 
+  const doxDirSet = new Set(Array.from(doxDirs).map((d) => normalizeDirPath(d)));
+
   for (const [dirPath, content] of doxFilesMap.entries()) {
+    const normDir = normalizeDirPath(dirPath);
+    const hasChildren = Array.from(doxDirSet).some(
+      (other) => other !== normDir && other.startsWith(normDir + '/')
+    );
     const agentsPath = path.join(dirPath, 'AGENTS.md');
-    violations.push(...validateDoxSectionStructure(agentsPath, rootDir, content));
+    violations.push(...validateDoxSectionStructure(agentsPath, rootDir, content, !hasChildren));
   }
 
   return violations;

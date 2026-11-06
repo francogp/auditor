@@ -2,6 +2,7 @@ import { defineAuditConfig } from '../src/core/auditConfig.ts';
 
 export default defineAuditConfig({
   name: '@francogp/auditor',
+  auditorVersion: '10.8.1-build.20261106-094848',
   paths: {
     enabled: true,
     srcRoots: ['src'],

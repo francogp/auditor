@@ -204,6 +204,16 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
       }
     }
   }
+
+  public override async runAudit(): Promise<void> {
+    await super.runAudit();
+    if (this.getEvaluations('npm-script-exclusivity-in-docs') === 0) {
+      this.markRuleNotApplicable(
+        'npm-script-exclusivity-in-docs',
+        'No fenced code blocks found in scanned markdown documentation'
+      );
+    }
+  }
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

@@ -268,15 +268,22 @@ const MANDATE_DEFINITIONS = [
 		errorMessageEs: "AGENTS.md raíz debe incluir obligatoriamente el mandato de invarianza de hooks PreToolUse y prohibición absoluta de puentear hooks con scripts proxy."
 	}
 ];
+function createDefaultAgentsMdContent(targetLanguage = "en", chatLanguage = "es") {
+	return (targetLanguage === "es" ? `# Purpose\n\nGobernanza y directivas de arquitectura para agentes de IA en este repositorio.\n\n## Subagentes\n\n| Agente | Rol | Descripción |\n| --- | --- | --- |\n| \`developer\` | Desarrollo General | Implementación de código y mantenimiento. |\n\n## Directivas Locales\n\n` : `# Purpose\n\nArchitecture governance and directives for AI agents in this repository.\n\n## Subagents\n\n| Agent | Role | Description |\n| --- | --- | --- |\n| \`developer\` | General Developer | Code implementation and maintenance. |\n\n## Local Contracts\n\n`) + MANDATE_DEFINITIONS.map((m) => m.getSnippet(targetLanguage, chatLanguage)).join("\n") + "\n";
+}
 function fixSingleAgentsMandate(context) {
 	const mandate = MANDATE_DEFINITIONS.find((m) => m.ruleId === context.ruleId);
 	if (!mandate) return false;
 	const agentsMdPath = path.resolve(context.projectRoot, "AGENTS.md");
-	if (!fs.existsSync(agentsMdPath)) return false;
-	const currentContent = fs.readFileSync(agentsMdPath, "utf8");
 	const config = getAuditConfig(context.projectRoot);
 	const targetLanguage = config.documentation?.language ?? "en";
 	const chatLanguage = config.documentation?.chatLanguage ?? "es";
+	if (!fs.existsSync(agentsMdPath)) {
+		const defaultContent = createDefaultAgentsMdContent(targetLanguage, chatLanguage);
+		fs.writeFileSync(agentsMdPath, defaultContent, "utf8");
+		return true;
+	}
+	const currentContent = fs.readFileSync(agentsMdPath, "utf8");
 	injectOrUpdateMandateInAgentsMd({
 		agentsMdPath,
 		content: currentContent,
@@ -357,7 +364,15 @@ var AgentsConfigMandateAuditor = class extends BaseAuditor {
 	async runAudit() {
 		const agentsMdPath = path.resolve(this.rootDir, "AGENTS.md");
 		this.recordScanned("AGENTS.md");
+		const config = getAuditConfig(this.rootDir);
+		const targetLanguage = this.languageOption ?? config.documentation?.language ?? "en";
+		const chatLanguage = this.chatLanguageOption ?? config.documentation?.chatLanguage ?? "es";
 		if (!fs.existsSync(agentsMdPath)) {
+			if (this.isFixActive()) {
+				const defaultContent = createDefaultAgentsMdContent(targetLanguage, chatLanguage);
+				fs.writeFileSync(agentsMdPath, defaultContent, "utf8");
+				return;
+			}
 			for (const rule of AGENTS_CONFIG_MANDATE_RULES) this.runSubAuditorSync(rule, () => {
 				this.addViolation({
 					ruleId: rule,
@@ -375,9 +390,6 @@ var AgentsConfigMandateAuditor = class extends BaseAuditor {
 		} catch {
 			return;
 		}
-		const config = getAuditConfig(this.rootDir);
-		const targetLanguage = this.languageOption ?? config.documentation?.language ?? "en";
-		const chatLanguage = this.chatLanguageOption ?? config.documentation?.chatLanguage ?? "es";
 		for (const mandate of MANDATE_DEFINITIONS) this.runSubAuditorSync(mandate.ruleId, () => {
 			content = this.auditSingleMandate(mandate, content, targetLanguage, chatLanguage, agentsMdPath);
 		});
@@ -407,4 +419,4 @@ var AgentsConfigMandateAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new AgentsConfigMandateAuditor());
-export { AGENTS_CONFIG_MANDATE_RULES, AgentsConfigMandateAuditor, CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN, CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES, CANONICAL_BACKWARD_COMPAT_SNIPPET_EN, CANONICAL_BACKWARD_COMPAT_SNIPPET_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES, CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_EN, CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_ES, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES, CANONICAL_FAKE_PASS_SNIPPET_EN, CANONICAL_FAKE_PASS_SNIPPET_ES, CANONICAL_MANDATE_SNIPPET_EN, CANONICAL_MANDATE_SNIPPET_ES, CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN, CANONICAL_OFFICIAL_TOOLS_SNIPPET_ES, CANONICAL_PRETOOLUSE_GUARD_SNIPPET_EN, CANONICAL_PRETOOLUSE_GUARD_SNIPPET_ES, containsArchitectureMandate, containsBackwardCompatMandate, containsChatLanguageMandate, containsConfigAntiTamperingMandate, containsDependencyImmutabilityMandate, containsDestructiveGitMandate, containsFakePassMandate, containsOfficialToolsMandate, containsPreToolUseGuardMandate, fixSingleAgentsMandate, getCanonicalArchitectureSnippet, getCanonicalBackwardCompatSnippet, getCanonicalChatLanguageSnippet, getCanonicalDependencyImmutabilitySnippet, getCanonicalDestructiveGitSnippet, getCanonicalFakePassSnippet, getCanonicalMandateSnippet, getCanonicalOfficialToolsSnippet, getCanonicalPreToolUseGuardSnippet };
+export { AGENTS_CONFIG_MANDATE_RULES, AgentsConfigMandateAuditor, CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN, CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES, CANONICAL_BACKWARD_COMPAT_SNIPPET_EN, CANONICAL_BACKWARD_COMPAT_SNIPPET_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES, CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_EN, CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_ES, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES, CANONICAL_FAKE_PASS_SNIPPET_EN, CANONICAL_FAKE_PASS_SNIPPET_ES, CANONICAL_MANDATE_SNIPPET_EN, CANONICAL_MANDATE_SNIPPET_ES, CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN, CANONICAL_OFFICIAL_TOOLS_SNIPPET_ES, CANONICAL_PRETOOLUSE_GUARD_SNIPPET_EN, CANONICAL_PRETOOLUSE_GUARD_SNIPPET_ES, containsArchitectureMandate, containsBackwardCompatMandate, containsChatLanguageMandate, containsConfigAntiTamperingMandate, containsDependencyImmutabilityMandate, containsDestructiveGitMandate, containsFakePassMandate, containsOfficialToolsMandate, containsPreToolUseGuardMandate, createDefaultAgentsMdContent, fixSingleAgentsMandate, getCanonicalArchitectureSnippet, getCanonicalBackwardCompatSnippet, getCanonicalChatLanguageSnippet, getCanonicalDependencyImmutabilitySnippet, getCanonicalDestructiveGitSnippet, getCanonicalFakePassSnippet, getCanonicalMandateSnippet, getCanonicalOfficialToolsSnippet, getCanonicalPreToolUseGuardSnippet };

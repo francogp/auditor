@@ -31,6 +31,7 @@ import {
   createUniformRemediationPhases,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
+import { runGit } from '../../core/configRatchet.ts';
 import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 import { DEFAULT_PERMISSIONS } from '../../core/permissionGuard.ts';
 
@@ -798,7 +799,30 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
 
   private verifyProductionRef(config: AuditEngineConfig): void {
     const ratchet = buildRatchetConfig(config.ratchet);
-    if (!ratchet.enabled || resolveGitCommit(this.projectRoot, ratchet.productionRef)) return;
+    if (!ratchet.enabled) return;
+
+    // Virgin repository without commits: do not block setup phase
+    const hasHeadCommit = resolveGitCommit(this.projectRoot, 'HEAD');
+    if (!hasHeadCommit) {
+      this.markRuleNotApplicable(
+        'package-scripts-invalid-production-ref',
+        'Repository has no commits yet (virgin repository)'
+      );
+      return;
+    }
+
+    if (resolveGitCommit(this.projectRoot, ratchet.productionRef)) return;
+
+    // If ref is origin/main but repository lacks origin remote
+    const remotes = runGit(this.projectRoot, ['remote']).stdout.trim();
+    if (!remotes.includes('origin') && ratchet.productionRef === 'origin/main') {
+      this.markRuleNotApplicable(
+        'package-scripts-invalid-production-ref',
+        "No 'origin' remote configured in repository; ratchet.productionRef skipped."
+      );
+      return;
+    }
+
     this.addViolation({
       ruleId: 'package-scripts-invalid-production-ref',
       severity: 'error',

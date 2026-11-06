@@ -81,6 +81,8 @@ export const CANONICAL_TSCONFIG: TsConfigShape = {
     target: 'ESNext',
     module: 'ESNext',
     moduleResolution: 'bundler',
+    allowImportingTsExtensions: true,
+    noEmit: true,
     strict: true,
     noImplicitAny: true,
     noUncheckedIndexedAccess: true,
@@ -367,20 +369,9 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
         fs.existsSync(path.resolve(this.projectRoot, 'vite.config.ts')) ||
         fs.existsSync(path.resolve(this.projectRoot, '.auditor/audit.config.ts'));
 
-      if (isVitePlusProject && modRes !== 'bundler') {
-        if (isFix) {
-          compilerOptions.moduleResolution = 'bundler';
-          compilerOptions.allowImportingTsExtensions = true;
-          compilerOptions.noEmit = true;
+      if (isVitePlusProject) {
+        if (this.verifyVitePlusCompilerOptions(compilerOptions, modRes, relPath, isFix)) {
           modified = true;
-        } else {
-          this.addViolation({
-            ruleId: 'tsconfig-missing-strict-compiler-option',
-            severity: 'error',
-            file: relPath,
-            line: 1,
-            message: `compilerOptions.moduleResolution must be "bundler" in Vite+ projects to allow direct TypeScript imports (.ts).`
-          });
         }
       } else if (!VALID_MODULE_RESOLUTIONS.some((v) => v === modRes)) {
         if (isFix) {
@@ -544,6 +535,48 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       parsedConfig.compilerOptions = compilerOptions;
       fs.writeFileSync(resolvedPath, JSON.stringify(parsedConfig, null, 2) + '\n', 'utf8');
     }
+  }
+
+  private verifyVitePlusCompilerOptions(
+    compilerOptions: TsCompilerOptionsShape,
+    modRes: string,
+    relPath: string,
+    isFix: boolean
+  ): boolean {
+    if (modRes !== 'bundler') {
+      if (isFix) {
+        compilerOptions.moduleResolution = 'bundler';
+        compilerOptions.allowImportingTsExtensions = true;
+        compilerOptions.noEmit = true;
+        return true;
+      }
+      this.addViolation({
+        ruleId: 'tsconfig-missing-strict-compiler-option',
+        severity: 'error',
+        file: relPath,
+        line: 1,
+        message: `compilerOptions.moduleResolution must be "bundler" in Vite+ projects to allow direct TypeScript imports (.ts).`
+      });
+      return false;
+    }
+
+    if (compilerOptions.allowImportingTsExtensions !== true || compilerOptions.noEmit !== true) {
+      if (isFix) {
+        compilerOptions.allowImportingTsExtensions = true;
+        compilerOptions.noEmit = true;
+        return true;
+      }
+      this.addViolation({
+        ruleId: 'tsconfig-missing-strict-compiler-option',
+        severity: 'error',
+        file: relPath,
+        line: 1,
+        message: `compilerOptions.allowImportingTsExtensions and compilerOptions.noEmit must be true in Vite+ projects.`
+      });
+      return false;
+    }
+
+    return false;
   }
 }
 

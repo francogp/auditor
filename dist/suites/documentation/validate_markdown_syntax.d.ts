@@ -6,4 +6,5 @@ export declare class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSynta
   private checkNpmScriptViolation;
   private checkTablePrecedingBlankLine;
   protected scanFile(relPath: string, content: string): void;
+  runAudit(): Promise<void>;
 }

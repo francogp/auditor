@@ -73,6 +73,7 @@ export interface AgentsConfigMandateOptions {
   readonly language?: DocumentationLanguage;
   readonly chatLanguage?: DocumentationLanguage;
 }
+export declare function createDefaultAgentsMdContent(targetLanguage?: DocumentationLanguage, chatLanguage?: DocumentationLanguage): string;
 export declare function fixSingleAgentsMandate(context: RuleFixContext<AgentsConfigMandateRuleId>): boolean;
 export declare class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateRuleId> {
   private readonly rootDir;

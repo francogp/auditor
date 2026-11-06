@@ -1854,12 +1854,29 @@ function handleGuideCommand(
   process.exit(1);
 }
 
-function handleIntrospectionCommands(
+async function handleIntrospectionCommands(
   cliOptions: ReturnType<typeof parseAuditFullCliArgs>,
   allAvailableTasks: readonly AuditTaskDefinition[],
   activeFamilies: readonly AuditFamily[],
   config: AuditEngineConfig
-): boolean {
+): Promise<boolean> {
+  const isInitCommand = Boolean(
+    cliOptions.values.subcommand === 'init' || cliOptions.positionals.includes('init')
+  );
+
+  if (isInitCommand) {
+    const { initProject } = await import('./init_project.ts');
+    const targetProject =
+      typeof cliOptions.values.project === 'string' && cliOptions.values.project.trim() !== ''
+        ? cliOptions.values.project.trim()
+        : undefined;
+    await initProject({
+      projectRoot: targetProject,
+      quiet: cliOptions.consoleMode === 'compact'
+    });
+    process.exit(0);
+  }
+
   if (cliOptions.values.help || cliOptions.positionals.includes('help')) {
     handleHelpCommand(cliOptions, allAvailableTasks, activeFamilies);
   }
@@ -2364,7 +2381,7 @@ export async function runMasterAudit(): Promise<void> {
     isBuildMode ? { buildOnly: true, phase: 'post-build' } : { withBuild }
   );
 
-  handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config);
+  await handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config);
 
   const tasksToRun = await discoverAuditors({
     ...discoveryBase,

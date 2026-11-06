@@ -92,10 +92,65 @@ function resolvePackageName(projectRoot: string): string {
   return pkg?.name ?? 'Project';
 }
 
+export function ensurePackageJsonModule(projectRoot: string): boolean {
+  const pkgPath = path.resolve(projectRoot, 'package.json');
+  if (!fs.existsSync(pkgPath)) return false;
+  return (
+    tryOrNull(() => {
+      const raw = fs.readFileSync(pkgPath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed.type !== 'module') {
+        parsed.type = 'module';
+        fs.writeFileSync(pkgPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
+        return true;
+      }
+      return false;
+    }) ?? false
+  );
+}
+
+export function ensureInitialSourceAndTests(projectRoot: string): void {
+  const srcDir = path.resolve(projectRoot, 'src');
+  const testsDir = path.resolve(projectRoot, 'tests');
+
+  if (!fs.existsSync(srcDir)) {
+    fs.mkdirSync(srcDir, { recursive: true });
+  }
+  const srcIndex = path.resolve(srcDir, 'index.ts');
+  if (!fs.existsSync(srcIndex)) {
+    const entries = tryOrNull(() => fs.readdirSync(srcDir)) ?? [];
+    if (entries.length === 0) {
+      tryCatchSync(() => fs.writeFileSync(srcIndex, "export const version = '0.0.0';\n", 'utf-8'));
+    }
+  }
+
+  if (!fs.existsSync(testsDir)) {
+    fs.mkdirSync(testsDir, { recursive: true });
+  }
+  const testIndex = path.resolve(testsDir, 'index.test.ts');
+  if (!fs.existsSync(testIndex)) {
+    const entries = tryOrNull(() => fs.readdirSync(testsDir)) ?? [];
+    if (entries.length === 0) {
+      const initialTest = `import { describe, it, expect } from 'vitest';
+import { version } from '../src/index.ts';
+
+describe('project initialization', () => {
+  it('exposes initial version', () => {
+    expect(version).toBe('0.0.0');
+  });
+});
+`;
+      tryCatchSync(() => fs.writeFileSync(testIndex, initialTest, 'utf-8'));
+    }
+  }
+}
+
 function ensureVirginConfigScaffolded(
   projectRoot: string,
   tasks: readonly AuditTaskDefinition[]
 ): boolean {
+  ensurePackageJsonModule(projectRoot);
+  ensureInitialSourceAndTests(projectRoot);
   const pkgName = resolvePackageName(projectRoot);
   const content = createDefaultAuditConfigContent(pkgName, tasks);
   const targetConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_FILE);
@@ -184,6 +239,7 @@ export const MANDATORY_PROJECT_DIRS = [
 ] as const;
 
 export function ensureMandatoryDirectoriesExist(projectRoot: string): void {
+  ensurePackageJsonModule(projectRoot);
   for (const relDir of MANDATORY_PROJECT_DIRS) {
     const targetPath = path.resolve(projectRoot, relDir);
     if (!fs.existsSync(targetPath)) {

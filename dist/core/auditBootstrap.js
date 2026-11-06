@@ -59,7 +59,48 @@ async function safeDiscoverAuditors(projectRoot) {
 function resolvePackageName(projectRoot) {
 	return tryOrNull(() => getPackageJson(projectRoot))?.name ?? "Project";
 }
+function ensurePackageJsonModule(projectRoot) {
+	const pkgPath = path.resolve(projectRoot, "package.json");
+	if (!fs.existsSync(pkgPath)) return false;
+	return tryOrNull(() => {
+		const raw = fs.readFileSync(pkgPath, "utf-8");
+		const parsed = JSON.parse(raw);
+		if (parsed.type !== "module") {
+			parsed.type = "module";
+			fs.writeFileSync(pkgPath, JSON.stringify(parsed, null, 2) + "\n", "utf-8");
+			return true;
+		}
+		return false;
+	}) ?? false;
+}
+function ensureInitialSourceAndTests(projectRoot) {
+	const srcDir = path.resolve(projectRoot, "src");
+	const testsDir = path.resolve(projectRoot, "tests");
+	if (!fs.existsSync(srcDir)) fs.mkdirSync(srcDir, { recursive: true });
+	const srcIndex = path.resolve(srcDir, "index.ts");
+	if (!fs.existsSync(srcIndex)) {
+		if ((tryOrNull(() => fs.readdirSync(srcDir)) ?? []).length === 0) tryCatchSync(() => fs.writeFileSync(srcIndex, "export const version = '0.0.0';\n", "utf-8"));
+	}
+	if (!fs.existsSync(testsDir)) fs.mkdirSync(testsDir, { recursive: true });
+	const testIndex = path.resolve(testsDir, "index.test.ts");
+	if (!fs.existsSync(testIndex)) {
+		if ((tryOrNull(() => fs.readdirSync(testsDir)) ?? []).length === 0) {
+			const initialTest = `import { describe, it, expect } from 'vitest';
+import { version } from '../src/index.ts';
+
+describe('project initialization', () => {
+  it('exposes initial version', () => {
+    expect(version).toBe('0.0.0');
+  });
+});
+`;
+			tryCatchSync(() => fs.writeFileSync(testIndex, initialTest, "utf-8"));
+		}
+	}
+}
 function ensureVirginConfigScaffolded(projectRoot, tasks) {
+	ensurePackageJsonModule(projectRoot);
+	ensureInitialSourceAndTests(projectRoot);
 	const pkgName = resolvePackageName(projectRoot);
 	const content = createDefaultAuditConfigContent(pkgName, tasks);
 	const targetConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_FILE);
@@ -117,6 +158,7 @@ const MANDATORY_PROJECT_DIRS = [
 	".agents/skills"
 ];
 function ensureMandatoryDirectoriesExist(projectRoot) {
+	ensurePackageJsonModule(projectRoot);
 	for (const relDir of MANDATORY_PROJECT_DIRS) {
 		const targetPath = path.resolve(projectRoot, relDir);
 		if (!fs.existsSync(targetPath)) fs.mkdirSync(targetPath, { recursive: true });
@@ -148,7 +190,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.8.0-build.20261106-082312")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.8.2-build.20261106-110728")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}
@@ -169,4 +211,4 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected
 	};
 }
-export { MANDATORY_PROJECT_DIRS, ensureMandatoryDirectoriesExist, ensureProjectBootstrapped };
+export { MANDATORY_PROJECT_DIRS, ensureInitialSourceAndTests, ensureMandatoryDirectoriesExist, ensurePackageJsonModule, ensureProjectBootstrapped };

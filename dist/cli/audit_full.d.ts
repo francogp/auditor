@@ -77,14 +77,22 @@ export interface FixableCountsResult {
  * so fixableErrors and autoFixRecommended are always 0/false.
  */
 export declare const computeFixableViolations: (...args: Parameters<typeof BaseAuditor.computeFixableViolations>) => ReturnType<typeof BaseAuditor.computeFixableViolations>;
-interface CompactExecutiveSummaryParams {
+export interface CompactSetupBlockingContext {
+  readonly setupResults: readonly StandardAuditResult[];
+  readonly setupFindings: readonly AuditFinding[];
+  readonly setupErrors: number;
+  readonly postponedAppErrors: number;
+  readonly hasFixableErrors: boolean;
+}
+export interface CompactExecutiveSummaryParams {
   isSetupBlocking: boolean;
-  setupResults: readonly StandardAuditResult[];
-  setupFindings: readonly AuditFinding[];
-  setupErrors: number;
-  postponedAppErrors: number;
+  setupContext?: CompactSetupBlockingContext;
+  setupResults?: readonly StandardAuditResult[];
+  setupFindings?: readonly AuditFinding[];
+  setupErrors?: number;
+  postponedAppErrors?: number;
+  hasFixableErrors?: boolean;
   totalDuration: number;
-  hasFixableErrors: boolean;
   results: readonly StandardAuditResult[];
   totalErrors: number;
   totalWarnings: number;

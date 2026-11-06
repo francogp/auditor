@@ -92,10 +92,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.8.1`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.8.2`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.8.1 --allow-git=all
+npm install -D github:francogp/auditor#v10.8.2 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -105,7 +105,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.8.1"
+    "@francogp/auditor": "github:francogp/auditor#v10.8.2"
   }
 }
 ```
@@ -115,6 +115,25 @@ Then install:
 ```bash
 npm install
 ```
+
+### Initializing a Fresh Project (`auditor init`)
+
+To set up a brand-new, zero-defect repository from scratch (Day 0) adhering 100% to `@francogp/auditor` and Vite+ standards:
+
+```bash
+auditor init
+# or via npm script:
+npm run auditor:init
+```
+
+`auditor init` deterministically:
+
+1. Initializes Git (`git init -b main`) if `.git` does not exist.
+2. Creates or ensures `package.json` with `"type": "module"`, canonical quality scripts, and dependencies (`@francogp/auditor`, `vite-plus`).
+3. Scaffolds initial source and test baseline files.
+4. Generates root `AGENTS.md` with all 9 mandatory architectural governance contracts.
+5. Bootstraps `.auditor/audit.config.ts` and synchronizes all satellite configs (`tsconfig.json`, `vite.config.ts`, `.fallowrc.json`, `.stylelintrc.json`).
+6. Synchronizes `package-lock.json` via `npm install`.
 
 ### Zero-Setup Pre-Flight Auto-Bootstrap (npm 12+ Native Architecture)
 
@@ -140,9 +159,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.8.1
+npm run auditor:update -- v10.8.2
 # or directly:
-auditor-update v10.8.1
+auditor-update v10.8.2
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
@@ -228,7 +247,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.8.1-build.20261106-094848',
+  auditorVersion: '10.8.2-build.20261106-110728',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -287,7 +306,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.8.1"`), or install via `npm install -D github:francogp/auditor#v10.8.1 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.8.2"`), or install via `npm install -D github:francogp/auditor#v10.8.2 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 

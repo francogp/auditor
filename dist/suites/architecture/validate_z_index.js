@@ -263,13 +263,19 @@ var ZIndexAuditor = class extends FileScanAuditor {
 	async runAudit() {
 		if (!this.isExplicit && this.isSuiteGatingDisabled("Z-Layers disabled in config")) return;
 		if (!this.scssPath) {
+			if (!this.isExplicit) {
+				for (const r of Z_INDEX_RULES) this.runSubAuditorSync(r, () => {
+					this.markRuleNotApplicable(r, "No SCSS stylesheets found in project");
+				});
+				return;
+			}
 			this.runSubAuditorSync("z-index-read-error", () => {
 				this.addViolation({
 					ruleId: "z-index-read-error",
 					severity: "error",
 					file: AUDIT_CONFIG_FILE,
 					line: 1,
-					message: "Missing Z-Layers configuration in audit.config.ts: no SCSS file found. Define 'styles.zLayersScssFile' pointing to your base SCSS file, or explicitly configure 'styles.zLayersEnabled: false' if this project does not use SCSS Z-layers.",
+					message: "Missing Z-Layers configuration in audit.config.ts: configured SCSS file was not found. Define 'styles.zLayersScssFile' pointing to your base SCSS file, or explicitly configure 'styles.zLayersEnabled: false' if this project does not use SCSS Z-layers.",
 					context: AUDIT_CONFIG_FILE
 				});
 			});
