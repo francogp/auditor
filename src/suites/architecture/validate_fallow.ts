@@ -611,6 +611,8 @@ function mapStaleSuppressions(
   return findings;
 }
 
+const FALLOW_CONFIG_DIAGNOSTIC_REGEX = /pattern|redundant|config|ignore|entry|override/;
+
 function resolveWorkspaceDiagFile(
   diag: { kind?: string; path?: string },
   projectRoot: string
@@ -620,14 +622,7 @@ function resolveWorkspaceDiagFile(
   }
   // Diagnostic kinds related to config entries or workspace structure belong to .fallowrc.json
   const kind = typeof diag.kind === 'string' ? diag.kind : '';
-  if (
-    kind.includes('pattern') ||
-    kind.includes('redundant') ||
-    kind.includes('config') ||
-    kind.includes('ignore') ||
-    kind.includes('entry') ||
-    kind.includes('override')
-  ) {
+  if (FALLOW_CONFIG_DIAGNOSTIC_REGEX.test(kind)) {
     return path.resolve(projectRoot, '.fallowrc.json');
   }
   return path.resolve(projectRoot, 'package.json');

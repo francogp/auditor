@@ -350,6 +350,17 @@ function isInsideLocateFileProperty(node: OxlintAstNode): boolean {
   return false;
 }
 
+const AUDITOR_RULE_SIBLING_KEYS: ReadonlySet<string> = new Set<string>([
+  'remediationPhase',
+  'defaultSeverity',
+  'fixable',
+  'ruleId',
+  'suiteId',
+  'ruleDescriptions',
+  'ruleRemediations',
+  'ruleCapabilities'
+]);
+
 export const domainTypeOxlintPlugin = {
   meta: {
     name: '@francogp/domain-type',
@@ -2962,16 +2973,6 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
-        const AUDITOR_RULE_SIBLING_KEYS = new Set([
-          'remediationPhase',
-          'defaultSeverity',
-          'fixable',
-          'ruleId',
-          'suiteId',
-          'ruleDescriptions',
-          'ruleRemediations',
-          'ruleCapabilities'
-        ]);
         return {
           Property(node: OxlintAstNode): void {
             const keyName = getNodePropKeyName(node);

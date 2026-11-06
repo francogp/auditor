@@ -636,7 +636,7 @@ function updateVitePlusScripts(scripts: Record<string, string>): boolean {
   return modified;
 }
 
-const OBSOLETE_OVERRIDES = ['braces', 'micromatch'] as const;
+const OBSOLETE_OVERRIDES = ['braces', 'micromatch', 'vite', 'vitest'] as const;
 
 function syncVitePlusDevDep(
   nextDeps: Record<string, string> | undefined,
@@ -676,47 +676,6 @@ function syncVitePlusDevDep(
   return modified;
 }
 
-function syncViteOverride(
-  nextOverrides: Record<string, string>,
-  canonicalOverrides: Record<string, string>,
-  nextDevDeps: Record<string, string>,
-  nextDeps: Record<string, string> | undefined
-): boolean {
-  if (nextOverrides.vite) {
-    if (nextOverrides.vite !== '$vite') {
-      if (
-        nextOverrides.vite.includes('@voidzero-dev/vite-plus-core') ||
-        semver.valid(nextOverrides.vite)
-      ) {
-        nextOverrides.vite = '$vite';
-        return true;
-      }
-    }
-  } else if (canonicalOverrides.vite === '$vite' || nextDevDeps.vite || nextDeps?.vite) {
-    nextOverrides.vite = '$vite';
-    return true;
-  }
-  return false;
-}
-
-function syncVitestOverride(
-  nextOverrides: Record<string, string>,
-  canonicalOverrides: Record<string, string>
-): boolean {
-  if (nextOverrides.vitest) {
-    if (nextOverrides.vitest !== '$vitest') {
-      if (semver.valid(nextOverrides.vitest) || nextOverrides.vitest.includes('vitest')) {
-        nextOverrides.vitest = '$vitest';
-        return true;
-      }
-    }
-  } else if (canonicalOverrides.vitest === '$vitest') {
-    nextOverrides.vitest = '$vitest';
-    return true;
-  }
-  return false;
-}
-
 function syncSecurityOverrides(
   nextOverrides: Record<string, string>,
   canonicalOverrides: Record<string, string>
@@ -745,17 +704,9 @@ function syncSecurityOverrides(
 
 function syncPackageJsonOverrides(
   nextOverrides: Record<string, string>,
-  canonicalOverrides: Record<string, string>,
-  nextDevDeps: Record<string, string>,
-  nextDeps: Record<string, string> | undefined
+  canonicalOverrides: Record<string, string>
 ): boolean {
   let modified = false;
-  if (syncViteOverride(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) {
-    modified = true;
-  }
-  if (syncVitestOverride(nextOverrides, canonicalOverrides)) {
-    modified = true;
-  }
   for (const obsKey of OBSOLETE_OVERRIDES) {
     if (nextOverrides[obsKey]) {
       delete nextOverrides[obsKey];
@@ -840,7 +791,7 @@ export function syncPackageJsonForVitePlus(projectRoot: string): boolean {
   if (removeLegacyDependencies(nextDeps, nextDevDeps, nextScripts)) {
     modified = true;
   }
-  if (syncPackageJsonOverrides(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) {
+  if (syncPackageJsonOverrides(nextOverrides, canonicalOverrides)) {
     modified = true;
   }
   if (updateVitePlusScripts(nextScripts)) {

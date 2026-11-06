@@ -168,7 +168,7 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     expect(updatedPkg.scripts['ui-demo']).toBe('vp dev --open /ui-demo/index.html');
   });
 
-  it('C-SCR-07: syncPackageJsonForVitePlus preserves dynamic $vite overrides and higher security versions without downgrading', () => {
+  it('C-SCR-07: syncPackageJsonForVitePlus purges obsolete vite/vitest overrides and preserves higher security versions without downgrading', () => {
     const pkgWithCustomOverrides = {
       name: 'test-overrides-consumer',
       version: '1.0.0',
@@ -193,18 +193,18 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     );
 
     const modified = syncPackageJsonForVitePlus(tempDir);
-    expect(modified).toBe(true); // Should remove obsolete braces and micromatch
+    expect(modified).toBe(true); // Should remove obsolete braces, micromatch, vite, and vitest
 
     const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
-    expect(updatedPkg.overrides.vite).toBe('$vite');
-    expect(updatedPkg.overrides.vitest).toBe('$vitest');
+    expect(updatedPkg.overrides?.vite).toBeUndefined();
+    expect(updatedPkg.overrides?.vitest).toBeUndefined();
     expect(updatedPkg.overrides['js-yaml']).toBe('^5.5.0');
     expect(updatedPkg.overrides.braces).toBeUndefined();
     expect(updatedPkg.overrides.micromatch).toBeUndefined();
     expect(updatedPkg.devDependencies.vitest).toBeUndefined();
   });
 
-  it('C-SCR-08: syncPackageJsonForVitePlus migrates hardcoded exact vite override to $vite, normalizes vite-plus and purges redundant vitest', () => {
+  it('C-SCR-08: syncPackageJsonForVitePlus purges legacy vite/vitest overrides, normalizes vite-plus and purges redundant vitest', () => {
     const pkgWithHardcodedVite = {
       name: 'test-hardcoded-consumer',
       version: '1.0.0',
@@ -227,8 +227,8 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     expect(modified).toBe(true);
 
     const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
-    expect(updatedPkg.overrides.vite).toBe('$vite');
-    expect(updatedPkg.overrides.vitest).toBe('$vitest');
+    expect(updatedPkg.overrides?.vite).toBeUndefined();
+    expect(updatedPkg.overrides?.vitest).toBeUndefined();
     expect(updatedPkg.devDependencies['vite-plus']).toBe('^1.5.0');
     expect(updatedPkg.devDependencies.vitest).toBeUndefined();
   });

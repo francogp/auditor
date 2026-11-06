@@ -4,6 +4,13 @@
 
 set -e
 
+if [ "$EUID" -eq 0 ] && [ -z "$ALLOW_ROOT_SETUP" ]; then
+    echo "[ERROR] Do not run setup/update with sudo or as root."
+    echo "Running as root changes ownership of node_modules and repo files to root."
+    echo "Please run as your regular user: ./update-linux.sh or ./setup-linux.sh"
+    exit 1
+fi
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PKG_PATH="$SCRIPT_DIR/package.json"
 NODE_VERSION_PATH="$SCRIPT_DIR/.node-version"

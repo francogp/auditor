@@ -591,10 +591,10 @@ describe('preSyncHostPackageJson', () => {
     expect(updated.devDependencies['vite-plus']).toBe('^1.5.0');
     expect(updated.devDependencies['vite']).toBeUndefined();
     expect(updated.devDependencies['citty']).toBe('^0.2.2');
-    expect(updated.overrides.braces).toBeUndefined();
-    expect(updated.overrides.micromatch).toBeUndefined();
-    expect(updated.overrides.vite).toBe('$vite');
-    expect(updated.overrides.vitest).toBeUndefined();
+    expect(updated.overrides?.braces).toBeUndefined();
+    expect(updated.overrides?.micromatch).toBeUndefined();
+    expect(updated.overrides?.vite).toBeUndefined();
+    expect(updated.overrides?.vitest).toBeUndefined();
   });
 
   it('returns false when package.json is already fully canonical', () => {

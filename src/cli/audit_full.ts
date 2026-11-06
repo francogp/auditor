@@ -1222,14 +1222,23 @@ async function persistAuditReportsToDisk(params: PersistAuditReportsParams): Pro
   return latestAuditPath;
 }
 
-interface CompactExecutiveSummaryParams {
+export interface CompactSetupBlockingContext {
+  readonly setupResults: readonly StandardAuditResult[];
+  readonly setupFindings: readonly AuditFinding[];
+  readonly setupErrors: number;
+  readonly postponedAppErrors: number;
+  readonly hasFixableErrors: boolean;
+}
+
+export interface CompactExecutiveSummaryParams {
   isSetupBlocking: boolean;
-  setupResults: readonly StandardAuditResult[];
-  setupFindings: readonly AuditFinding[];
-  setupErrors: number;
-  postponedAppErrors: number;
+  setupContext?: CompactSetupBlockingContext;
+  setupResults?: readonly StandardAuditResult[];
+  setupFindings?: readonly AuditFinding[];
+  setupErrors?: number;
+  postponedAppErrors?: number;
+  hasFixableErrors?: boolean;
   totalDuration: number;
-  hasFixableErrors: boolean;
   results: readonly StandardAuditResult[];
   totalErrors: number;
   totalWarnings: number;
@@ -1253,21 +1262,29 @@ export function printCompactExecutiveSummary(
     Boolean(cliOptions?.positionals.includes('deploy'));
 
   if (params.isSetupBlocking) {
-    const blockingSuites = params.setupResults
+    const setupResults = params.setupContext?.setupResults ?? params.setupResults ?? [];
+    const setupFindings = params.setupContext?.setupFindings ?? params.setupFindings ?? [];
+    const setupErrors = params.setupContext?.setupErrors ?? params.setupErrors ?? 0;
+    const postponedAppErrors =
+      params.setupContext?.postponedAppErrors ?? params.postponedAppErrors ?? 0;
+    const hasFixableErrors =
+      params.setupContext?.hasFixableErrors ?? params.hasFixableErrors ?? false;
+
+    const blockingSuites = setupResults
       .filter((r) => (r.summary?.errors ?? 0) > 0)
       .map((r) => `${r.name} (${r.id})`);
     const topFindings = isDeploy
-      ? params.setupFindings.filter((f) => f.severity === 'error').slice(0, DEPLOY_TOP_ERRORS_LIMIT)
+      ? setupFindings.filter((f) => f.severity === 'error').slice(0, DEPLOY_TOP_ERRORS_LIMIT)
       : undefined;
     const output =
       '\n' +
       renderExecutiveSetupBlockingSummary({
         totalSuites: params.results.length,
-        setupErrors: params.setupErrors,
-        postponedAppErrors: params.postponedAppErrors,
+        setupErrors,
+        postponedAppErrors,
         durationMs: params.totalDuration,
         blockingSuites,
-        hasFixableErrors: params.hasFixableErrors,
+        hasFixableErrors,
         topFindings
       });
     console.log(output);
@@ -1450,15 +1467,18 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
   );
 
   if (cliOptions.consoleMode === 'compact') {
+    const setupContext: CompactSetupBlockingContext = {
+      setupResults,
+      setupFindings,
+      setupErrors,
+      postponedAppErrors,
+      hasFixableErrors
+    };
     printCompactExecutiveSummary(
       {
         isSetupBlocking,
-        setupResults,
-        setupFindings,
-        setupErrors,
-        postponedAppErrors,
+        setupContext,
         totalDuration,
-        hasFixableErrors,
         results,
         totalErrors,
         totalWarnings,

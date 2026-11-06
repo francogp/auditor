@@ -10,7 +10,7 @@
  *   4. Flags duplicate entries and empty export lists.
  */
 
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
@@ -606,7 +606,7 @@ interface FallowExecutionResult<T> {
 
 function executeFallowJsonCommand<T>(
   projectRoot: string,
-  subcmd: string,
+  subcmdArgs: readonly string[],
   timeoutMs = FALLOW_CONFIG_EXECUTION_TIMEOUT_MS
 ): FallowExecutionResult<T> {
   if (
@@ -625,15 +625,81 @@ function executeFallowJsonCommand<T>(
   }
   let stdout: string | undefined;
   try {
-    stdout = execSync(`node "${fallowBin}" ${subcmd} --format json --root "${projectRoot}"`, {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore'],
-      timeout: timeoutMs
-    });
+    const res = spawnSync(
+      process.execPath,
+      [fallowBin, ...subcmdArgs, '--format', 'json', '--root', projectRoot],
+      {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore'],
+        timeout: timeoutMs
+      }
+    );
+    stdout = res.stdout;
   } catch (err: unknown) {
     stdout = (err as { stdout?: string | Buffer })?.stdout?.toString();
   }
   return { data: safeJsonParse<T>(stdout ?? '') ?? null };
+}
+
+export interface FallowDoctorCheck {
+  readonly id?: string;
+  readonly name?: string;
+  readonly status?: string;
+  readonly message?: string;
+  readonly remediation?: { command?: string; cwd?: string; mutating?: boolean } | string;
+}
+
+export interface FallowDoctorOutput {
+  readonly status?: string;
+  readonly checks?: readonly FallowDoctorCheck[];
+}
+
+export function formatDoctorRemediation(
+  remediation?: { command?: string; cwd?: string; mutating?: boolean } | string
+): string {
+  if (typeof remediation === 'string' && remediation) {
+    return ` | Remediation: ${remediation}`;
+  }
+  if (remediation && typeof remediation === 'object' && remediation.command) {
+    return ` | Remediation: ${remediation.command}`;
+  }
+  return '';
+}
+
+export function validateFallowDoctorResults(
+  parsed: FallowDoctorOutput,
+  auditor: ValidateFallowConfigAuditor
+): void {
+  if (parsed.status !== 'fail' && parsed.status !== 'warn') {
+    return;
+  }
+  const checks = Array.isArray(parsed.checks) ? parsed.checks : [];
+  const defectiveChecks = checks.filter((c) => c.status === 'fail' || c.status === 'warn');
+  if (defectiveChecks.length === 0) {
+    const severity: 'error' | 'warning' = parsed.status === 'fail' ? 'error' : 'warning';
+    auditor.addViolation({
+      ruleId: 'fallow-config-doctor',
+      severity,
+      file: '.fallowrc.json',
+      line: 1,
+      message: `Fallow doctor reported ${parsed.status} status. Run 'npm run auditor:fallow:doctor' to inspect.`,
+      context: 'doctor'
+    });
+    return;
+  }
+  for (const check of defectiveChecks) {
+    const severity: 'error' | 'warning' = check.status === 'fail' ? 'error' : 'warning';
+    const remediation = formatDoctorRemediation(check.remediation);
+    const checkId = check.id ?? check.name ?? 'check';
+    auditor.addViolation({
+      ruleId: 'fallow-config-doctor',
+      severity,
+      file: '.fallowrc.json',
+      line: 1,
+      message: `[doctor:${checkId}] ${check.message ?? 'Fallow health check failed'}${remediation}`,
+      context: checkId
+    });
+  }
 }
 
 export function validateFallowWorkspaceDiagnostics(
@@ -1153,10 +1219,12 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
     this.runSubAuditorSync('fallow-config-workspace-diagnostic', () => {
       tryCatchSync(() => {
         const hasPackageJson = fs.existsSync(path.join(this.projectRoot, 'package.json'));
-        const subcmd = `${hasPackageJson ? 'dead-code' : 'list --workspaces'} --no-type-aware`;
+        const subcmdArgs = hasPackageJson
+          ? (['dead-code', '--no-type-aware'] as const)
+          : (['list', '--workspaces', '--no-type-aware'] as const);
         const result = executeFallowJsonCommand<{
           workspace_diagnostics?: FallowWorkspaceDiagnosticItem[];
-        }>(this.projectRoot, subcmd);
+        }>(this.projectRoot, subcmdArgs);
         if (result.data?.workspace_diagnostics) {
           const diagModified = validateFallowWorkspaceDiagnostics(
             result.data.workspace_diagnostics,
@@ -1176,15 +1244,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         return;
       }
       tryCatchSync(() => {
-        const result = executeFallowJsonCommand<{
-          status?: string;
-          checks?: Array<{
-            name?: string;
-            status?: string;
-            message?: string;
-            remediation?: string;
-          }>;
-        }>(this.projectRoot, 'doctor');
+        const result = executeFallowJsonCommand<FallowDoctorOutput>(this.projectRoot, ['doctor']);
 
         if (result.skipped === 'env') {
           this.markRuleNotApplicable('fallow-config-doctor', 'Fallow binary verification skipped');
@@ -1195,38 +1255,8 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
           return;
         }
 
-        const parsed = result.data;
-        if (!parsed || !parsed.status) {
-          return;
-        }
-
-        if (parsed.status === 'fail' || parsed.status === 'warn') {
-          const checks = Array.isArray(parsed.checks) ? parsed.checks : [];
-          const defectiveChecks = checks.filter((c) => c.status === 'fail' || c.status === 'warn');
-          if (defectiveChecks.length > 0) {
-            for (const check of defectiveChecks) {
-              const severity: 'error' | 'warning' = check.status === 'fail' ? 'error' : 'warning';
-              const remediation = check.remediation ? ` | Remediation: ${check.remediation}` : '';
-              this.addViolation({
-                ruleId: 'fallow-config-doctor',
-                severity,
-                file: '.fallowrc.json',
-                line: 1,
-                message: `[doctor:${check.name ?? 'check'}] ${check.message ?? 'Fallow health check failed'}${remediation}`,
-                context: check.name ?? 'doctor'
-              });
-            }
-          } else {
-            const severity: 'error' | 'warning' = parsed.status === 'fail' ? 'error' : 'warning';
-            this.addViolation({
-              ruleId: 'fallow-config-doctor',
-              severity,
-              file: '.fallowrc.json',
-              line: 1,
-              message: `Fallow doctor reported ${parsed.status} status. Run 'npm run auditor:fallow:doctor' to inspect.`,
-              context: 'doctor'
-            });
-          }
+        if (result.data?.status) {
+          validateFallowDoctorResults(result.data, this);
         }
       });
     });
