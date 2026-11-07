@@ -584,8 +584,8 @@ function removeLegacyDependencies(
 }
 
 const REQUIRED_VITE_PLUS_SCRIPTS: Record<string, string> = {
-  check: 'vp check',
-  'check:fix': 'vp check --fix',
+  check: 'npm run auditor:lint',
+  'check:fix': 'auditor speed=light fix',
   fmt: 'vp fmt',
   'fmt:check': 'vp fmt --check',
   test: 'vp test',
@@ -602,24 +602,33 @@ export function migrateViteCommandsToVp(cmd: string): string {
   return updated;
 }
 
+function migrateLegacyScriptCommand(sName: string, sCmd: string): string | null {
+  if (sName === 'check' && sCmd === 'vp check') {
+    return 'npm run auditor:lint';
+  }
+  if (sName === 'check:fix' && sCmd === 'vp check --fix') {
+    return 'auditor speed=light fix';
+  }
+  if (
+    (sName === 'typecheck' || sName === 'type-check') &&
+    (sCmd === 'vp check' || /\b(?:vue-tsc|tsc)\b/.test(sCmd))
+  ) {
+    return 'npm run check';
+  }
+  if (/\beslint\b/.test(sCmd)) {
+    if (sName === 'lint' || sName === 'check') return 'npm run auditor:lint';
+    if (sName === 'lint:fix' || sName === 'check:fix') return 'auditor speed=light fix';
+  }
+  const migrated = migrateViteCommandsToVp(sCmd);
+  return migrated !== sCmd ? migrated : null;
+}
+
 function updateVitePlusScripts(scripts: Record<string, string>): boolean {
   let modified = false;
   for (const [sName, sCmd] of Object.entries(scripts)) {
     if (typeof sCmd === 'string') {
-      if (/\beslint\b/.test(sCmd)) {
-        if (sName === 'lint') {
-          scripts[sName] = 'vp check';
-          modified = true;
-          continue;
-        } else if (sName === 'lint:fix') {
-          scripts[sName] = 'vp check --fix';
-          modified = true;
-          continue;
-        }
-      }
-
-      const migrated = migrateViteCommandsToVp(sCmd);
-      if (migrated !== sCmd) {
+      const migrated = migrateLegacyScriptCommand(sName, sCmd);
+      if (migrated !== null) {
         scripts[sName] = migrated;
         modified = true;
       }

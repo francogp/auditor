@@ -78,10 +78,13 @@ async function initProject(options = {}) {
 				auditor: "auditor",
 				"auditor:fix": "auditor fix",
 				"auditor:setup": "auditor phase=setup",
-				"auditor:lint": "auditor phase=lint",
+				"auditor:lint": "auditor speed=light",
 				"auditor:full": "auditor speed=full",
 				"auditor:post-build": "auditor-post-build",
-				fmt: "vp check --fix"
+				check: "npm run auditor:lint",
+				"check:fix": "auditor speed=light fix",
+				fmt: "vp fmt",
+				"fmt:check": "vp fmt --check"
 			},
 			devDependencies: {
 				"@francogp/auditor": "^10.8.1",

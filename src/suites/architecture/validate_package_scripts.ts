@@ -496,6 +496,47 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     return modified;
   }
 
+  private migrateVitePlusScriptCommand(name: string, command: string): string {
+    if (
+      (name === 'typecheck' || name === 'type-check') &&
+      (command === 'vp check' ||
+        /\b(?:vue-tsc|tsc)\b/.test(command) ||
+        command.includes('validate_type_check'))
+    ) {
+      return 'npm run check';
+    }
+
+    if (name === 'check' && command === 'vp check') {
+      return 'npm run auditor:lint';
+    }
+    if (name === 'check:fix' && command === 'vp check --fix') {
+      return 'auditor speed=light fix';
+    }
+
+    let migrated = command;
+    if (/\bvitest\s+run\b/.test(migrated)) {
+      migrated = migrated.replaceAll(/\bvitest\s+run\b/g, 'vp test');
+    } else if (/\bvitest\b/.test(migrated) && !/\bvp\s+test\b/.test(migrated)) {
+      migrated = migrated.replaceAll(/\bvitest\b/g, 'vp test');
+    }
+
+    if (/\bvite\s+build\b/.test(migrated)) {
+      migrated = migrated.replaceAll(/\bvite\s+build\b/g, 'vp build');
+    }
+
+    if (/\bvite\s+preview\b/.test(migrated)) {
+      migrated = migrated.replaceAll(/\bvite\s+preview\b/g, 'vp preview');
+    }
+
+    if (/\bvite\s+dev\b/.test(migrated)) {
+      migrated = migrated.replaceAll(/\bvite\s+dev\b/g, 'vp dev');
+    } else if (/\bvite\b/.test(migrated) && !/\b(?:vp|vite-plus|@vitejs)\b/.test(migrated)) {
+      migrated = migrated.replaceAll(/\bvite\b/g, 'vp dev');
+    }
+
+    return migrated;
+  }
+
   public verifyVitePlusScripts(
     scripts: Record<string, string>,
     pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> },
@@ -510,40 +551,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     let modified = false;
 
     for (const [name, command] of Object.entries(scripts)) {
-      let migrated = command;
-
-      // Migrate typecheck / type-check (vue-tsc / tsc) -> vp check
-      if (
-        (name === 'typecheck' || name === 'type-check') &&
-        /\b(?:vue-tsc|tsc)\b/.test(migrated) &&
-        !/\bvp\s+check\b/.test(migrated)
-      ) {
-        migrated = 'vp check';
-      }
-
-      // Migrate vitest run / vitest -> vp test
-      if (/\bvitest\s+run\b/.test(migrated)) {
-        migrated = migrated.replaceAll(/\bvitest\s+run\b/g, 'vp test');
-      } else if (/\bvitest\b/.test(migrated) && !/\bvp\s+test\b/.test(migrated)) {
-        migrated = migrated.replaceAll(/\bvitest\b/g, 'vp test');
-      }
-
-      // Migrate vite build -> vp build
-      if (/\bvite\s+build\b/.test(migrated)) {
-        migrated = migrated.replaceAll(/\bvite\s+build\b/g, 'vp build');
-      }
-
-      // Migrate vite preview -> vp preview
-      if (/\bvite\s+preview\b/.test(migrated)) {
-        migrated = migrated.replaceAll(/\bvite\s+preview\b/g, 'vp preview');
-      }
-
-      // Migrate vite dev or direct vite invocation -> vp dev
-      if (/\bvite\s+dev\b/.test(migrated)) {
-        migrated = migrated.replaceAll(/\bvite\s+dev\b/g, 'vp dev');
-      } else if (/\bvite\b/.test(migrated) && !/\b(?:vp|vite-plus|@vitejs)\b/.test(migrated)) {
-        migrated = migrated.replaceAll(/\bvite\b/g, 'vp dev');
-      }
+      const migrated = this.migrateVitePlusScriptCommand(name, command);
 
       if (migrated !== command) {
         if (isFix) {
@@ -694,7 +702,15 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     return command;
   }
 
-  private isScriptCommandOutdated(existingCmd: string): boolean {
+  private isScriptCommandOutdated(scriptName: string, existingCmd: string): boolean {
+    if (scriptName === 'check' && existingCmd === 'vp check') return true;
+    if (scriptName === 'check:fix' && existingCmd === 'vp check --fix') return true;
+    if (
+      (scriptName === 'typecheck' || scriptName === 'type-check') &&
+      (existingCmd === 'vp check' || /\b(?:vue-tsc|tsc)\b/.test(existingCmd))
+    ) {
+      return true;
+    }
     return /\b(?:preset=lint|preset=precommit|preset=build|auditor-build-prod|build_prod\.ts|audit_build\.ts)\b/.test(
       existingCmd
     );
@@ -715,7 +731,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
 
       const existing = scripts[req.name];
       if (existing) {
-        if (this.isScriptCommandOutdated(existing)) {
+        if (this.isScriptCommandOutdated(req.name, existing)) {
           missingOrOutdated.push([req.name, this.buildCanonicalScriptCommand(req, isSelfPackage)]);
         }
         continue;

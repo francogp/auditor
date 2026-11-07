@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "10.8.3-build.20261106-205137",
+  "version": "10.8.4-build.20261107-014027",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -115,8 +115,8 @@
   },
   "scripts": {
     "prepare": "vp config",
-    "check": "vp check",
-    "check:fix": "vp check --fix",
+    "check": "npm run auditor:lint",
+    "check:fix": "npm run auditor:lint fix",
     "fmt": "vp fmt",
     "fmt:check": "vp fmt --check",
     "auditor:config": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_config_recommendations.ts",
@@ -150,7 +150,7 @@
     "auditor:findings": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts",
     "auditor:next": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts next",
     "auditor:next:human": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts next human",
-    "typecheck": "vp check",
+    "typecheck": "npm run check",
     "prepublishOnly": "vp run build",
     "auditor:publish": "npm publish --tag latest",
     "build": "npm run auditor:full && vp pack && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:post-build",

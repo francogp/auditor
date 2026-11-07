@@ -33,10 +33,10 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
 
   it('C-SCR-01: PackageScriptRegistry contains canonical Vite+ script requirements', () => {
     expect(PackageScriptRegistry.has('check')).toBe(true);
-    expect(PackageScriptRegistry.get('check')?.command).toBe('vp check');
+    expect(PackageScriptRegistry.get('check')?.command).toBe('npm run auditor:lint');
 
     expect(PackageScriptRegistry.has('check:fix')).toBe(true);
-    expect(PackageScriptRegistry.get('check:fix')?.command).toBe('vp check --fix');
+    expect(PackageScriptRegistry.get('check:fix')?.command).toBe('auditor speed=light fix');
 
     expect(PackageScriptRegistry.has('fmt')).toBe(true);
     expect(PackageScriptRegistry.get('fmt')?.command).toBe('vp fmt');
@@ -105,7 +105,7 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
 
     // 2. Verify scripts were injected in package.json
     const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
-    expect(updatedPkg.scripts['check']).toBe('vp check');
+    expect(updatedPkg.scripts['check']).toBe('npm run auditor:lint');
     expect(updatedPkg.scripts['fmt']).toBe('vp fmt');
 
     // 3. Re-run in check mode to verify clean path
@@ -114,6 +114,37 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
 
     expect(checkResult.summary.errors).toBe(0);
     expect(checkResult.status).toBe('passed');
+  });
+
+  it('C-SCR-09: ValidatePackageScriptsAuditor migrates legacy check and typecheck to canonical auditor light', async () => {
+    const legacyPkg = {
+      name: 'test-consumer',
+      version: '1.0.0',
+      scripts: {
+        build: 'npm run auditor:full && vite build && npm run auditor:post-build',
+        check: 'vp check',
+        'check:fix': 'vp check --fix',
+        typecheck: 'vp check',
+        'type-check': 'vue-tsc --noEmit'
+      },
+      devDependencies: {
+        'vite-plus': '^1.5.0'
+      }
+    };
+    fs.writeFileSync(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify(legacyPkg, null, 2),
+      'utf-8'
+    );
+
+    const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+    await fixAuditor.fix();
+
+    const updated = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+    expect(updated.scripts['check']).toBe('npm run auditor:lint');
+    expect(updated.scripts['check:fix']).toBe('auditor speed=light fix');
+    expect(updated.scripts['typecheck']).toBe('npm run check');
+    expect(updated.scripts['type-check']).toBe('npm run check');
   });
 
   it('C-SCR-05: migrateViteCommandsToVp cleanly transforms legacy vite commands without affecting files', () => {

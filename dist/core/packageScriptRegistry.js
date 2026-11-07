@@ -381,18 +381,22 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		category: "aliases"
 	},
 	{
+		name: "typecheck",
+		command: "npm run check",
+		description: "TypeScript typecheck alias delegating to npm run check",
+		category: "aliases"
+	},
+	{
 		name: "check",
-		command: "vp check",
-		description: "Static verification and comprehensive linting with Vite+ (Oxlint/Oxfmt)",
-		category: "core",
-		isApplicable: (config) => config.vitePlusConfig?.enabled !== false
+		command: "npm run auditor:lint",
+		description: "Fast static analysis, syntax, typecheck and architecture audit (auditor light)",
+		category: "core"
 	},
 	{
 		name: "check:fix",
-		command: "vp check --fix",
-		description: "Comprehensive auto-repair of syntax and typing rules with Vite+",
-		category: "core",
-		isApplicable: (config) => config.vitePlusConfig?.enabled !== false
+		command: "auditor speed=light fix",
+		description: "Fast automatic remediation of syntax, typing, and light audit rules",
+		category: "core"
 	},
 	{
 		name: "fmt",

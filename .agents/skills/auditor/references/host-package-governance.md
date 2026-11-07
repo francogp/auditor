@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.8.3 --allow-git=all
+npm install -D github:francogp/auditor#v10.8.4 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -163,6 +163,24 @@ The build execution is partitioned into a **2-part auditor lifecycle**:
     }
   }
   ```
+
+### 5.1 Canonical `check` and `typecheck` Script Governance
+
+All consumer host projects standardize their static verification and type checking scripts via canonical definitions managed by `packageScriptRegistry.ts` and `vitePlusConfigSync.ts`:
+
+```json
+{
+  "scripts": {
+    "check": "npm run auditor:lint",
+    "check:fix": "auditor speed=light fix",
+    "typecheck": "npm run check"
+  }
+}
+```
+
+- **`check`**: Executes `@francogp/auditor` at ultra-fast static analysis speed (`speed=light` / `auditor:lint`), evaluating linters, syntax hygiene, and domain typing without heavy metrics or dynamic coverage runs.
+- **`check:fix`**: Runs the light auditor in automated repair mode (`auditor speed=light fix`).
+- **`typecheck` (and legacy `type-check`)**: Unified canonical alias delegating to `npm run check`. Legacy commands such as `vp check` or `vue-tsc --noEmit` are automatically detected and migrated to `npm run check` during `npm run auditor:fix`.
 
 ---
 

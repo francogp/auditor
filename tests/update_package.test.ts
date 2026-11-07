@@ -601,8 +601,8 @@ describe('preSyncHostPackageJson', () => {
     const canonicalPkg = {
       name: 'modern-host',
       scripts: {
-        check: 'vp check',
-        'check:fix': 'vp check --fix',
+        check: 'npm run auditor:lint',
+        'check:fix': 'auditor speed=light fix',
         fmt: 'vp fmt',
         'fmt:check': 'vp fmt --check',
         test: 'vp test run',
