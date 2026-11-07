@@ -879,7 +879,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       syncViteConfigWithAuditConfig(tempDir);
 
       const synced = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
-      expect(synced).toContain("'@typescript-eslint/no-unnecessary-type-assertion': 'error'");
+      expect(synced).toContain("'typescript/no-unnecessary-type-assertion': 'error'");
       expect(synced).toContain("'import/no-mutable-exports': 'error'");
       expect(synced).toContain("'unicorn/no-new-buffer': 'error'");
       expect(synced).toContain("'vitest/no-test-prefixes': 'error'");
@@ -1974,7 +1974,7 @@ export default defineConfig({
       expect(synced.modified).toBe(true);
       expect(synced.content).toContain('**/ui-demo/**');
       expect(synced.content).toContain("'no-console': 'off'");
-      expect(synced.content).toContain("'@typescript-eslint/explicit-function-return-type': 'off'");
+      expect(synced.content).toContain("'typescript/explicit-function-return-type': 'off'");
     });
   });
 });

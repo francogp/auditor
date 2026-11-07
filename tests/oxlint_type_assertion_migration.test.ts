@@ -39,12 +39,12 @@ describe('Oxlint Type Assertion Hygiene Migration Verification', () => {
   });
 
   describe('1. Default Canonical Lint Rules (SSoT)', () => {
-    it('CANARY: DEFAULT_CANONICAL_LINT_RULES declares @typescript-eslint/no-explicit-any as error', () => {
-      expect(DEFAULT_CANONICAL_LINT_RULES['@typescript-eslint/no-explicit-any']).toBe('error');
+    it('CANARY: DEFAULT_CANONICAL_LINT_RULES declares typescript/no-explicit-any as error', () => {
+      expect(DEFAULT_CANONICAL_LINT_RULES['typescript/no-explicit-any']).toBe('error');
     });
 
-    it('CANARY: DEFAULT_CANONICAL_LINT_RULES declares @typescript-eslint/no-floating-promises as error', () => {
-      expect(DEFAULT_CANONICAL_LINT_RULES['@typescript-eslint/no-floating-promises']).toBe('error');
+    it('CANARY: DEFAULT_CANONICAL_LINT_RULES declares typescript/no-floating-promises as error', () => {
+      expect(DEFAULT_CANONICAL_LINT_RULES['typescript/no-floating-promises']).toBe('error');
     });
 
     it('CANARY: DEFAULT_CANONICAL_LINT_RULES declares @francogp/domain-type/no-double-cast-unknown as error', () => {

@@ -96,13 +96,13 @@ const CANONICAL_AUDITOR_METADATA_RULES = {
 	"@francogp/domain-type/auditor-rule-description-limit": "error"
 };
 const DEFAULT_CANONICAL_LINT_RULES = {
-	"@typescript-eslint/no-explicit-any": "error",
-	"@typescript-eslint/ban-ts-comment": "error",
-	"@typescript-eslint/consistent-type-assertions": ["error", {
+	"typescript/no-explicit-any": "error",
+	"typescript/ban-ts-comment": "error",
+	"typescript/consistent-type-assertions": ["error", {
 		assertionStyle: "as",
 		objectLiteralTypeAssertions: "never"
 	}],
-	"@typescript-eslint/no-floating-promises": "error",
+	"typescript/no-floating-promises": "error",
 	...CANONICAL_CORE_DOMAIN_RULES,
 	...CANONICAL_REACTIVE_SECURITY_RULES,
 	...CANONICAL_SIMPLIFICATION_SFC_RULES,
@@ -133,15 +133,14 @@ const DEFAULT_CANONICAL_LINT_RULES = {
 	"typescript/no-useless-empty-export": "error",
 	"typescript/no-wrapper-object-types": "error",
 	"typescript/no-unnecessary-type-assertion": "error",
-	"@typescript-eslint/no-unnecessary-type-assertion": "error",
-	"@typescript-eslint/consistent-indexed-object-style": "error",
-	"@typescript-eslint/no-empty-object-type": "error",
-	"@typescript-eslint/no-unnecessary-template-expression": "error",
-	"@typescript-eslint/no-unnecessary-type-arguments": "error",
-	"@typescript-eslint/no-unnecessary-type-constraint": "error",
-	"@typescript-eslint/prefer-function-type": "error",
-	"@typescript-eslint/prefer-return-this-type": "error",
-	"@typescript-eslint/ban-tslint-comment": "error",
+	"typescript/consistent-indexed-object-style": "error",
+	"typescript/no-empty-object-type": "error",
+	"typescript/no-unnecessary-template-expression": "error",
+	"typescript/no-unnecessary-type-arguments": "error",
+	"typescript/no-unnecessary-type-constraint": "error",
+	"typescript/prefer-function-type": "error",
+	"typescript/prefer-return-this-type": "error",
+	"typescript/ban-tslint-comment": "error",
 	"oxc/const-comparisons": "error",
 	"oxc/missing-throw": "error",
 	"oxc/uninvoked-array-callback": "error",
@@ -256,21 +255,20 @@ const DEFAULT_CANONICAL_LINT_RULES = {
 	"vue/prop-name-casing": "error",
 	"vue/require-direct-export": "error",
 	"vue/require-typed-ref": "error",
-	"@typescript-eslint/explicit-member-accessibility": ["error", { accessibility: "explicit" }],
-	"@typescript-eslint/explicit-function-return-type": ["error", {
+	"typescript/explicit-member-accessibility": ["error", { accessibility: "explicit" }],
+	"typescript/explicit-function-return-type": ["error", {
 		allowExpressions: true,
 		allowTypedFunctionExpressions: true,
 		allowHigherOrderFunctions: true,
 		allowDirectConstAssertionInArrowFunctions: true
 	}],
-	"@typescript-eslint/no-unused-vars": "error",
+	"no-unused-vars": "error",
 	"vue/no-required-prop-with-default": "error",
 	"vue/no-deprecated-model-definition": "error",
 	"no-useless-assignment": "error"
 };
 const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES = Object.fromEntries([
 	"typescript/explicit-function-return-type",
-	"@typescript-eslint/explicit-function-return-type",
 	"vitest/prefer-to-be-truthy",
 	"vitest/prefer-to-be-falsy",
 	"vitest/prefer-strict-equal",
@@ -279,7 +277,6 @@ const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES = Object.fromEntries([
 	"vitest/prefer-mock-return-shorthand",
 	"vitest/expect-expect",
 	"typescript/no-floating-promises",
-	"@typescript-eslint/no-floating-promises",
 	"no-console",
 	"unicorn/prefer-global-this",
 	"vue/require-typed-ref",
@@ -326,16 +323,13 @@ const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES = Object.fromEntries([
 const CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES = Object.fromEntries([
 	"no-console",
 	"unicorn/prefer-global-this",
-	"typescript/no-floating-promises",
-	"@typescript-eslint/no-floating-promises"
+	"typescript/no-floating-promises"
 ].map((rule) => [rule, "off"]));
 const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES = Object.fromEntries([
 	"no-console",
 	"unicorn/prefer-global-this",
 	"typescript/no-floating-promises",
-	"@typescript-eslint/no-floating-promises",
 	"typescript/explicit-function-return-type",
-	"@typescript-eslint/explicit-function-return-type",
 	"@francogp/domain-type/no-insecure-random",
 	"@francogp/domain-type/no-broad-string-array",
 	"@francogp/domain-type/no-raw-local-storage",
@@ -358,7 +352,6 @@ const CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES = Object.fromEntries([
 	"no-console",
 	"unicorn/prefer-global-this",
 	"typescript/explicit-function-return-type",
-	"@typescript-eslint/explicit-function-return-type",
 	"@francogp/domain-type/no-insecure-random",
 	"@francogp/domain-type/no-broad-string-array",
 	"@francogp/domain-type/no-gsap-layout-properties",

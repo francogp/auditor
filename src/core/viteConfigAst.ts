@@ -1196,10 +1196,21 @@ export function parseLegacyTestPropertyNode(legacyTestBlock: string): ts.Propert
   return detachNodeFromSourceFile(testProp);
 }
 
+export function toCanonicalLintRuleName(ruleName: string): string {
+  if (ruleName === '@typescript-eslint/no-unused-vars') {
+    return 'no-unused-vars';
+  }
+  if (ruleName.startsWith('@typescript-eslint/')) {
+    return `typescript/${ruleName.slice('@typescript-eslint/'.length)}`;
+  }
+  return ruleName;
+}
+
 const TUPLE_REQUIRED_RULE_LIST = [
+  'typescript/consistent-type-assertions',
   '@typescript-eslint/consistent-type-assertions',
-  '@typescript-eslint/explicit-function-return-type',
   'typescript/explicit-function-return-type',
+  '@typescript-eslint/explicit-function-return-type',
   'no-empty',
   'eqeqeq'
 ] as const;
@@ -1207,30 +1218,28 @@ const TUPLE_REQUIRED_RULE_LIST = [
 const TUPLE_REQUIRED_RULES: ReadonlySet<string> = new Set<string>(TUPLE_REQUIRED_RULE_LIST);
 
 function checkTupleRuleOption(ruleName: string, second: unknown): boolean {
-  if (ruleName === '@typescript-eslint/consistent-type-assertions') {
+  const canonical = toCanonicalLintRuleName(ruleName);
+  if (canonical === 'typescript/consistent-type-assertions') {
     const cfg =
       typeof second === 'object' && second !== null ? (second as Record<string, unknown>) : null;
     return (
       cfg !== null && cfg.assertionStyle === 'as' && cfg.objectLiteralTypeAssertions === 'never'
     );
   }
-  if (
-    ruleName === '@typescript-eslint/explicit-function-return-type' ||
-    ruleName === 'typescript/explicit-function-return-type'
-  ) {
+  if (canonical === 'typescript/explicit-function-return-type') {
     const cfg =
       typeof second === 'object' && second !== null ? (second as Record<string, unknown>) : null;
     return cfg !== null && cfg.allowExpressions === true;
   }
-  if (ruleName === 'no-empty') {
+  if (canonical === 'no-empty') {
     const cfg =
       typeof second === 'object' && second !== null ? (second as Record<string, unknown>) : null;
     return cfg !== null && cfg.allowEmptyCatch === false;
   }
-  if (ruleName === 'eqeqeq') {
+  if (canonical === 'eqeqeq') {
     return second === 'always';
   }
-  if (ruleName === '@typescript-eslint/no-unused-vars') {
+  if (canonical === 'no-unused-vars' || canonical === 'typescript/no-unused-vars') {
     return false;
   }
   return true;
@@ -1355,6 +1364,42 @@ function syncStringArrayExpression(
   };
 }
 
+function migrateLegacyLintRulesAst(
+  rulesProps: readonly ts.ObjectLiteralElementLike[],
+  sf: ts.SourceFile
+): { rulesProps: ts.ObjectLiteralElementLike[]; modified: boolean } {
+  let modified = false;
+  const existingKeys = new Set<string>();
+  for (const rp of rulesProps) {
+    if (ts.isPropertyAssignment(rp)) {
+      existingKeys.add(getPropertyKeyName(rp.name, sf));
+    }
+  }
+
+  const nextProps: ts.ObjectLiteralElementLike[] = [];
+  for (const rp of rulesProps) {
+    if (ts.isPropertyAssignment(rp)) {
+      const key = getPropertyKeyName(rp.name, sf);
+      if (key.startsWith('@typescript-eslint/')) {
+        const canonicalKey = toCanonicalLintRuleName(key);
+        if (existingKeys.has(canonicalKey)) {
+          modified = true;
+          continue;
+        }
+        const newName = createPropertyNameNode(canonicalKey, true);
+        nextProps.push(ts.factory.updatePropertyAssignment(rp, newName, rp.initializer));
+        existingKeys.add(canonicalKey);
+        existingKeys.delete(key);
+        modified = true;
+        continue;
+      }
+    }
+    nextProps.push(rp);
+  }
+
+  return { rulesProps: nextProps, modified };
+}
+
 function syncLintRulesAst(
   rulesProp: ts.PropertyAssignment | null | undefined,
   auditConfig: AuditConfig,
@@ -1366,6 +1411,9 @@ function syncLintRulesAst(
     const rDedup = deduplicateObjectProperties(rulesProp.initializer.properties, sf);
     rulesProps = rDedup.props;
     if (rDedup.modified) rulesModified = true;
+    const rMigrate = migrateLegacyLintRulesAst(rulesProps, sf);
+    rulesProps = rMigrate.rulesProps;
+    if (rMigrate.modified) rulesModified = true;
   } else {
     rulesModified = true;
   }

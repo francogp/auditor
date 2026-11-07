@@ -608,28 +608,35 @@ function parseLegacyTestPropertyNode(legacyTestBlock) {
 	if (!testProp) return null;
 	return detachNodeFromSourceFile(testProp);
 }
+function toCanonicalLintRuleName(ruleName) {
+	if (ruleName === "@typescript-eslint/no-unused-vars") return "no-unused-vars";
+	if (ruleName.startsWith("@typescript-eslint/")) return `typescript/${ruleName.slice(19)}`;
+	return ruleName;
+}
 const TUPLE_REQUIRED_RULES = /* @__PURE__ */ new Set([
+	"typescript/consistent-type-assertions",
 	"@typescript-eslint/consistent-type-assertions",
-	"@typescript-eslint/explicit-function-return-type",
 	"typescript/explicit-function-return-type",
+	"@typescript-eslint/explicit-function-return-type",
 	"no-empty",
 	"eqeqeq"
 ]);
 function checkTupleRuleOption(ruleName, second) {
-	if (ruleName === "@typescript-eslint/consistent-type-assertions") {
+	const canonical = toCanonicalLintRuleName(ruleName);
+	if (canonical === "typescript/consistent-type-assertions") {
 		const cfg = typeof second === "object" && second !== null ? second : null;
 		return cfg !== null && cfg.assertionStyle === "as" && cfg.objectLiteralTypeAssertions === "never";
 	}
-	if (ruleName === "@typescript-eslint/explicit-function-return-type" || ruleName === "typescript/explicit-function-return-type") {
+	if (canonical === "typescript/explicit-function-return-type") {
 		const cfg = typeof second === "object" && second !== null ? second : null;
 		return cfg !== null && cfg.allowExpressions === true;
 	}
-	if (ruleName === "no-empty") {
+	if (canonical === "no-empty") {
 		const cfg = typeof second === "object" && second !== null ? second : null;
 		return cfg !== null && cfg.allowEmptyCatch === false;
 	}
-	if (ruleName === "eqeqeq") return second === "always";
-	if (ruleName === "@typescript-eslint/no-unused-vars") return false;
+	if (canonical === "eqeqeq") return second === "always";
+	if (canonical === "no-unused-vars" || canonical === "typescript/no-unused-vars") return false;
 	return true;
 }
 function isRuleValueCompliant(ruleName, val) {
@@ -717,6 +724,35 @@ function syncStringArrayExpression(existingProp, requiredStrings, sf, exact = fa
 		modified: true
 	};
 }
+function migrateLegacyLintRulesAst(rulesProps, sf) {
+	let modified = false;
+	const existingKeys = /* @__PURE__ */ new Set();
+	for (const rp of rulesProps) if (ts.isPropertyAssignment(rp)) existingKeys.add(getPropertyKeyName(rp.name, sf));
+	const nextProps = [];
+	for (const rp of rulesProps) {
+		if (ts.isPropertyAssignment(rp)) {
+			const key = getPropertyKeyName(rp.name, sf);
+			if (key.startsWith("@typescript-eslint/")) {
+				const canonicalKey = toCanonicalLintRuleName(key);
+				if (existingKeys.has(canonicalKey)) {
+					modified = true;
+					continue;
+				}
+				const newName = createPropertyNameNode(canonicalKey, true);
+				nextProps.push(ts.factory.updatePropertyAssignment(rp, newName, rp.initializer));
+				existingKeys.add(canonicalKey);
+				existingKeys.delete(key);
+				modified = true;
+				continue;
+			}
+		}
+		nextProps.push(rp);
+	}
+	return {
+		rulesProps: nextProps,
+		modified
+	};
+}
 function syncLintRulesAst(rulesProp, auditConfig, sf) {
 	let rulesProps = [];
 	let rulesModified = false;
@@ -724,6 +760,9 @@ function syncLintRulesAst(rulesProp, auditConfig, sf) {
 		const rDedup = deduplicateObjectProperties(rulesProp.initializer.properties, sf);
 		rulesProps = rDedup.props;
 		if (rDedup.modified) rulesModified = true;
+		const rMigrate = migrateLegacyLintRulesAst(rulesProps, sf);
+		rulesProps = rMigrate.rulesProps;
+		if (rMigrate.modified) rulesModified = true;
 	} else rulesModified = true;
 	const currentRuleMap = /* @__PURE__ */ new Map();
 	for (const rp of rulesProps) if (ts.isPropertyAssignment(rp)) currentRuleMap.set(getPropertyKeyName(rp.name, sf), astExpressionToValue(rp.initializer, sf));
@@ -2010,4 +2049,4 @@ function sanitizeEmptyCatchClausesInViteConfig(content) {
 		modified: true
 	};
 }
-export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveDynamicDemoExemptGlobs, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, valueToAstExpression };
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveDynamicDemoExemptGlobs, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, toCanonicalLintRuleName, valueToAstExpression };

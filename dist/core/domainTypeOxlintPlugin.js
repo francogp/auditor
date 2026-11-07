@@ -1,4 +1,54 @@
+import { findForbiddenSuppressions } from "./suppressionDirectives.js";
 // src/core/domainTypeOxlintPlugin.ts
+/**
+* @francogp/domain-type Oxlint JS Plugin (Node.js 26+ Native)
+*
+* Comprehensive single-file AST plugin enforcing strict domain types,
+* O(1) data structure hygiene, type assertion purity, and Vue 3 reactivity.
+*
+* Enforces:
+* 1. no-naked-string-union: Forbids open string unions (| string) mixing primitives with domain literals.
+* 2. no-record-string-key: Forbids Record<string, T> in favor of Record<DomainId, T> (permits open unknown dictionaries).
+* 3. no-untyped-string-set-map: Forbids new Set / new Map instantiated with string literals without domain typing.
+* 4. no-broad-string-array: Forbids string literal arrays without `as const`.
+* 5. no-double-cast-unknown: Forbids `as unknown as T` bypassing type boundaries.
+* 6. no-legacy-date: Forbids `new Date()` and `Date.now()` in favor of Temporal API.
+* 7. no-unbranded-id: Forbids `type XId = string` without nominal Brand<string, ...>.
+* 8. no-json-clone: Forbids `JSON.parse(JSON.stringify(...))` in favor of structuredClone.
+* 9. no-redundant-spread-return: Forbids `return [...arr]` in favor of direct return or readonly arrays.
+* 10. no-boolean-literal-annotation: Forbids `: true` or `: false` type annotations.
+* 11. no-async-in-computed: Forbids async callbacks in computed().
+* 12. watch-reactive-property-getter: Forbids naked prop references in watch().
+* 13. no-destructured-reactive: Forbids destructuring reactive() without toRefs().
+* 14. no-store-destructuring-without-storetorefs: Forbids destructuring Pinia stores without storeToRefs().
+* 15. no-direct-state-mutation-outside-actions: Forbids direct assignment to store.$state.
+* 16. no-deprecated-router-next: Forbids 3-parameter (to, from, next) navigation guards in Vue Router 4.
+* 17. no-define-async-component-in-router: Forbids wrapping route components with defineAsyncComponent.
+* 18. no-window-location-navigation: Forbids hard window.location navigation for internal SPA routes.
+* 19. no-silent-promise-catch: Forbids silent .catch() that swallows promise errors.
+* 20. no-silent-mock-fallbacks: Forbids Valibot v.fallback() silently masking schema errors.
+* 21. strict-catch-narrowing: Requires explicit type narrowing (instanceof Error) on caught exceptions.
+* 22. dom-event-leak: Detects addEventListener without cleanup or once: true.
+* 23. interval-leak: Detects setInterval without clearInterval.
+* 24. no-boolean-trap-parameters: Forbids multiple positional boolean parameters in function signatures.
+* 25. no-massive-switch: Forbids switch statements with > 10 case branches.
+* 26. no-tautological-integration-mocks: Forbids mocking database or core execution engines in tests.
+* 27. playwright-id-locators-only: Enforces 100% ID-based locators in E2E simulations.
+* 28. no-playwright-force-click: Forbids force click in Playwright simulations.
+* 29. no-test-timeout-inflation: Forbids inflating test timeouts (>= 30000ms) to mask slowness.
+* 30. no-playwright-polling-waits: Forbids page.waitForTimeout() in simulations.
+* 31. script-setup-required: Requires Vue 3 SFCs to use Composition API with script setup.
+* 32. vue-template-quote-escaping: Forbids escaped quotes inside Vue template attribute bindings.
+* 33. no-data-provider-in-template: Forbids calling data providers directly inside Vue template expressions.
+* 34. no-raw-html-injection: Forbids HTML injection via v-html or innerHTML.
+* 35. no-insecure-random: Forbids Math.random() for sensitive tokens, IDs or cryptography.
+* 36. no-permissive-cors: Forbids wildcard '*' in Access-Control-Allow-Origin.
+* 37. no-unvalidated-redirect: Forbids open redirects with unvalidated parameters.
+*
+* All rules strictly inspect AST nodes without bypass comments (Zero-Ignore Mandate).
+* INVARIANT: Zero hardcoded directory names or folder paths. Rules MUST be pure AST visitors;
+* scoping belongs 100% to SSoT (.auditor/audit.config.ts.paths) and DYNAMIC_*_OFF_RULES.
+*/
 const CANONICAL_INFRA_ID_WHITELIST = [
 	"suiteId",
 	"ruleId",
@@ -1765,15 +1815,20 @@ const domainTypeOxlintPlugin = {
 		"no-file-level-suppressions": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohibits file-level suppression headers (eslint-disable, fallow-ignore, @ts-nocheck)" }
+				docs: { description: "Prohibits any ESLint directives and linter/type suppressions (eslint-disable, oxlint-disable, @ts-ignore, @ts-nocheck)" }
 			},
 			create(context) {
 				return { Program(node) {
-					const headerSlice = (context.getSourceCode ? context.getSourceCode().getText() : "").slice(0, 1e3);
-					if (/\/\*\s*eslint-disable\s*\*\/|\/\/\s*fallow-ignore-file|\/\/\s*@ts-nocheck/.test(headerSlice)) context.report({
-						node,
-						message: "File-level suppression header detected. Standalone whole-file ignore directives are strictly prohibited."
-					});
+					const source = context.getSourceCode ? context.getSourceCode().getText() : "";
+					if (!source) return;
+					const matches = findForbiddenSuppressions(source);
+					if (matches.length > 0) {
+						const first = matches[0];
+						context.report({
+							node,
+							message: first.message
+						});
+					}
 				} };
 			}
 		},

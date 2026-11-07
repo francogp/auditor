@@ -182,6 +182,7 @@ Architecture & Tooling Engineers.
 - [`streamingRunner.ts`](./streamingRunner.ts): Streaming auditor execution engine.
 - [`subAuditorSeverity.ts`](./subAuditorSeverity.ts): Severity evaluation and effective counts resolution for sub-auditors and task streams.
 - [`suiteGating.ts`](./suiteGating.ts): Single Source of Truth for suite enablement evaluation and CLI list filter options.
+- [`suppressionDirectives.ts`](./suppressionDirectives.ts): Centralized registry and multiline matcher for forbidden ESLint directives and prohibited linter/type suppressions.
 - [`taskStreamCoordinator.ts`](./taskStreamCoordinator.ts): Thread-safe serial console stream coordinator and task progress formatter.
 - [`terminalVisuals.ts`](./terminalVisuals.ts): Visual width calculation, text alignment, and ANSI color formatting helpers.
 - [`transcriptAuthorizationVerifier.ts`](./transcriptAuthorizationVerifier.ts): Antigravity conversation transcript verifier detecting USER_EXPLICIT relaxation authorization and model tool tampering.

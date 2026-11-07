@@ -11,7 +11,7 @@ describe('Fallow Deduplication Canary Suite (Zero Clones)', () => {
   it('Tier 1: DEFAULT_CANONICAL_LINT_RULES contains all canonical rules without regressions', () => {
     const rules = Object.keys(DEFAULT_CANONICAL_LINT_RULES);
     expect(rules.length).toBeGreaterThanOrEqual(60);
-    expect(DEFAULT_CANONICAL_LINT_RULES['@typescript-eslint/no-explicit-any']).toBe('error');
+    expect(DEFAULT_CANONICAL_LINT_RULES['typescript/no-explicit-any']).toBe('error');
     expect(DEFAULT_CANONICAL_LINT_RULES['@francogp/domain-type/no-record-string-key']).toBe(
       'error'
     );

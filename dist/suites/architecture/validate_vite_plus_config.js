@@ -6,7 +6,7 @@ import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { isPathContained, stripGlobSuffix, toPosixRelative } from "../../core/safePath.js";
 import { isPatternContainedInGlobs } from "../../core/globContainment.js";
 import "../../core/satelliteGlobMatcher.js";
-import { buildAllowedCoverageExcludes, detectInlineVitePlugins, extractParsedConfigSummary, isRuleValueCompliant, parseTsSourceFile, resolveVitestRoots } from "../../core/viteConfigAst.js";
+import { buildAllowedCoverageExcludes, detectInlineVitePlugins, extractParsedConfigSummary, isRuleValueCompliant, parseTsSourceFile, resolveVitestRoots, toCanonicalLintRuleName } from "../../core/viteConfigAst.js";
 import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, findHomebrewCompressionFiles, migrateHomebrewCompressionInViteConfig, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -910,9 +910,21 @@ const ANTI_CASTRATION_SPECS = [
 		message: `The 'jsx-a11y/no-redundant-roles' rule must be configured as 'error' in vite.config.ts.`
 	}
 ];
+function getEffectiveRuleValue(summary, ruleName) {
+	const direct = summary.lintRules.get(ruleName);
+	if (direct !== void 0) return direct;
+	const canonical = toCanonicalLintRuleName(ruleName);
+	const fromCanonical = summary.lintRules.get(canonical);
+	if (fromCanonical !== void 0) return fromCanonical;
+	if (ruleName.startsWith("typescript/")) {
+		const legacyAlias = "@typescript-eslint/" + ruleName.slice(11);
+		return summary.lintRules.get(legacyAlias);
+	}
+}
 function validateSpecialAntiCastrationRules(summary, fileName) {
 	const findings = [];
-	if (!isRuleValueCompliant("@typescript-eslint/consistent-type-assertions", summary.lintRules.get("@typescript-eslint/consistent-type-assertions"))) findings.push({
+	const typeAssertionsVal = getEffectiveRuleValue(summary, "typescript/consistent-type-assertions");
+	if (!isRuleValueCompliant("typescript/consistent-type-assertions", typeAssertionsVal) && !isRuleValueCompliant("@typescript-eslint/consistent-type-assertions", typeAssertionsVal)) findings.push({
 		suiteId: "validate_vite_plus_config",
 		suiteName: "Vite+ Unified Configuration Validator",
 		ruleId: "vite-plus-config-lint",
@@ -921,8 +933,8 @@ function validateSpecialAntiCastrationRules(summary, fileName) {
 		file: fileName,
 		line: 1,
 		col: 1,
-		context: "@typescript-eslint/consistent-type-assertions",
-		message: `Configuring '@typescript-eslint/consistent-type-assertions' as 'error' with 'as' style and objectLiteralTypeAssertions: 'never' is required.`
+		context: "typescript/consistent-type-assertions",
+		message: `Configuring 'typescript/consistent-type-assertions' as 'error' with 'as' style and objectLiteralTypeAssertions: 'never' is required.`
 	});
 	if (!isRuleValueCompliant("no-empty", summary.lintRules.get("no-empty"))) findings.push({
 		suiteId: "validate_vite_plus_config",
@@ -952,18 +964,21 @@ function validateSpecialAntiCastrationRules(summary, fileName) {
 }
 function validateAntiCastrationRules(summary, fileName) {
 	const findings = validateSpecialAntiCastrationRules(summary, fileName);
-	for (const spec of ANTI_CASTRATION_SPECS) if (!isRuleValueCompliant(spec.oxlintRule, summary.lintRules.get(spec.oxlintRule))) findings.push({
-		suiteId: "validate_vite_plus_config",
-		suiteName: "Vite+ Unified Configuration Validator",
-		ruleId: "vite-plus-config-lint",
-		ruleDescription: "Strict linter and Oxlint standards",
-		severity: "error",
-		file: fileName,
-		line: 1,
-		col: 1,
-		context: spec.oxlintRule,
-		message: spec.message
-	});
+	for (const spec of ANTI_CASTRATION_SPECS) {
+		const ruleVal = getEffectiveRuleValue(summary, spec.oxlintRule);
+		if (!isRuleValueCompliant(spec.oxlintRule, ruleVal)) findings.push({
+			suiteId: "validate_vite_plus_config",
+			suiteName: "Vite+ Unified Configuration Validator",
+			ruleId: "vite-plus-config-lint",
+			ruleDescription: "Strict linter and Oxlint standards",
+			severity: "error",
+			file: fileName,
+			line: 1,
+			col: 1,
+			context: spec.oxlintRule,
+			message: spec.message
+		});
+	}
 	return findings;
 }
 function validateRequiredSections(summary, fileName, auditConfig) {

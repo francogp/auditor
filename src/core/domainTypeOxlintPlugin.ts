@@ -48,6 +48,8 @@
  * scoping belongs 100% to SSoT (.auditor/audit.config.ts.paths) and DYNAMIC_*_OFF_RULES.
  */
 
+import { findForbiddenSuppressions } from './suppressionDirectives.ts';
+
 export interface OxlintAstNode {
   readonly type?: string;
   readonly name?: string;
@@ -2866,23 +2868,21 @@ export const domainTypeOxlintPlugin = {
         type: 'problem',
         docs: {
           description:
-            'Prohibits file-level suppression headers (eslint-disable, fallow-ignore, @ts-nocheck)'
+            'Prohibits any ESLint directives and linter/type suppressions (eslint-disable, oxlint-disable, @ts-ignore, @ts-nocheck)'
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
         return {
           Program(node: OxlintAstNode): void {
             const source = context.getSourceCode ? context.getSourceCode().getText() : '';
-            const headerSlice = source.slice(0, 1000);
-            if (
-              /\/\*\s*eslint-disable\s*\*\/|\/\/\s*fallow-ignore-file|\/\/\s*@ts-nocheck/.test(
-                headerSlice
-              )
-            ) {
+            if (!source) return;
+
+            const matches = findForbiddenSuppressions(source);
+            if (matches.length > 0) {
+              const first = matches[0]!;
               context.report({
                 node,
-                message:
-                  'File-level suppression header detected. Standalone whole-file ignore directives are strictly prohibited.'
+                message: first.message
               });
             }
           }

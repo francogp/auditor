@@ -278,11 +278,11 @@ export default defineAuditConfig({
       enabled: true,
       rules: {
         'no-console': 'off',
-        '@typescript-eslint/explicit-member-accessibility': [
+        'typescript/explicit-member-accessibility': [
           'error',
           { accessibility: 'explicit' }
         ],
-        '@typescript-eslint/no-unused-vars': 'error',
+        'no-unused-vars': 'error',
         'vue/no-required-prop-with-default': 'error',
         'vue/no-deprecated-model-definition': 'error',
         'no-useless-assignment': 'error',

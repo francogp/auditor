@@ -29,7 +29,8 @@ describe('OxlintAuditor & parseOxlintResults', () => {
   describe('Metadata & Configuration', () => {
     it('declares all canonical rules in OXLINT_RULES', () => {
       expect(OXLINT_RULES).toContain('oxlint-violation');
-      expect(OXLINT_RULES).toHaveLength(1);
+      expect(OXLINT_RULES).toContain('oxlint-forbidden-suppression');
+      expect(OXLINT_RULES).toHaveLength(2);
     });
 
     it('initializes with correct id and family', () => {
@@ -37,6 +38,7 @@ describe('OxlintAuditor & parseOxlintResults', () => {
       expect(auditor.id).toBe('validate_oxlint');
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds).toContain('oxlint-violation');
+      expect(auditor.ruleIds).toContain('oxlint-forbidden-suppression');
       expect(OXLINT_FIXABLE_RULES.size).toBeGreaterThan(0);
     });
   });

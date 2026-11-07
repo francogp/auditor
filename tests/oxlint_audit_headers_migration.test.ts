@@ -82,7 +82,42 @@ describe('Oxlint Audit Headers Migration Verification', () => {
       expect(reported).toBe(true);
     });
 
-    it('CANARY: no-file-level-suppressions catches // @ts-nocheck header', () => {
+    it('CANARY: no-file-level-suppressions catches // eslint-disable-next-line on line 50 with ESLint message', () => {
+      const rule = domainTypeOxlintPlugin.rules['no-file-level-suppressions'];
+      let reportedMessage = '';
+      const visitor = rule.create({
+        report: (descriptor: { message?: string }) => {
+          reportedMessage = descriptor?.message ?? '';
+        },
+        getSourceCode: () => ({
+          getText: () =>
+            'const a = 1;\n'.repeat(50) +
+            '// eslint-disable-next-line @typescript-eslint/no-explicit-any\nconst b: any = 2;'
+        })
+      });
+
+      visitor.Program?.({ type: 'Program' });
+      expect(reportedMessage).toContain('ESLint directive detected');
+      expect(reportedMessage).toContain('ESLint is NOT used in this repository');
+    });
+
+    it('CANARY: no-file-level-suppressions catches // oxlint-disable-next-line', () => {
+      const rule = domainTypeOxlintPlugin.rules['no-file-level-suppressions'];
+      let reportedMessage = '';
+      const visitor = rule.create({
+        report: (descriptor: { message?: string }) => {
+          reportedMessage = descriptor?.message ?? '';
+        },
+        getSourceCode: () => ({
+          getText: () => 'const a = 1;\n// oxlint-disable-next-line\nconst b = 2;'
+        })
+      });
+
+      visitor.Program?.({ type: 'Program' });
+      expect(reportedMessage).toContain('Linter/type suppression directive detected');
+    });
+
+    it('CANARY: no-file-level-suppressions catches // @ts-ignore', () => {
       const rule = domainTypeOxlintPlugin.rules['no-file-level-suppressions'];
       let reported = false;
       const visitor = rule.create({
@@ -90,7 +125,7 @@ describe('Oxlint Audit Headers Migration Verification', () => {
           reported = true;
         },
         getSourceCode: () => ({
-          getText: () => '// @ts-nocheck\nexport const y = 2;'
+          getText: () => 'const a = 1;\n// @ts-ignore\nconst b = 2;'
         })
       });
 

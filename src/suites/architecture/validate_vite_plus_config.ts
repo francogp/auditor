@@ -22,6 +22,7 @@ import {
   isRuleValueCompliant,
   resolveVitestRoots,
   CANONICAL_LINT_RULES_MAP,
+  toCanonicalLintRuleName,
   detectInlineVitePlugins,
   parseTsSourceFile,
   buildAllowedCoverageExcludes,
@@ -962,17 +963,29 @@ const ANTI_CASTRATION_SPECS: readonly AntiCastrationRuleSpec[] = [
   }
 ];
 
+function getEffectiveRuleValue(summary: ParsedVitePlusConfigSummary, ruleName: string): unknown {
+  const direct = summary.lintRules.get(ruleName);
+  if (direct !== undefined) return direct;
+  const canonical = toCanonicalLintRuleName(ruleName);
+  const fromCanonical = summary.lintRules.get(canonical);
+  if (fromCanonical !== undefined) return fromCanonical;
+  if (ruleName.startsWith('typescript/')) {
+    const legacyAlias = '@typescript-eslint/' + ruleName.slice('typescript/'.length);
+    return summary.lintRules.get(legacyAlias);
+  }
+  return undefined;
+}
+
 function validateSpecialAntiCastrationRules(
   summary: ParsedVitePlusConfigSummary,
   fileName: string
 ): AuditFinding[] {
   const findings: AuditFinding[] = [];
 
+  const typeAssertionsVal = getEffectiveRuleValue(summary, 'typescript/consistent-type-assertions');
   if (
-    !isRuleValueCompliant(
-      '@typescript-eslint/consistent-type-assertions',
-      summary.lintRules.get('@typescript-eslint/consistent-type-assertions')
-    )
+    !isRuleValueCompliant('typescript/consistent-type-assertions', typeAssertionsVal) &&
+    !isRuleValueCompliant('@typescript-eslint/consistent-type-assertions', typeAssertionsVal)
   ) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
@@ -983,8 +996,8 @@ function validateSpecialAntiCastrationRules(
       file: fileName,
       line: 1,
       col: 1,
-      context: '@typescript-eslint/consistent-type-assertions',
-      message: `Configuring '@typescript-eslint/consistent-type-assertions' as 'error' with 'as' style and objectLiteralTypeAssertions: 'never' is required.`
+      context: 'typescript/consistent-type-assertions',
+      message: `Configuring 'typescript/consistent-type-assertions' as 'error' with 'as' style and objectLiteralTypeAssertions: 'never' is required.`
     });
   }
 
@@ -1028,7 +1041,8 @@ function validateAntiCastrationRules(
   const findings = validateSpecialAntiCastrationRules(summary, fileName);
 
   for (const spec of ANTI_CASTRATION_SPECS) {
-    if (!isRuleValueCompliant(spec.oxlintRule, summary.lintRules.get(spec.oxlintRule))) {
+    const ruleVal = getEffectiveRuleValue(summary, spec.oxlintRule);
+    if (!isRuleValueCompliant(spec.oxlintRule, ruleVal)) {
       findings.push({
         suiteId: 'validate_vite_plus_config',
         suiteName: 'Vite+ Unified Configuration Validator',

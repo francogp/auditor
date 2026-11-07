@@ -55,6 +55,7 @@ export declare function buildRunAstObject(auditConfig?: AuditConfig): ts.ObjectL
 export declare function buildCanonicalVitePlusAstSource(auditConfig: AuditConfig, lintIgnores: readonly string[], fmtIgnores: readonly string[], legacyTestProperty?: ts.PropertyAssignment | null, lockedSkillsIgnores?: readonly string[]): string;
 export declare function detachNodeFromSourceFile<T extends ts.Node>(node: T): T;
 export declare function parseLegacyTestPropertyNode(legacyTestBlock: string): ts.PropertyAssignment | null;
+export declare function toCanonicalLintRuleName(ruleName: string): string;
 export declare function isRuleValueCompliant(ruleName: string, val: unknown): boolean;
 export declare function buildAllowedCoverageExcludes(auditConfig: AuditConfig, projectRoot?: string): Set<string>;
 export declare function printTransformedSourceFile(sf: ts.SourceFile, transformer: ts.TransformerFactory<ts.SourceFile>): string;

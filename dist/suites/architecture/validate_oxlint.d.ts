@@ -1,7 +1,7 @@
 import { AuditFinding, RuleFixContext } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { RawLintFileReport, RawLintMessage } from "../../core/reportUtils.js";
-export declare const OXLINT_RULES: readonly ["oxlint-violation"];
+export declare const OXLINT_RULES: readonly ["oxlint-violation", "oxlint-forbidden-suppression"];
 export type OxlintRuleId = (typeof OXLINT_RULES)[number];
 export type RawOxlintMessage = RawLintMessage;
 export type RawOxlintFileReport = RawLintFileReport;
@@ -43,5 +43,6 @@ export interface OxlintAuditorOptions {
 export declare class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
   constructor(options?: OxlintAuditorOptions);
   buildOxlintArgs(isFixMode?: boolean): string[];
+  private scanForbiddenSuppressionDirectives;
   runAudit(): Promise<void>;
 }

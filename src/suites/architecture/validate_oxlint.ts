@@ -27,6 +27,7 @@
  *   vp check
  */
 
+import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
@@ -40,6 +41,7 @@ import {
 } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
+  collectRepositoryFiles,
   createUniformRemediationPhases,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -50,11 +52,12 @@ import {
   type RawLintMessage,
   type RawLintFileReport
 } from '../../core/reportUtils.ts';
+import { findForbiddenSuppressions } from '../../core/suppressionDirectives.ts';
 import { getVitePlusDefaultExcludeGlobs } from '../../core/vitePlusConfigSync.ts';
 
 enableCompileCache();
 
-export const OXLINT_RULES = ['oxlint-violation'] as const;
+export const OXLINT_RULES = ['oxlint-violation', 'oxlint-forbidden-suppression'] as const;
 
 export type OxlintRuleId = (typeof OXLINT_RULES)[number];
 
@@ -644,7 +647,8 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
       ruleIds: OXLINT_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(OXLINT_RULES, 'hygiene'),
       ruleDescriptions: {
-        'oxlint-violation': 'Syntax error or rule violation'
+        'oxlint-violation': 'Syntax error or rule violation',
+        'oxlint-forbidden-suppression': 'Prohibited ESLint directive or suppression'
       },
       ruleRemediations: {
         'oxlint-violation':
@@ -658,6 +662,17 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
           '2. If the finding involves return contracts (explicit-function-return-type) or type assertions (as any), run the official refactoring tool "npm run auditor:types".\n' +
           '3. If the rule requires manual correction, refactor the code to satisfy the reported architectural contract.\n' +
           '4. Disabling or suppressing rules in vite.config.ts ("rule": "off" or null) to bypass the audit is STRICTLY PROHIBITED (Anti-Castration Mandate and Zero-Tolerance Fake Pass Mandate).\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'npm run auditor:fix',
+        'oxlint-forbidden-suppression':
+          '1. Root Cause:\n' +
+          "An ESLint directive ('eslint-disable*') or linter suppression comment was detected in source code.\n" +
+          'ESLint is completely eradicated in this architecture; linting is performed exclusively by Oxlint (vp lint). Suppressing rules is strictly prohibited.\n\n' +
+          '2. Diagnosis:\n' +
+          'The violation points to the exact file, line number, and directive used.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Remove the forbidden suppression comment.\n' +
+          '2. Refactor the code cleanly to satisfy TypeScript and Oxlint rules without suppressing.\n\n' +
           '4. Example / Auto-fix command:\n' +
           'npm run auditor:fix'
       },
@@ -689,6 +704,48 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
     return args;
   }
 
+  private scanForbiddenSuppressionDirectives(excludeGlobs: readonly string[]): void {
+    const extensions = new Set(['.ts', '.vue', '.js', '.mjs', '.cjs']);
+    const files = collectRepositoryFiles(
+      this.projectRoot,
+      this.projectRoot,
+      excludeGlobs,
+      extensions
+    );
+
+    for (const relPath of files) {
+      const absPath = path.resolve(this.projectRoot, relPath);
+      let content: string;
+      try {
+        content = fs.readFileSync(absPath, 'utf8');
+      } catch {
+        continue;
+      }
+
+      if (
+        !content.includes('disable') &&
+        !content.includes('@ts-') &&
+        !content.includes('fallow-ignore-file')
+      ) {
+        continue;
+      }
+
+      const matches = findForbiddenSuppressions(content);
+      for (const m of matches) {
+        this.addViolation({
+          ruleId: 'oxlint-forbidden-suppression',
+          severity: 'error',
+          file: relPath,
+          line: m.line,
+          col: 1,
+          context: m.match.trim(),
+          message: m.message,
+          fixable: false
+        });
+      }
+    }
+  }
+
   public override async runAudit(): Promise<void> {
     const excludeGlobs = getVitePlusDefaultExcludeGlobs(this.projectRoot);
     this.redeclareCoverage({
@@ -716,6 +773,7 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
     const findings = parseOxlintResults(combinedOutput, this.projectRoot);
 
     this.markRuleEvaluated('oxlint-violation');
+    this.markRuleEvaluated('oxlint-forbidden-suppression');
     this.recordExternalScanCount(1);
 
     for (const finding of findings) {
@@ -730,6 +788,8 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
         fixable: isFixMode ? false : Boolean(finding.fixable)
       });
     }
+
+    this.scanForbiddenSuppressionDirectives(excludeGlobs);
 
     this.context.setMetric('oxlint_violations', findings.length);
     this.context.setMetric('mode', isFixMode ? 'fix' : 'check');

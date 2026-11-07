@@ -1,10 +1,12 @@
 import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { normalizePosixPath, parseJsonObjectOutput, parseLintResultsToFindings } from "../../core/reportUtils.js";
+import { findForbiddenSuppressions } from "../../core/suppressionDirectives.js";
 import { getVitePlusDefaultExcludeGlobs } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
+import fs from "node:fs";
 import os from "node:os";
 // src/suites/architecture/validate_oxlint.ts
 /**
@@ -36,7 +38,7 @@ import os from "node:os";
 *   vp check
 */
 enableCompileCache();
-const OXLINT_RULES = ["oxlint-violation"];
+const OXLINT_RULES = ["oxlint-violation", "oxlint-forbidden-suppression"];
 const MAX_BUFFER_BYTES = 52428800;
 const EXECUTION_TIMEOUT_MS = 0;
 const OXLINT_FIXABLE_RULES_LIST = [
@@ -550,8 +552,14 @@ var OxlintAuditor = class extends BaseAuditor {
 			icon: "📜",
 			ruleIds: OXLINT_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(OXLINT_RULES, "hygiene"),
-			ruleDescriptions: { "oxlint-violation": "Syntax error or rule violation" },
-			ruleRemediations: { "oxlint-violation": "1. Root Cause:\nA linter rule violation, syntax error, or code anti-pattern was detected by Vite+'s high-speed static Oxlint engine.\nOxlint validates strict TypeScript standards (@typescript-eslint), modern code hygiene (unicorn), testing best practices (vitest), component structure (vue), and general JavaScript standards.\n\n2. Diagnosis:\nThe violation message indicates the exact rule code (e.g. @typescript-eslint/no-unused-vars, unicorn/prefer-string-starts-ends-with) and the line of the offending file.\n\n3. Canonical Solution:\n1. If the rule is auto-fixable, run \"npm run auditor:fix\" to apply fixes supported by Oxlint.\n2. If the finding involves return contracts (explicit-function-return-type) or type assertions (as any), run the official refactoring tool \"npm run auditor:types\".\n3. If the rule requires manual correction, refactor the code to satisfy the reported architectural contract.\n4. Disabling or suppressing rules in vite.config.ts (\"rule\": \"off\" or null) to bypass the audit is STRICTLY PROHIBITED (Anti-Castration Mandate and Zero-Tolerance Fake Pass Mandate).\n\n4. Example / Auto-fix command:\nnpm run auditor:fix" },
+			ruleDescriptions: {
+				"oxlint-violation": "Syntax error or rule violation",
+				"oxlint-forbidden-suppression": "Prohibited ESLint directive or suppression"
+			},
+			ruleRemediations: {
+				"oxlint-violation": "1. Root Cause:\nA linter rule violation, syntax error, or code anti-pattern was detected by Vite+'s high-speed static Oxlint engine.\nOxlint validates strict TypeScript standards (@typescript-eslint), modern code hygiene (unicorn), testing best practices (vitest), component structure (vue), and general JavaScript standards.\n\n2. Diagnosis:\nThe violation message indicates the exact rule code (e.g. @typescript-eslint/no-unused-vars, unicorn/prefer-string-starts-ends-with) and the line of the offending file.\n\n3. Canonical Solution:\n1. If the rule is auto-fixable, run \"npm run auditor:fix\" to apply fixes supported by Oxlint.\n2. If the finding involves return contracts (explicit-function-return-type) or type assertions (as any), run the official refactoring tool \"npm run auditor:types\".\n3. If the rule requires manual correction, refactor the code to satisfy the reported architectural contract.\n4. Disabling or suppressing rules in vite.config.ts (\"rule\": \"off\" or null) to bypass the audit is STRICTLY PROHIBITED (Anti-Castration Mandate and Zero-Tolerance Fake Pass Mandate).\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
+				"oxlint-forbidden-suppression": "1. Root Cause:\nAn ESLint directive ('eslint-disable*') or linter suppression comment was detected in source code.\nESLint is completely eradicated in this architecture; linting is performed exclusively by Oxlint (vp lint). Suppressing rules is strictly prohibited.\n\n2. Diagnosis:\nThe violation points to the exact file, line number, and directive used.\n\n3. Canonical Solution:\n1. Remove the forbidden suppression comment.\n2. Refactor the code cleanly to satisfy TypeScript and Oxlint rules without suppressing.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix"
+			},
 			coverage: {
 				include: ["**/*.{js,ts,mjs,cjs,vue}"],
 				exclude: getVitePlusDefaultExcludeGlobs(effectiveRoot),
@@ -575,6 +583,37 @@ var OxlintAuditor = class extends BaseAuditor {
 		if (isFixMode) args.push("--fix");
 		return args;
 	}
+	scanForbiddenSuppressionDirectives(excludeGlobs) {
+		const extensions = /* @__PURE__ */ new Set([
+			".ts",
+			".vue",
+			".js",
+			".mjs",
+			".cjs"
+		]);
+		const files = collectRepositoryFiles(this.projectRoot, this.projectRoot, excludeGlobs, extensions);
+		for (const relPath of files) {
+			const absPath = path.resolve(this.projectRoot, relPath);
+			let content;
+			try {
+				content = fs.readFileSync(absPath, "utf8");
+			} catch {
+				continue;
+			}
+			if (!content.includes("disable") && !content.includes("@ts-") && !content.includes("fallow-ignore-file")) continue;
+			const matches = findForbiddenSuppressions(content);
+			for (const m of matches) this.addViolation({
+				ruleId: "oxlint-forbidden-suppression",
+				severity: "error",
+				file: relPath,
+				line: m.line,
+				col: 1,
+				context: m.match.trim(),
+				message: m.message,
+				fixable: false
+			});
+		}
+	}
 	async runAudit() {
 		const excludeGlobs = getVitePlusDefaultExcludeGlobs(this.projectRoot);
 		this.redeclareCoverage({
@@ -594,6 +633,7 @@ var OxlintAuditor = class extends BaseAuditor {
 			timeout: EXECUTION_TIMEOUT_MS
 		}), this.projectRoot);
 		this.markRuleEvaluated("oxlint-violation");
+		this.markRuleEvaluated("oxlint-forbidden-suppression");
 		this.recordExternalScanCount(1);
 		for (const finding of findings) this.addViolation({
 			ruleId: finding.ruleId ?? "oxlint-violation",
@@ -605,6 +645,7 @@ var OxlintAuditor = class extends BaseAuditor {
 			message: finding.message,
 			fixable: isFixMode ? false : Boolean(finding.fixable)
 		});
+		this.scanForbiddenSuppressionDirectives(excludeGlobs);
 		this.context.setMetric("oxlint_violations", findings.length);
 		this.context.setMetric("mode", isFixMode ? "fix" : "check");
 	}

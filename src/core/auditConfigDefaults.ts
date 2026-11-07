@@ -116,17 +116,17 @@ const CANONICAL_AUDITOR_METADATA_RULES: Readonly<Record<string, 'error'>> = {
 export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
   Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>
 > = {
-  // Core TypeScript and Language Strictness
-  '@typescript-eslint/no-explicit-any': 'error',
-  '@typescript-eslint/ban-ts-comment': 'error',
-  '@typescript-eslint/consistent-type-assertions': [
+  // Native Oxlint TypeScript Plugin Rules (Canonical SSoT)
+  'typescript/no-explicit-any': 'error',
+  'typescript/ban-ts-comment': 'error',
+  'typescript/consistent-type-assertions': [
     'error',
     {
       assertionStyle: 'as',
       objectLiteralTypeAssertions: 'never'
     }
   ],
-  '@typescript-eslint/no-floating-promises': 'error',
+  'typescript/no-floating-promises': 'error',
   ...CANONICAL_CORE_DOMAIN_RULES,
   ...CANONICAL_REACTIVE_SECURITY_RULES,
   ...CANONICAL_SIMPLIFICATION_SFC_RULES,
@@ -168,15 +168,14 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
   'typescript/no-useless-empty-export': 'error',
   'typescript/no-wrapper-object-types': 'error',
   'typescript/no-unnecessary-type-assertion': 'error',
-  '@typescript-eslint/no-unnecessary-type-assertion': 'error',
-  '@typescript-eslint/consistent-indexed-object-style': 'error',
-  '@typescript-eslint/no-empty-object-type': 'error',
-  '@typescript-eslint/no-unnecessary-template-expression': 'error',
-  '@typescript-eslint/no-unnecessary-type-arguments': 'error',
-  '@typescript-eslint/no-unnecessary-type-constraint': 'error',
-  '@typescript-eslint/prefer-function-type': 'error',
-  '@typescript-eslint/prefer-return-this-type': 'error',
-  '@typescript-eslint/ban-tslint-comment': 'error',
+  'typescript/consistent-indexed-object-style': 'error',
+  'typescript/no-empty-object-type': 'error',
+  'typescript/no-unnecessary-template-expression': 'error',
+  'typescript/no-unnecessary-type-arguments': 'error',
+  'typescript/no-unnecessary-type-constraint': 'error',
+  'typescript/prefer-function-type': 'error',
+  'typescript/prefer-return-this-type': 'error',
+  'typescript/ban-tslint-comment': 'error',
   // Oxc Compiler Engine
   'oxc/const-comparisons': 'error',
   'oxc/missing-throw': 'error',
@@ -301,8 +300,8 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
   'vue/prop-name-casing': 'error',
   'vue/require-direct-export': 'error',
   'vue/require-typed-ref': 'error',
-  '@typescript-eslint/explicit-member-accessibility': ['error', { accessibility: 'explicit' }],
-  '@typescript-eslint/explicit-function-return-type': [
+  'typescript/explicit-member-accessibility': ['error', { accessibility: 'explicit' }],
+  'typescript/explicit-function-return-type': [
     'error',
     {
       allowExpressions: true,
@@ -311,7 +310,7 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
       allowDirectConstAssertionInArrowFunctions: true
     }
   ],
-  '@typescript-eslint/no-unused-vars': 'error',
+  'no-unused-vars': 'error',
   'vue/no-required-prop-with-default': 'error',
   'vue/no-deprecated-model-definition': 'error',
   'no-useless-assignment': 'error'
@@ -319,7 +318,6 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
 
 const DYNAMIC_TEST_OFF_RULES = [
   'typescript/explicit-function-return-type',
-  '@typescript-eslint/explicit-function-return-type',
   'vitest/prefer-to-be-truthy',
   'vitest/prefer-to-be-falsy',
   'vitest/prefer-strict-equal',
@@ -328,7 +326,6 @@ const DYNAMIC_TEST_OFF_RULES = [
   'vitest/prefer-mock-return-shorthand',
   'vitest/expect-expect',
   'typescript/no-floating-promises',
-  '@typescript-eslint/no-floating-promises',
   'no-console',
   'unicorn/prefer-global-this',
   'vue/require-typed-ref',
@@ -379,8 +376,7 @@ export const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES: Readonly<Record<string, 'off
 const DYNAMIC_TOOLING_OFF_RULES = [
   'no-console',
   'unicorn/prefer-global-this',
-  'typescript/no-floating-promises',
-  '@typescript-eslint/no-floating-promises'
+  'typescript/no-floating-promises'
 ] as const;
 
 export const CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES: Readonly<Record<string, 'off'>> =
@@ -390,9 +386,7 @@ const DYNAMIC_SCRIPT_OFF_RULES = [
   'no-console',
   'unicorn/prefer-global-this',
   'typescript/no-floating-promises',
-  '@typescript-eslint/no-floating-promises',
   'typescript/explicit-function-return-type',
-  '@typescript-eslint/explicit-function-return-type',
   '@francogp/domain-type/no-insecure-random',
   '@francogp/domain-type/no-broad-string-array',
   '@francogp/domain-type/no-raw-local-storage',
@@ -419,7 +413,6 @@ const DYNAMIC_DEMO_OFF_RULES = [
   'no-console',
   'unicorn/prefer-global-this',
   'typescript/explicit-function-return-type',
-  '@typescript-eslint/explicit-function-return-type',
   '@francogp/domain-type/no-insecure-random',
   '@francogp/domain-type/no-broad-string-array',
   '@francogp/domain-type/no-gsap-layout-properties',
