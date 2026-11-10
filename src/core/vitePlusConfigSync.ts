@@ -168,8 +168,35 @@ export function buildCanonicalVitePlusConfig(
     lintIgnores,
     fmtIgnores,
     null,
-    lockedSkillsIgnores
+    lockedSkillsIgnores,
+    projectRoot
   );
+}
+
+export function isVueProject(projectRoot: string = process.cwd()): boolean {
+  const pkgPath = path.resolve(projectRoot, 'package.json');
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (deps.vue || deps['@vitejs/plugin-vue']) return true;
+    } catch {
+      // Ignored: parse failure fallthrough
+    }
+  }
+  return fs.existsSync(path.resolve(projectRoot, 'src/App.vue'));
+}
+
+export function ensureVitePluginsScaffolded(projectRoot: string = process.cwd()): boolean {
+  const vitePluginsPath = path.resolve(projectRoot, 'vite.plugins.ts');
+  if (fs.existsSync(vitePluginsPath)) return false;
+
+  if (isVueProject(projectRoot)) {
+    const content = `import { vitePrecompressPlugin } from '@francogp/auditor';\nimport vue from '@vitejs/plugin-vue';\n\nexport const plugins = [\n  vue(),\n  vitePrecompressPlugin({\n    server: 'nginx',\n    spa: true,\n    report: 'summary',\n    threshold: 512\n  })\n];\n`;
+    fs.writeFileSync(vitePluginsPath, content, 'utf-8');
+    return true;
+  }
+  return false;
 }
 
 export { extractAstPropertyBlock as extractObjectPropertyBlock };
@@ -212,6 +239,8 @@ export function syncViteConfigWithAuditConfig(
   const lintIgnores = resolveAuditConfigIgnoreGlobs(config, 'lint', projectRoot);
   const fmtIgnores = resolveAuditConfigIgnoreGlobs(config, 'fmt', projectRoot);
 
+  const pluginsScaffolded = ensureVitePluginsScaffolded(projectRoot);
+
   if (!fs.existsSync(viteConfigPath)) {
     const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot);
     const content = buildCanonicalVitePlusAstSource(
@@ -219,7 +248,8 @@ export function syncViteConfigWithAuditConfig(
       lintIgnores,
       fmtIgnores,
       legacyTestProp,
-      lockedSkillsIgnores
+      lockedSkillsIgnores,
+      projectRoot
     );
     fs.writeFileSync(viteConfigPath, content, 'utf-8');
     return { modified: true, content };
@@ -227,7 +257,7 @@ export function syncViteConfigWithAuditConfig(
 
   const rawContent = fs.readFileSync(viteConfigPath, 'utf-8');
   let currentContent = rawContent;
-  let pluginsExtracted = false;
+  let pluginsExtracted = pluginsScaffolded;
 
   const homebrewMigration = migrateHomebrewCompressionInViteConfig(currentContent);
   if (homebrewMigration.modified) {

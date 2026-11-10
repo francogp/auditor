@@ -307,11 +307,12 @@ In complex configurations combining multiple third-party Vite plugins (e.g. `vit
    });
    ```
 
-2. **Automated AST Migration via `npm run auditor:fix`**:
-   The auditor suite `validate_vite_plus_config` actively detects any inline plugins declared inside `vite.config.ts` via rule `vite-plus-inline-plugins-detected`. Running `npm run auditor:fix`:
+2. **Automated AST Migration & Modular Wiring via `npm run auditor:fix`**:
+   The auditor suite `validate_vite_plus_config` actively detects any inline plugins, unwired `vite.plugins.ts`, or missing Vue plugin modules via rule `vite-plus-inline-plugins-detected` (`phase: 'setup'`). Running `npm run auditor:fix`:
    - Automatically extracts inline plugins into `vite.plugins.ts` (moving imports, creating typed exports, and preserving configuration options).
-   - Rewires `vite.config.ts` to `import { plugins } from './vite.plugins.ts'`.
-   - Completely eliminates `TS2321` type recursion depth issues without any manual intervention.
+   - Automatically auto-wires `import { plugins } from './vite.plugins.ts';` and `plugins` in `vite.config.ts` if `vite.plugins.ts` exists on disk.
+   - Automatically scaffolds canonical `vite.plugins.ts` with `@vitejs/plugin-vue` for Vue projects lacking it.
+   - Completely eliminates `TS2321` type recursion depth issues and server 500 compilation errors without requiring manual edits to `vite.config.ts`.
 
 3. **Unify Dependencies via `overrides`**: In `package.json`, align all transitive Vite references to the bundled core using npm's dynamic reference syntax (`"$vite"` and `"$vitest"`):
 

@@ -52,14 +52,14 @@ export declare function buildTestAstObject(auditConfig: AuditConfig): ts.ObjectL
 export declare function buildStagedAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression;
 export declare function printAstNode(node: ts.Node, sf?: ts.SourceFile): string;
 export declare function buildRunAstObject(auditConfig?: AuditConfig): ts.ObjectLiteralExpression;
-export declare function buildCanonicalVitePlusAstSource(auditConfig: AuditConfig, lintIgnores: readonly string[], fmtIgnores: readonly string[], legacyTestProperty?: ts.PropertyAssignment | null, lockedSkillsIgnores?: readonly string[]): string;
+export declare function buildCanonicalVitePlusAstSource(auditConfig: AuditConfig, lintIgnores: readonly string[], fmtIgnores: readonly string[], legacyTestProperty?: ts.PropertyAssignment | null, lockedSkillsIgnores?: readonly string[], projectRoot?: string): string;
 export declare function detachNodeFromSourceFile<T extends ts.Node>(node: T): T;
 export declare function parseLegacyTestPropertyNode(legacyTestBlock: string): ts.PropertyAssignment | null;
 export declare function toCanonicalLintRuleName(ruleName: string): string;
 export declare function isRuleValueCompliant(ruleName: string, val: unknown): boolean;
 export declare function buildAllowedCoverageExcludes(auditConfig: AuditConfig, projectRoot?: string): Set<string>;
 export declare function printTransformedSourceFile(sf: ts.SourceFile, transformer: ts.TransformerFactory<ts.SourceFile>): string;
-export declare function applyViteConfigAstTransformations(sf: ts.SourceFile, rootObj: ts.ObjectLiteralExpression, updatedRootObj: ts.ObjectLiteralExpression, lockedSkillsIgnores?: readonly string[]): {
+export declare function applyViteConfigAstTransformations(sf: ts.SourceFile, rootObj: ts.ObjectLiteralExpression, updatedRootObj: ts.ObjectLiteralExpression, lockedSkillsIgnores?: readonly string[], projectRoot?: string): {
   transformedContent: string;
   modified: boolean;
 };
@@ -85,6 +85,8 @@ export interface ExtractVitePluginsResult {
   readonly vitePluginsContent: string | null;
   readonly modified: boolean;
 }
+export declare function hasVitePluginsImportDeclaration(sf: ts.SourceFile): boolean;
+export declare function createVitePluginsImportDeclaration(): ts.ImportDeclaration;
 /**
  * Detects whether vite.config.ts contains inline Vite plugins vs modular vite.plugins.ts.
  */

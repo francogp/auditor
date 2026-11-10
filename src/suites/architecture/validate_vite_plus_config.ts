@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
+import ts from 'typescript';
+
 // Explicit type dependency to target satellite configuration resolving Fallow coupling analysis
 import type _TargetViteConfig from '../../../vite.config.ts';
 import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
@@ -24,6 +26,9 @@ import {
   CANONICAL_LINT_RULES_MAP,
   toCanonicalLintRuleName,
   detectInlineVitePlugins,
+  hasVitePluginsImportDeclaration,
+  findConfigRootObject,
+  getPropertyKeyName,
   parseTsSourceFile,
   buildAllowedCoverageExcludes,
   type ParsedVitePlusConfigSummary
@@ -38,7 +43,8 @@ import {
   findHomebrewCompressionFiles,
   detectHomebrewCompressionImports,
   cleanHomebrewCompressionFiles,
-  migrateHomebrewCompressionInViteConfig
+  migrateHomebrewCompressionInViteConfig,
+  isVueProject
 } from '../../core/vitePlusConfigSync.ts';
 
 enableCompileCache();
@@ -1547,6 +1553,67 @@ function validateSynchronizedConfig(
   ];
 }
 
+function validateModularPluginsDelegation(
+  sf: ts.SourceFile,
+  fileName: string,
+  projectRoot: string
+): AuditFinding[] {
+  const vitePluginsPath = path.resolve(projectRoot, 'vite.plugins.ts');
+  const pluginsFileExists = fs.existsSync(vitePluginsPath);
+  const isVue = isVueProject(projectRoot);
+
+  if (!pluginsFileExists && !isVue) {
+    return [];
+  }
+
+  const rootObj = findConfigRootObject(sf);
+  const hasImport = hasVitePluginsImportDeclaration(sf);
+  const hasPluginsProp =
+    rootObj?.properties.some(
+      (p) =>
+        (ts.isPropertyAssignment(p) && getPropertyKeyName(p.name, sf) === 'plugins') ||
+        (ts.isShorthandPropertyAssignment(p) && p.name.text === 'plugins')
+    ) ?? false;
+
+  if (!pluginsFileExists && isVue) {
+    return [
+      {
+        suiteId: 'validate_vite_plus_config',
+        suiteName: 'Vite+ Unified Configuration Validator',
+        ruleId: 'vite-plus-inline-plugins-detected',
+        ruleDescription: 'Vite+: Modular plugins standard',
+        severity: 'warning',
+        file: fileName,
+        line: 1,
+        col: 1,
+        context: 'plugins',
+        message:
+          "Vue application detected but modular plugins file 'vite.plugins.ts' is missing. Vite plugins must be declared in 'vite.plugins.ts' (imported by vite.config.ts). Run 'npm run auditor:fix' or 'auditor fix' to scaffold and wire automatically."
+      }
+    ];
+  }
+
+  if (pluginsFileExists && (!hasImport || !hasPluginsProp)) {
+    return [
+      {
+        suiteId: 'validate_vite_plus_config',
+        suiteName: 'Vite+ Unified Configuration Validator',
+        ruleId: 'vite-plus-inline-plugins-detected',
+        ruleDescription: 'Vite+: Modular plugins standard',
+        severity: 'warning',
+        file: fileName,
+        line: 1,
+        col: 1,
+        context: 'plugins',
+        message:
+          "Modular Vite plugins file 'vite.plugins.ts' exists but is not delegated in vite.config.ts. vite.config.ts must import { plugins } from './vite.plugins.ts' and include 'plugins' in defineConfig. Run 'npm run auditor:fix' or 'auditor fix' to wire automatically."
+      }
+    ];
+  }
+
+  return [];
+}
+
 /**
  * Validates that a vite.config.ts file enforces strict /domain-type-first rules and sections
  * using the TypeScript Compiler AST.
@@ -1580,6 +1647,8 @@ export function auditVitePlusConfigContent(
       message:
         "Inline Vite plugins detected in vite.config.ts. To prevent TypeScript type recursion (TS2321) and enable granular plugin maintenance, Vite plugins must be declared in 'vite.plugins.ts' (imported by vite.config.ts). Run 'npm run auditor:fix' or 'auditor fix' to migrate automatically."
     });
+  } else if (projectRoot) {
+    findings.push(...validateModularPluginsDelegation(sf, fileName, projectRoot));
   }
 
   if (auditConfig) {

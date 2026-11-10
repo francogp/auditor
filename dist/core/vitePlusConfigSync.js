@@ -102,7 +102,28 @@ function buildCanonicalVitePlusConfig(auditConfig, projectRoot = process.cwd()) 
 	const lintIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "lint", projectRoot);
 	const fmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "fmt", projectRoot);
 	const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot);
-	return buildCanonicalVitePlusAstSource(auditConfig, lintIgnores, fmtIgnores, null, lockedSkillsIgnores);
+	return buildCanonicalVitePlusAstSource(auditConfig, lintIgnores, fmtIgnores, null, lockedSkillsIgnores, projectRoot);
+}
+function isVueProject(projectRoot = process.cwd()) {
+	const pkgPath = path.resolve(projectRoot, "package.json");
+	if (fs.existsSync(pkgPath)) try {
+		const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+		const deps = {
+			...pkg.dependencies,
+			...pkg.devDependencies
+		};
+		if (deps.vue || deps["@vitejs/plugin-vue"]) return true;
+	} catch {}
+	return fs.existsSync(path.resolve(projectRoot, "src/App.vue"));
+}
+function ensureVitePluginsScaffolded(projectRoot = process.cwd()) {
+	const vitePluginsPath = path.resolve(projectRoot, "vite.plugins.ts");
+	if (fs.existsSync(vitePluginsPath)) return false;
+	if (isVueProject(projectRoot)) {
+		fs.writeFileSync(vitePluginsPath, `import { vitePrecompressPlugin } from '@francogp/auditor';\nimport vue from '@vitejs/plugin-vue';\n\nexport const plugins = [\n  vue(),\n  vitePrecompressPlugin({\n    server: 'nginx',\n    spa: true,\n    report: 'summary',\n    threshold: 512\n  })\n];\n`, "utf-8");
+		return true;
+	}
+	return false;
 }
 function findLegacyTestBlock(projectRoot) {
 	for (const vitestCandidate of [
@@ -139,9 +160,10 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 	const legacyTestProp = legacyTestBlock ? parseLegacyTestPropertyNode(legacyTestBlock) : null;
 	const lintIgnores = resolveAuditConfigIgnoreGlobs(config, "lint", projectRoot);
 	const fmtIgnores = resolveAuditConfigIgnoreGlobs(config, "fmt", projectRoot);
+	const pluginsScaffolded = ensureVitePluginsScaffolded(projectRoot);
 	if (!fs.existsSync(viteConfigPath)) {
 		const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot);
-		const content = buildCanonicalVitePlusAstSource(config, lintIgnores, fmtIgnores, legacyTestProp, lockedSkillsIgnores);
+		const content = buildCanonicalVitePlusAstSource(config, lintIgnores, fmtIgnores, legacyTestProp, lockedSkillsIgnores, projectRoot);
 		fs.writeFileSync(viteConfigPath, content, "utf-8");
 		return {
 			modified: true,
@@ -149,7 +171,7 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 		};
 	}
 	let currentContent = fs.readFileSync(viteConfigPath, "utf-8");
-	let pluginsExtracted = false;
+	let pluginsExtracted = pluginsScaffolded;
 	const homebrewMigration = migrateHomebrewCompressionInViteConfig(currentContent);
 	if (homebrewMigration.modified) {
 		currentContent = homebrewMigration.content;
@@ -653,4 +675,4 @@ function repairVitePlusProject(projectRoot) {
 		vscodeSync
 	};
 }
-export { BANNED_COMPRESSION_MODULES, LEGACY_CONFIG_FILES, STRICT_RULE_CHECKS, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, extractAstPropertyBlock as extractObjectPropertyBlock, findHomebrewCompressionFiles, findLegacyEslintIgnores, getVitePlusDefaultExcludeGlobs, migrateHomebrewCompressionInViteConfig, migrateNodeVersion, migrateViteCommandsToVp, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, rewriteImportsToVitePlus, syncPackageJsonForVitePlus, syncVSCodeSettings, syncViteConfigWithAuditConfig };
+export { BANNED_COMPRESSION_MODULES, LEGACY_CONFIG_FILES, STRICT_RULE_CHECKS, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, ensureVitePluginsScaffolded, extractAstPropertyBlock as extractObjectPropertyBlock, findHomebrewCompressionFiles, findLegacyEslintIgnores, getVitePlusDefaultExcludeGlobs, isVueProject, migrateHomebrewCompressionInViteConfig, migrateNodeVersion, migrateViteCommandsToVp, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, rewriteImportsToVitePlus, syncPackageJsonForVitePlus, syncVSCodeSettings, syncViteConfigWithAuditConfig };

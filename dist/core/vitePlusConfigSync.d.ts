@@ -25,6 +25,8 @@ export declare function resolveAuditConfigIgnoreGlobs(config: AuditConfig, targe
  * using the TypeScript Compiler AST printer.
  */
 export declare function buildCanonicalVitePlusConfig(auditConfig: AuditConfig, projectRoot?: string): string;
+export declare function isVueProject(projectRoot?: string): boolean;
+export declare function ensureVitePluginsScaffolded(projectRoot?: string): boolean;
 export declare function syncViteConfigWithAuditConfig(projectRoot: string, auditConfig?: AuditConfig): {
   modified: boolean;
   content: string;

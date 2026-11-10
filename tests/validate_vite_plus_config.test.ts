@@ -1976,5 +1976,101 @@ export default defineConfig({
       expect(synced.content).toContain("'no-console': 'off'");
       expect(synced.content).toContain("'typescript/explicit-function-return-type': 'off'");
     });
+
+    it('C-CFG-78: flags and auto-wires vite.plugins.ts when it exists on disk but is not delegated in vite.config.ts', async () => {
+      const pluginsPath = path.join(tempDir, 'vite.plugins.ts');
+      fs.writeFileSync(pluginsPath, 'export const plugins = [];\n', 'utf-8');
+
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const auditResult = await auditor.audit();
+      const finding = auditResult.findings.find(
+        (f) => f.ruleId === 'vite-plus-inline-plugins-detected'
+      );
+      expect(finding).toBeDefined();
+      expect(finding?.message).toContain(
+        "Modular Vite plugins file 'vite.plugins.ts' exists but is not delegated"
+      );
+
+      await auditor.fix();
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).toContain("import { plugins } from './vite.plugins.ts';");
+      expect(updatedConfig).toContain('plugins,');
+
+      const secondAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const postFixResult = await secondAuditor.audit();
+      const postFixFinding = postFixResult.findings.find(
+        (f) => f.ruleId === 'vite-plus-inline-plugins-detected'
+      );
+      expect(postFixFinding).toBeUndefined();
+    });
+
+    it('C-CFG-79: flags and auto-scaffolds vite.plugins.ts with vue plugin when vue is detected and no plugins file exists', async () => {
+      const pkgPath = path.join(tempDir, 'package.json');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify(
+          {
+            name: 'vue-app',
+            dependencies: { vue: '^3.5.0' },
+            devDependencies: { 'vite-plus': '^1.4.0' }
+          },
+          null,
+          2
+        ),
+        'utf-8'
+      );
+
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const auditResult = await auditor.audit();
+      const finding = auditResult.findings.find(
+        (f) => f.ruleId === 'vite-plus-inline-plugins-detected'
+      );
+      expect(finding).toBeDefined();
+      expect(finding?.message).toContain(
+        "Vue application detected but modular plugins file 'vite.plugins.ts' is missing"
+      );
+
+      await auditor.fix();
+
+      const pluginsPath = path.join(tempDir, 'vite.plugins.ts');
+      expect(fs.existsSync(pluginsPath)).toBe(true);
+      const pluginsContent = fs.readFileSync(pluginsPath, 'utf-8');
+      expect(pluginsContent).toContain("import vue from '@vitejs/plugin-vue'");
+      expect(pluginsContent).toContain('vue()');
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).toContain("import { plugins } from './vite.plugins.ts';");
+      expect(updatedConfig).toContain('plugins,');
+
+      const secondAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const postFixResult = await secondAuditor.audit();
+      const postFixFinding = postFixResult.findings.find(
+        (f) => f.ruleId === 'vite-plus-inline-plugins-detected'
+      );
+      expect(postFixFinding).toBeUndefined();
+    });
   });
 });

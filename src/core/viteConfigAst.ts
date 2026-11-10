@@ -1101,10 +1101,20 @@ export function buildCanonicalVitePlusAstSource(
   lintIgnores: readonly string[],
   fmtIgnores: readonly string[],
   legacyTestProperty?: ts.PropertyAssignment | null,
-  lockedSkillsIgnores: readonly string[] = []
+  lockedSkillsIgnores: readonly string[] = [],
+  projectRoot?: string
 ): string {
   const isLibrary = auditConfig.packageDistribution?.enabled !== false;
   const rootProps: ts.ObjectLiteralElementLike[] = [];
+
+  const pluginsFileExists = projectRoot
+    ? fs.existsSync(path.resolve(projectRoot, 'vite.plugins.ts'))
+    : false;
+  if (pluginsFileExists) {
+    rootProps.push(
+      ts.factory.createShorthandPropertyAssignment(ts.factory.createIdentifier('plugins'))
+    );
+  }
 
   if (isLibrary) {
     rootProps.push(ts.factory.createPropertyAssignment('pack', buildPackAstObject()));
@@ -1149,6 +1159,9 @@ export function buildCanonicalVitePlusAstSource(
   );
 
   const statements: ts.Statement[] = [importDecl];
+  if (pluginsFileExists) {
+    statements.push(createVitePluginsImportDeclaration());
+  }
   if (lockedSkillsIgnores.length > 0) {
     statements.push(buildLockedSkillsVariableStatement(lockedSkillsIgnores));
   }
@@ -2369,7 +2382,8 @@ export function applyViteConfigAstTransformations(
   sf: ts.SourceFile,
   rootObj: ts.ObjectLiteralExpression,
   updatedRootObj: ts.ObjectLiteralExpression,
-  lockedSkillsIgnores: readonly string[] = []
+  lockedSkillsIgnores: readonly string[] = [],
+  projectRoot: string = process.cwd()
 ): { transformedContent: string; modified: boolean } {
   let modified = false;
 
@@ -2442,12 +2456,57 @@ export function applyViteConfigAstTransformations(
         }
         modified = true;
       }
+      const pluginsFileExists = fs.existsSync(path.resolve(projectRoot, 'vite.plugins.ts'));
+      if (pluginsFileExists && !hasVitePluginsImportDeclaration(sf)) {
+        const pluginsImportDecl = createVitePluginsImportDeclaration();
+        const lastImportIdx = visitedStatements.findLastIndex((s) => ts.isImportDeclaration(s));
+        if (lastImportIdx >= 0) {
+          visitedStatements = [
+            ...visitedStatements.slice(0, lastImportIdx + 1),
+            pluginsImportDecl,
+            ...visitedStatements.slice(lastImportIdx + 1)
+          ];
+        } else {
+          visitedStatements = [pluginsImportDecl, ...visitedStatements];
+        }
+        modified = true;
+      }
       return ts.factory.updateSourceFile(source, visitedStatements);
     };
   };
 
   const transformedContent = printTransformedSourceFile(sf, transformer);
   return { transformedContent, modified };
+}
+
+function syncVitePluginsSection(
+  rootProps: readonly ts.ObjectLiteralElementLike[],
+  sf: ts.SourceFile,
+  projectRoot: string
+): { props: readonly ts.ObjectLiteralElementLike[]; modified: boolean } {
+  const pluginsFileExists = fs.existsSync(path.resolve(projectRoot, 'vite.plugins.ts'));
+  if (!pluginsFileExists) {
+    return { props: rootProps, modified: false };
+  }
+
+  const hasPluginsProp = rootProps.some(
+    (p) =>
+      (ts.isPropertyAssignment(p) && getPropertyKeyName(p.name, sf) === 'plugins') ||
+      (ts.isShorthandPropertyAssignment(p) && p.name.text === 'plugins')
+  );
+
+  if (hasPluginsProp) {
+    return { props: rootProps, modified: false };
+  }
+
+  const pluginsProp = ts.factory.createShorthandPropertyAssignment(
+    ts.factory.createIdentifier('plugins')
+  );
+
+  return {
+    props: [pluginsProp, ...rootProps],
+    modified: true
+  };
 }
 
 function syncViteRunSection(
@@ -2598,6 +2657,10 @@ export function synchronizeViteConfigAst(
   let rootProps: readonly ts.ObjectLiteralElementLike[] = dedupRoot.props;
   let modified = dedupRoot.modified;
 
+  const pluginsResult = syncVitePluginsSection(rootProps, sf, projectRoot);
+  rootProps = pluginsResult.props;
+  if (pluginsResult.modified) modified = true;
+
   if (auditConfig.packageDistribution?.enabled === true) {
     const syncedPack = syncPackSectionOnRoot(rootProps, sf);
     rootProps = syncedPack.props;
@@ -2639,7 +2702,8 @@ export function synchronizeViteConfigAst(
     sf,
     rootObj,
     updatedRootObj,
-    lockedSkillsIgnores
+    lockedSkillsIgnores,
+    projectRoot
   );
 
   if (!modified && !astTransformResult.modified) {
@@ -2936,13 +3000,27 @@ function combinePluginsExpressions(
   return `[\n  ...${trimmed},\n  ${pushedPluginTexts.join(',\n  ')}\n]`;
 }
 
-function hasVitePluginsImportDeclaration(sf: ts.SourceFile): boolean {
+export function hasVitePluginsImportDeclaration(sf: ts.SourceFile): boolean {
   return sf.statements.some(
     (stmt) =>
       ts.isImportDeclaration(stmt) &&
       ts.isStringLiteral(stmt.moduleSpecifier) &&
       (stmt.moduleSpecifier.text === './vite.plugins.ts' ||
         stmt.moduleSpecifier.text === './vite.plugins')
+  );
+}
+
+export function createVitePluginsImportDeclaration(): ts.ImportDeclaration {
+  return ts.factory.createImportDeclaration(
+    undefined,
+    ts.factory.createImportClause(
+      false,
+      undefined,
+      ts.factory.createNamedImports([
+        ts.factory.createImportSpecifier(false, undefined, ts.factory.createIdentifier('plugins'))
+      ])
+    ),
+    ts.factory.createStringLiteral('./vite.plugins.ts', true)
   );
 }
 
@@ -3766,17 +3844,7 @@ export function extractVitePluginsToModule(
   // Construct updated vite.config.ts
   const hasVitePluginsImportAlready = hasVitePluginsImportDeclaration(sf);
 
-  const newImportDecl = ts.factory.createImportDeclaration(
-    undefined,
-    ts.factory.createImportClause(
-      false,
-      undefined,
-      ts.factory.createNamedImports([
-        ts.factory.createImportSpecifier(false, undefined, ts.factory.createIdentifier('plugins'))
-      ])
-    ),
-    ts.factory.createStringLiteral('./vite.plugins.ts', true)
-  );
+  const newImportDecl = createVitePluginsImportDeclaration();
 
   const updatedProperties = rootObj.properties.map((p) => {
     if (p === pluginProp) {
