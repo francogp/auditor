@@ -58,6 +58,11 @@ const VALID_CATEGORY_ALIASES = new Set([
   'inspect',
   'doctor',
   'aliases',
+  'shared-state',
+  'sharedstate',
+  'mutation',
+  'mutation-tasks',
+  'mutants',
   'all'
 ]);
 
@@ -1063,7 +1068,11 @@ function reportAliases(top: number, json: boolean, human = false): void {
 }
 
 function reportBoundaries(json: boolean, human = false): void {
-  const data = runFallowCommand('dead-code');
+  const archData = runFallowCommand('architecture');
+  const data =
+    archData && (archData.boundary_violations || archData.circular_dependencies)
+      ? archData
+      : runFallowCommand('dead-code');
   const boundaries =
     (data?.boundary_violations as Array<{
       from_path?: string;
@@ -1128,6 +1137,203 @@ function reportBoundaries(json: boolean, human = false): void {
   }));
 
   console.log(renderBoxTable(bndCols, bndRows));
+  console.log('');
+}
+
+interface FallowSharedStateReportOptions {
+  readonly json: boolean;
+  readonly human?: boolean;
+}
+
+function reportSharedState(options: FallowSharedStateReportOptions): void {
+  const json = options.json;
+  const human = options.human ?? false;
+  const data = runFallowCommand('architecture', ['--shared-state']);
+  const importedWrites =
+    (data?.imported_writes as Array<{
+      property?: string[];
+      writer?: { path?: string; line?: number; col?: number };
+    }>) || [];
+  const globals =
+    (data?.globals as Array<{
+      name?: string;
+      readers?: Array<{ path?: string; line?: number }>;
+      writers?: Array<{ path?: string; line?: number }>;
+    }>) || [];
+
+  const totalFindings = importedWrites.length + globals.length;
+
+  if (json) {
+    console.log(
+      JSON.stringify(
+        {
+          totalSharedStateFindings: totalFindings,
+          imported_writes: importedWrites,
+          globals
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  if (!human) {
+    console.log(`[Fallow] Shared state findings: ${totalFindings}`);
+    for (const w of importedWrites) {
+      console.log(
+        `  [ImportedWrite] ${(w.property ?? []).join('.')} modified in ${w.writer?.path}:${w.writer?.line}`
+      );
+    }
+    for (const g of globals) {
+      console.log(
+        `  [SharedGlobal] ${g.name} (readers: ${g.readers?.length ?? 0}, writers: ${g.writers?.length ?? 0})`
+      );
+    }
+    return;
+  }
+
+  console.log(
+    '\n' + renderBanner('SHARED STATE ARCHITECTURE (FALLOW)', `Findings: ${totalFindings}`)
+  );
+
+  if (totalFindings === 0) {
+    console.log(
+      '\n  ' +
+        styleText(
+          ['bold', 'green'],
+          '[OK] 0 shared mutable state issues detected across architecture boundaries.\n'
+        )
+    );
+    return;
+  }
+
+  if (importedWrites.length > 0) {
+    console.log('\n[Notice] Imported property writes:\n');
+    interface WriteRow {
+      index: string;
+      property: string;
+      location: string;
+    }
+    const writeCols: readonly TableColumn<WriteRow>[] = [
+      { header: '#', width: 4, align: 'center', key: 'index' },
+      { header: 'PROPERTY PATH', width: 34, align: 'left', key: 'property' },
+      { header: 'WRITER LOCATION', width: 34, align: 'left', key: 'location' }
+    ];
+    const writeRows: WriteRow[] = importedWrites.map((w, idx) => ({
+      index: String(idx + 1),
+      property: (w.property ?? []).join('.'),
+      location: `${w.writer?.path || 'unknown'}:${w.writer?.line ?? 0}`
+    }));
+    console.log(renderBoxTable(writeCols, writeRows));
+  }
+
+  if (globals.length > 0) {
+    console.log('\n[Notice] Shared global variables:\n');
+    interface GlobalRow {
+      index: string;
+      name: string;
+      readers: string;
+      writers: string;
+    }
+    const globalCols: readonly TableColumn<GlobalRow>[] = [
+      { header: '#', width: 4, align: 'center', key: 'index' },
+      { header: 'GLOBAL NAME', width: 28, align: 'left', key: 'name' },
+      { header: 'READERS', width: 18, align: 'center', key: 'readers' },
+      { header: 'WRITERS', width: 18, align: 'center', key: 'writers' }
+    ];
+    const globalRows: GlobalRow[] = globals.map((g, idx) => ({
+      index: String(idx + 1),
+      name: g.name || 'unknown',
+      readers: String(g.readers?.length ?? 0),
+      writers: String(g.writers?.length ?? 0)
+    }));
+    console.log(renderBoxTable(globalCols, globalRows));
+  }
+
+  console.log('');
+}
+
+interface FallowMutationReportOptions {
+  readonly json: boolean;
+  readonly human?: boolean;
+  readonly positionals?: readonly string[];
+}
+
+function reportMutation(category: string, options: FallowMutationReportOptions): void {
+  const json = options.json;
+  const human = options.human ?? false;
+  const pos = options.positionals ?? [];
+  const isTasks = category === 'mutation-tasks' || pos.includes('tasks');
+  const isExport = pos.includes('export');
+  const subArgs = isTasks ? ['tasks'] : isExport ? ['export'] : ['--plan'];
+
+  const data = runFallowCommand('mutation', subArgs);
+  if (json) {
+    console.log(JSON.stringify(data ?? {}, null, 2));
+    return;
+  }
+
+  const kind = (data?.kind as string) || (isTasks ? 'mutation-tasks' : 'mutation-plan');
+  const counts = (data?.counts as Record<string, number>) || {};
+  const totalPlanned = counts.planned ?? counts.total ?? 0;
+
+  if (!human) {
+    console.log(
+      `[Fallow] Mutation mode: ${kind} | Planned: ${totalPlanned} | Pending: ${counts.pending ?? 0}`
+    );
+    return;
+  }
+
+  console.log(
+    '\n' +
+      renderBanner(
+        'TEST MUTATION ANALYSIS (FALLOW)',
+        `Mode: ${kind} | Planned: ${totalPlanned} | Score: ${(data?.score as number) ?? 'N/A'}`
+      )
+  );
+
+  const mutants =
+    (data?.mutants as Array<{
+      id?: string;
+      operator?: string;
+      file?: string;
+      line?: number;
+      status?: string;
+    }>) || [];
+  if (mutants.length === 0) {
+    console.log(
+      '\n  ' +
+        styleText(
+          ['bold', 'green'],
+          '[OK] 0 open mutation tasks. Test suite coverage matches current change scope.\n'
+        )
+    );
+    return;
+  }
+
+  interface MutationRow {
+    index: string;
+    operator: string;
+    location: string;
+    status: string;
+  }
+
+  const mutCols: readonly TableColumn<MutationRow>[] = [
+    { header: '#', width: 4, align: 'center', key: 'index' },
+    { header: 'OPERATOR', width: 24, align: 'left', key: 'operator' },
+    { header: 'LOCATION', width: 32, align: 'left', key: 'location' },
+    { header: 'STATUS', width: 14, align: 'center', key: 'status' }
+  ];
+
+  const mutRows: MutationRow[] = mutants.slice(0, 20).map((m, idx) => ({
+    index: String(idx + 1),
+    operator: m.operator || 'unknown',
+    location: `${m.file || 'unknown'}:${m.line ?? 0}`,
+    status: m.status || 'planned'
+  }));
+
+  console.log(renderBoxTable(mutCols, mutRows));
   console.log('');
 }
 
@@ -1902,6 +2108,14 @@ const REPORT_DISPATCH_MAP: Record<string, FallowReportHandler> = {
   boundaries: (_top, json, human) => reportBoundaries(json, human),
   architecture: (_top, json, human) => reportBoundaries(json, human),
   boundary: (_top, json, human) => reportBoundaries(json, human),
+  'shared-state': (_top, json, human) => reportSharedState({ json, human }),
+  sharedstate: (_top, json, human) => reportSharedState({ json, human }),
+  mutation: (_top, json, human, extra) =>
+    reportMutation('mutation', { json, human, positionals: extra.positionals }),
+  'mutation-tasks': (_top, json, human, extra) =>
+    reportMutation('mutation-tasks', { json, human, positionals: extra.positionals }),
+  mutants: (_top, json, human, extra) =>
+    reportMutation('mutation', { json, human, positionals: extra.positionals }),
   'coverage-gaps': (top, json, human) => reportCoverageGaps(top, json, human),
   coverage_gaps: (top, json, human) => reportCoverageGaps(top, json, human),
   gaps: (top, json, human) => reportCoverageGaps(top, json, human),

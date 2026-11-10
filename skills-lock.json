@@ -53,7 +53,7 @@
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",
       "skillPath": "skills/taste-skill/SKILL.md",
-      "computedHash": "23b3930015c478034b222e1a015da03a962c8ab48aee9fb4f3f69d977034feaa"
+      "computedHash": "acda6bf83f200405aa200eb245448fdc11cfce43d97bc2d9b8bf13a27f362d95"
     },
     "docker-patterns": {
       "source": "affaan-m/ecc",
@@ -71,7 +71,7 @@
       "source": "fallow-rs/fallow-skills",
       "sourceType": "github",
       "skillPath": "fallow/skills/fallow/SKILL.md",
-      "computedHash": "2ac33867923022580cb59657d61593292ca2a812267bdfd4051d994180359c7a"
+      "computedHash": "ca9677aeb1d64a9106e61109761fff307695ab0e4cc084b6399837adfcc09b10"
     },
     "fallow-review": {
       "source": "fallow-rs/fallow-skills",

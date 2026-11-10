@@ -492,33 +492,70 @@ function validateFallowWorkspaceDiagnostics(diagnostics, auditor, config) {
 	}
 	return modified;
 }
-function projectFallowConfigFromAuditConfig(auditConfig) {
+function projectDuplicatesConfig(fallow) {
 	const duplicatesCfg = {
-		nearMiss: auditConfig.fallow?.duplicates?.nearMiss ?? true,
-		mode: auditConfig.fallow?.duplicates?.mode ?? "strict"
+		nearMiss: fallow?.duplicates?.nearMiss ?? true,
+		mode: fallow?.duplicates?.mode ?? "strict"
 	};
-	if (auditConfig.fallow?.duplicates?.minLines !== void 0) duplicatesCfg["minLines"] = auditConfig.fallow.duplicates.minLines;
-	if (auditConfig.fallow?.duplicates?.minTokens !== void 0) duplicatesCfg["minTokens"] = auditConfig.fallow.duplicates.minTokens;
-	if (auditConfig.fallow?.duplicates?.minOccurrences !== void 0) duplicatesCfg["minOccurrences"] = auditConfig.fallow.duplicates.minOccurrences;
-	const healthCfg = { maxCrap: auditConfig.fallow?.health?.maxCrap ?? 0 };
-	if (auditConfig.fallow?.health?.maxCyclomatic !== void 0) healthCfg["maxCyclomatic"] = auditConfig.fallow.health.maxCyclomatic;
-	if (auditConfig.fallow?.health?.maxCognitive !== void 0) healthCfg["maxCognitive"] = auditConfig.fallow.health.maxCognitive;
-	if (auditConfig.fallow?.health?.cyclomaticPolicy !== void 0) healthCfg["cyclomaticPolicy"] = auditConfig.fallow.health.cyclomaticPolicy;
-	return {
-		duplicates: duplicatesCfg,
-		health: healthCfg
+	if (fallow?.duplicates?.minLines !== void 0) duplicatesCfg["minLines"] = fallow.duplicates.minLines;
+	if (fallow?.duplicates?.minTokens !== void 0) duplicatesCfg["minTokens"] = fallow.duplicates.minTokens;
+	if (fallow?.duplicates?.minOccurrences !== void 0) duplicatesCfg["minOccurrences"] = fallow.duplicates.minOccurrences;
+	return duplicatesCfg;
+}
+function projectHealthConfig(fallow) {
+	const healthCfg = { maxCrap: fallow?.health?.maxCrap ?? 0 };
+	if (fallow?.health?.maxCyclomatic !== void 0) healthCfg["maxCyclomatic"] = fallow.health.maxCyclomatic;
+	if (fallow?.health?.maxCognitive !== void 0) healthCfg["maxCognitive"] = fallow.health.maxCognitive;
+	if (fallow?.health?.cyclomaticPolicy !== void 0) healthCfg["cyclomaticPolicy"] = fallow.health.cyclomaticPolicy;
+	return healthCfg;
+}
+function projectMutationConfig(mutation) {
+	if (!mutation?.enabled) return void 0;
+	const mutationCfg = {};
+	if (mutation.runner) mutationCfg["runner"] = mutation.runner;
+	if (mutation.mutantsPerLine !== void 0) mutationCfg["mutantsPerLine"] = mutation.mutantsPerLine;
+	if (mutation.functionScope !== void 0) mutationCfg["functionScope"] = mutation.functionScope;
+	if (mutation.typecheck !== void 0) mutationCfg["typecheck"] = mutation.typecheck;
+	if (mutation.runnerConfig) mutationCfg["runnerConfig"] = mutation.runnerConfig;
+	if (mutation.minScore !== void 0) mutationCfg["minScore"] = mutation.minScore;
+	if (mutation.concurrency !== void 0) mutationCfg["concurrency"] = mutation.concurrency;
+	if (mutation.timeBudget) mutationCfg["timeBudget"] = mutation.timeBudget;
+	if (mutation.operators) mutationCfg["operators"] = [...mutation.operators];
+	return mutationCfg;
+}
+function projectFallowConfigFromAuditConfig(auditConfig) {
+	const fallow = auditConfig.fallow;
+	const projected = {
+		duplicates: projectDuplicatesConfig(fallow),
+		health: projectHealthConfig(fallow)
 	};
+	if (fallow?.minimumVersion) projected.minimumVersion = fallow.minimumVersion;
+	if (fallow?.architecture?.sharedState !== void 0) projected.architecture = { sharedState: fallow.architecture.sharedState };
+	const mutationCfg = projectMutationConfig(fallow?.mutation);
+	if (mutationCfg) projected.mutation = mutationCfg;
+	return projected;
 }
 function applyFallowConfigFixes(config, projected) {
 	const patch = {};
 	if (projected.duplicates) patch["duplicates"] = projected.duplicates;
 	if (projected.health) patch["health"] = projected.health;
-	let typeAwareDeleted = false;
+	if (projected.minimumVersion) patch["minimumVersion"] = projected.minimumVersion;
+	if (projected.architecture) patch["architecture"] = projected.architecture;
+	if (projected.mutation) patch["mutation"] = projected.mutation;
+	let pruned = false;
 	if ("typeAware" in config) {
 		delete config["typeAware"];
-		typeAwareDeleted = true;
+		pruned = true;
 	}
-	return mergeSatelliteConfigProjection(config, patch) || typeAwareDeleted;
+	if (!projected.mutation && "mutation" in config) {
+		delete config["mutation"];
+		pruned = true;
+	}
+	if (!projected.architecture && "architecture" in config) {
+		delete config["architecture"];
+		pruned = true;
+	}
+	return mergeSatelliteConfigProjection(config, patch) || pruned;
 }
 function validateUndeclaredTypeAware(config, auditor) {
 	if (config.typeAware !== void 0) auditor.addViolation({
@@ -604,6 +641,53 @@ function validateUndeclaredIgnoreDependencies(config, auditConfig, auditor) {
 		});
 	}
 }
+function validateUndeclaredArchitecture(config, projected, auditor) {
+	if (!config.architecture) return;
+	const archDiffs = deepCompareSatelliteConfig({
+		ssotProjection: projected.architecture ?? {},
+		actualConfig: config.architecture,
+		pathPrefix: "architecture"
+	});
+	for (const diff of archDiffs) auditor.addViolation({
+		ruleId: "fallow-undeclared-config-entry",
+		severity: "error",
+		file: ".fallowrc.json",
+		line: 1,
+		message: diff.message,
+		context: diff.path,
+		fixable: true
+	});
+}
+function validateUndeclaredMutation(config, projected, auditor) {
+	if (!config.mutation) return;
+	const mutDiffs = deepCompareSatelliteConfig({
+		ssotProjection: projected.mutation ?? {},
+		actualConfig: config.mutation,
+		pathPrefix: "mutation"
+	});
+	for (const diff of mutDiffs) auditor.addViolation({
+		ruleId: "fallow-undeclared-config-entry",
+		severity: "error",
+		file: ".fallowrc.json",
+		line: 1,
+		message: diff.message,
+		context: diff.path,
+		fixable: true
+	});
+}
+function validateUndeclaredMinimumVersion(config, projected, auditor) {
+	if (config.minimumVersion === void 0) return;
+	if (projected.minimumVersion !== void 0 && config.minimumVersion === projected.minimumVersion) return;
+	auditor.addViolation({
+		ruleId: "fallow-undeclared-config-entry",
+		severity: "error",
+		file: ".fallowrc.json",
+		line: 1,
+		message: `Divergent or undeclared minimumVersion in .fallowrc.json. Expected: '${projected.minimumVersion ?? "undefined"}', actual: '${config.minimumVersion}'.`,
+		context: "minimumVersion",
+		fixable: true
+	});
+}
 function validateUndeclaredFallowEntries(config, auditor) {
 	const auditConfig = getAuditConfig(auditor.projectRoot);
 	const projected = projectFallowConfigFromAuditConfig(auditConfig);
@@ -613,6 +697,9 @@ function validateUndeclaredFallowEntries(config, auditor) {
 		validateUndeclaredTypeAware(config, auditor);
 		validateUndeclaredDuplicates(config, projected, auditor);
 		validateUndeclaredHealth(config, projected, auditConfig, auditor);
+		validateUndeclaredArchitecture(config, projected, auditor);
+		validateUndeclaredMutation(config, projected, auditor);
+		validateUndeclaredMinimumVersion(config, projected, auditor);
 	}
 	validateUndeclaredIgnorePatterns(config, auditConfig, auditor);
 	validateUndeclaredIgnoreDependencies(config, auditConfig, auditor);

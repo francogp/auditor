@@ -47,6 +47,11 @@ const VALID_CATEGORY_ALIASES = /* @__PURE__ */ new Set([
 	"inspect",
 	"doctor",
 	"aliases",
+	"shared-state",
+	"sharedstate",
+	"mutation",
+	"mutation-tasks",
+	"mutants",
 	"all"
 ]);
 const FALLOW_REPORT_ARGS = {
@@ -684,7 +689,8 @@ function reportAliases(top, json, human = false) {
 	console.log("");
 }
 function reportBoundaries(json, human = false) {
-	const boundaries = runFallowCommand("dead-code")?.boundary_violations || [];
+	const archData = runFallowCommand("architecture");
+	const boundaries = (archData && (archData.boundary_violations || archData.circular_dependencies) ? archData : runFallowCommand("dead-code"))?.boundary_violations || [];
 	if (json) {
 		console.log(JSON.stringify({
 			totalBoundaries: boundaries.length,
@@ -729,6 +735,158 @@ function reportBoundaries(json, human = false) {
 		location: `${b.from_path}:${b.line}`
 	}));
 	console.log(renderBoxTable(bndCols, bndRows));
+	console.log("");
+}
+function reportSharedState(options) {
+	const json = options.json;
+	const human = options.human ?? false;
+	const data = runFallowCommand("architecture", ["--shared-state"]);
+	const importedWrites = data?.imported_writes || [];
+	const globals = data?.globals || [];
+	const totalFindings = importedWrites.length + globals.length;
+	if (json) {
+		console.log(JSON.stringify({
+			totalSharedStateFindings: totalFindings,
+			imported_writes: importedWrites,
+			globals
+		}, null, 2));
+		return;
+	}
+	if (!human) {
+		console.log(`[Fallow] Shared state findings: ${totalFindings}`);
+		for (const w of importedWrites) console.log(`  [ImportedWrite] ${(w.property ?? []).join(".")} modified in ${w.writer?.path}:${w.writer?.line}`);
+		for (const g of globals) console.log(`  [SharedGlobal] ${g.name} (readers: ${g.readers?.length ?? 0}, writers: ${g.writers?.length ?? 0})`);
+		return;
+	}
+	console.log("\n" + renderBanner("SHARED STATE ARCHITECTURE (FALLOW)", `Findings: ${totalFindings}`));
+	if (totalFindings === 0) {
+		console.log("\n  " + styleText(["bold", "green"], "[OK] 0 shared mutable state issues detected across architecture boundaries.\n"));
+		return;
+	}
+	if (importedWrites.length > 0) {
+		console.log("\n[Notice] Imported property writes:\n");
+		const writeCols = [
+			{
+				header: "#",
+				width: 4,
+				align: "center",
+				key: "index"
+			},
+			{
+				header: "PROPERTY PATH",
+				width: 34,
+				align: "left",
+				key: "property"
+			},
+			{
+				header: "WRITER LOCATION",
+				width: 34,
+				align: "left",
+				key: "location"
+			}
+		];
+		const writeRows = importedWrites.map((w, idx) => ({
+			index: String(idx + 1),
+			property: (w.property ?? []).join("."),
+			location: `${w.writer?.path || "unknown"}:${w.writer?.line ?? 0}`
+		}));
+		console.log(renderBoxTable(writeCols, writeRows));
+	}
+	if (globals.length > 0) {
+		console.log("\n[Notice] Shared global variables:\n");
+		const globalCols = [
+			{
+				header: "#",
+				width: 4,
+				align: "center",
+				key: "index"
+			},
+			{
+				header: "GLOBAL NAME",
+				width: 28,
+				align: "left",
+				key: "name"
+			},
+			{
+				header: "READERS",
+				width: 18,
+				align: "center",
+				key: "readers"
+			},
+			{
+				header: "WRITERS",
+				width: 18,
+				align: "center",
+				key: "writers"
+			}
+		];
+		const globalRows = globals.map((g, idx) => ({
+			index: String(idx + 1),
+			name: g.name || "unknown",
+			readers: String(g.readers?.length ?? 0),
+			writers: String(g.writers?.length ?? 0)
+		}));
+		console.log(renderBoxTable(globalCols, globalRows));
+	}
+	console.log("");
+}
+function reportMutation(category, options) {
+	const json = options.json;
+	const human = options.human ?? false;
+	const pos = options.positionals ?? [];
+	const isTasks = category === "mutation-tasks" || pos.includes("tasks");
+	const isExport = pos.includes("export");
+	const data = runFallowCommand("mutation", isTasks ? ["tasks"] : isExport ? ["export"] : ["--plan"]);
+	if (json) {
+		console.log(JSON.stringify(data ?? {}, null, 2));
+		return;
+	}
+	const kind = data?.kind || (isTasks ? "mutation-tasks" : "mutation-plan");
+	const counts = data?.counts || {};
+	const totalPlanned = counts.planned ?? counts.total ?? 0;
+	if (!human) {
+		console.log(`[Fallow] Mutation mode: ${kind} | Planned: ${totalPlanned} | Pending: ${counts.pending ?? 0}`);
+		return;
+	}
+	console.log("\n" + renderBanner("TEST MUTATION ANALYSIS (FALLOW)", `Mode: ${kind} | Planned: ${totalPlanned} | Score: ${data?.score ?? "N/A"}`));
+	const mutants = data?.mutants || [];
+	if (mutants.length === 0) {
+		console.log("\n  " + styleText(["bold", "green"], "[OK] 0 open mutation tasks. Test suite coverage matches current change scope.\n"));
+		return;
+	}
+	const mutCols = [
+		{
+			header: "#",
+			width: 4,
+			align: "center",
+			key: "index"
+		},
+		{
+			header: "OPERATOR",
+			width: 24,
+			align: "left",
+			key: "operator"
+		},
+		{
+			header: "LOCATION",
+			width: 32,
+			align: "left",
+			key: "location"
+		},
+		{
+			header: "STATUS",
+			width: 14,
+			align: "center",
+			key: "status"
+		}
+	];
+	const mutRows = mutants.slice(0, 20).map((m, idx) => ({
+		index: String(idx + 1),
+		operator: m.operator || "unknown",
+		location: `${m.file || "unknown"}:${m.line ?? 0}`,
+		status: m.status || "planned"
+	}));
+	console.log(renderBoxTable(mutCols, mutRows));
 	console.log("");
 }
 function countArrayItems(record, key) {
@@ -1268,6 +1426,29 @@ const REPORT_DISPATCH_MAP = {
 	boundaries: (_top, json, human) => reportBoundaries(json, human),
 	architecture: (_top, json, human) => reportBoundaries(json, human),
 	boundary: (_top, json, human) => reportBoundaries(json, human),
+	"shared-state": (_top, json, human) => reportSharedState({
+		json,
+		human
+	}),
+	sharedstate: (_top, json, human) => reportSharedState({
+		json,
+		human
+	}),
+	mutation: (_top, json, human, extra) => reportMutation("mutation", {
+		json,
+		human,
+		positionals: extra.positionals
+	}),
+	"mutation-tasks": (_top, json, human, extra) => reportMutation("mutation-tasks", {
+		json,
+		human,
+		positionals: extra.positionals
+	}),
+	mutants: (_top, json, human, extra) => reportMutation("mutation", {
+		json,
+		human,
+		positionals: extra.positionals
+	}),
 	"coverage-gaps": (top, json, human) => reportCoverageGaps(top, json, human),
 	coverage_gaps: (top, json, human) => reportCoverageGaps(top, json, human),
 	gaps: (top, json, human) => reportCoverageGaps(top, json, human),

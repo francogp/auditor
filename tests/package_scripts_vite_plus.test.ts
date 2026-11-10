@@ -260,7 +260,7 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
     expect(updatedPkg.overrides?.vite).toBeUndefined();
     expect(updatedPkg.overrides?.vitest).toBeUndefined();
-    expect(updatedPkg.devDependencies['vite-plus']).toBe('^1.5.0');
+    expect(updatedPkg.devDependencies['vite-plus']).toBe('^1.5.1');
     expect(updatedPkg.devDependencies.vitest).toBeUndefined();
   });
 });

@@ -286,6 +286,13 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		category: "reporting"
 	},
 	{
+		name: "auditor:fallow:doctor",
+		command: "auditor-fallow category=doctor",
+		description: "Preflight environment, satellite configs, and setup health doctor via Fallow",
+		category: "fallow",
+		isApplicable: (config) => config.fallow?.enabled !== false
+	},
+	{
 		name: "auditor:fallow:dupes",
 		command: "auditor-fallow category=dupes",
 		description: "Syntactic duplicate code blocks detection via Fallow",
@@ -326,6 +333,34 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		description: "Architectural boundary violations detection via Fallow",
 		category: "fallow",
 		isApplicable: (config) => config.fallow?.enabled !== false
+	},
+	{
+		name: "auditor:fallow:architecture",
+		command: "auditor-fallow category=architecture",
+		description: "Architecture and dependency boundary violations detection via Fallow",
+		category: "fallow",
+		isApplicable: (config) => config.fallow?.enabled !== false && config.fallow?.architecture?.enabled !== false
+	},
+	{
+		name: "auditor:fallow:shared-state",
+		command: "auditor-fallow category=shared-state",
+		description: "Cross-module mutable state and imported write bindings audit via Fallow",
+		category: "fallow",
+		isApplicable: (config) => config.fallow?.enabled !== false && config.fallow?.architecture?.enabled !== false
+	},
+	{
+		name: "auditor:fallow:mutation",
+		command: "auditor-fallow category=mutation",
+		description: "Mutation testing planning and mutant survival analysis via Fallow",
+		category: "fallow",
+		isApplicable: (config) => config.fallow?.enabled !== false && config.fallow?.mutation?.enabled !== false
+	},
+	{
+		name: "auditor:fallow:mutation:tasks",
+		command: "auditor-fallow category=mutation-tasks",
+		description: "Targeted mutation execution tasks and test coverage gaps via Fallow",
+		category: "fallow",
+		isApplicable: (config) => config.fallow?.enabled !== false && config.fallow?.mutation?.enabled !== false
 	},
 	{
 		name: "auditor:fallow:suppressions",

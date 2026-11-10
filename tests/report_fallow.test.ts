@@ -80,6 +80,67 @@ describe('report_fallow CLI Tool', () => {
             }
           ]
         };
+      } else if (command === 'architecture') {
+        if (extraArgs.includes('--shared-state')) {
+          result = {
+            imported_writes: [
+              {
+                property: ['sessionStore', 'currentUser'],
+                writer: { path: 'src/domain/user.ts', line: 42, col: 5 }
+              }
+            ],
+            globals: [
+              {
+                name: 'GLOBAL_CACHE',
+                readers: [{ path: 'src/a.ts', line: 10 }],
+                writers: [{ path: 'src/b.ts', line: 20 }]
+              }
+            ]
+          };
+        } else {
+          result = {
+            boundary_violations: [
+              {
+                from_path: 'src/domain/a.ts',
+                to_path: 'src/infra/b.ts',
+                from_zone: 'domain',
+                to_zone: 'infra',
+                line: 5
+              }
+            ]
+          };
+        }
+      } else if (command === 'mutation') {
+        if (extraArgs.includes('tasks')) {
+          result = {
+            kind: 'mutation-tasks',
+            counts: { planned: 2, pending: 2 },
+            mutants: [
+              {
+                id: 'mut-1',
+                operator: 'BinaryExpression',
+                file: 'src/core/calc.ts',
+                line: 15,
+                status: 'planned'
+              }
+            ]
+          };
+        } else {
+          result = {
+            kind: 'mutation-plan',
+            counts: { planned: 5, pending: 3 },
+            score: 85,
+            mutants: [
+              {
+                id: 'mut-1',
+                operator: 'Equality',
+                file: 'src/core/auth.ts',
+                line: 30,
+                status: 'planned'
+              }
+            ]
+          };
+        }
       } else if (command === 'suppressions') {
         result = {
           total: 1,
@@ -266,5 +327,89 @@ describe('report_fallow CLI Tool', () => {
       process.exitCode = 0;
       exitSpy.mockRestore();
     }
+  });
+
+  describe('Fallow 3.42 Architecture & Mutation Canaries', () => {
+    it('canary: runs report for category=shared-state in json and human table mode', () => {
+      process.argv = ['node', 'report_fallow.ts', 'category=shared-state', '--json'];
+      expect(() => runFallowReportCli()).not.toThrow();
+      expect(consoleLogSpy).toHaveBeenCalled();
+
+      const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+      const parsed = JSON.parse(output);
+      expect(parsed.totalSharedStateFindings).toBe(2);
+      expect(parsed.imported_writes[0].property).toEqual(['sessionStore', 'currentUser']);
+      expect(parsed.imported_writes[0].writer.path).toBe('src/domain/user.ts');
+      expect(parsed.globals[0].name).toBe('GLOBAL_CACHE');
+
+      consoleLogSpy.mockClear();
+      process.argv = ['node', 'report_fallow.ts', 'category=shared-state', 'human'];
+      expect(() => runFallowReportCli()).not.toThrow();
+      const humanOutput = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+      expect(humanOutput).toContain('SHARED STATE ARCHITECTURE (FALLOW)');
+      expect(humanOutput).toContain('sessionStore.currentUser');
+      expect(humanOutput).toContain('GLOBAL_CACHE');
+    });
+
+    it('canary: runs report for category=mutation in json and human table mode', () => {
+      process.argv = ['node', 'report_fallow.ts', 'category=mutation', '--json'];
+      expect(() => runFallowReportCli()).not.toThrow();
+      expect(consoleLogSpy).toHaveBeenCalled();
+
+      const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+      const parsed = JSON.parse(output);
+      expect(parsed.kind).toBe('mutation-plan');
+      expect(parsed.counts.planned).toBe(5);
+      expect(parsed.score).toBe(85);
+      expect(parsed.mutants[0].operator).toBe('Equality');
+      expect(parsed.mutants[0].file).toBe('src/core/auth.ts');
+
+      consoleLogSpy.mockClear();
+      process.argv = ['node', 'report_fallow.ts', 'category=mutation', 'human'];
+      expect(() => runFallowReportCli()).not.toThrow();
+      const humanOutput = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+      expect(humanOutput).toContain('TEST MUTATION ANALYSIS (FALLOW)');
+      expect(humanOutput).toContain('Equality');
+      expect(humanOutput).toContain('src/core/auth.ts:30');
+    });
+
+    it('canary: runs report for category=mutation-tasks in json and human table mode', () => {
+      process.argv = ['node', 'report_fallow.ts', 'category=mutation-tasks', '--json'];
+      expect(() => runFallowReportCli()).not.toThrow();
+      expect(consoleLogSpy).toHaveBeenCalled();
+
+      const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+      const parsed = JSON.parse(output);
+      expect(parsed.kind).toBe('mutation-tasks');
+      expect(parsed.counts.planned).toBe(2);
+      expect(parsed.mutants[0].operator).toBe('BinaryExpression');
+
+      consoleLogSpy.mockClear();
+      process.argv = ['node', 'report_fallow.ts', 'category=mutation-tasks', 'human'];
+      expect(() => runFallowReportCli()).not.toThrow();
+      const humanOutput = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+      expect(humanOutput).toContain('TEST MUTATION ANALYSIS (FALLOW)');
+      expect(humanOutput).toContain('BinaryExpression');
+      expect(humanOutput).toContain('src/core/calc.ts:15');
+    });
+
+    it('canary: runs report for category=architecture querying fallow architecture command', () => {
+      process.argv = ['node', 'report_fallow.ts', 'category=architecture', '--json'];
+      expect(() => runFallowReportCli()).not.toThrow();
+      expect(consoleLogSpy).toHaveBeenCalled();
+
+      const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+      const parsed = JSON.parse(output);
+      expect(parsed.totalBoundaries).toBe(1);
+      expect(parsed.violations[0].from_zone).toBe('domain');
+      expect(parsed.violations[0].to_zone).toBe('infra');
+
+      consoleLogSpy.mockClear();
+      process.argv = ['node', 'report_fallow.ts', 'category=architecture', 'human'];
+      expect(() => runFallowReportCli()).not.toThrow();
+      const humanOutput = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+      expect(humanOutput).toContain('ARCHITECTURAL BOUNDARIES (FALLOW)');
+      expect(humanOutput).toContain('domain → infra');
+    });
   });
 });

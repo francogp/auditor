@@ -92,10 +92,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.8.5`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.9.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.8.5 --allow-git=all
+npm install -D github:francogp/auditor#v10.9.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -105,7 +105,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.8.5"
+    "@francogp/auditor": "github:francogp/auditor#v10.9.0"
   }
 }
 ```
@@ -159,9 +159,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.8.5
+npm run auditor:update -- v10.9.0
 # or directly:
-auditor-update v10.8.5
+auditor-update v10.9.0
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
@@ -247,7 +247,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.8.5-build.20261110-083428',
+  auditorVersion: '10.9.0-build.20261110-103814',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -306,7 +306,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.8.5"`), or install via `npm install -D github:francogp/auditor#v10.8.5 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.9.0"`), or install via `npm install -D github:francogp/auditor#v10.9.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -1094,11 +1094,16 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-findings`            | `src/cli/report_findings.ts`      | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`).                                                                                                                                                                 |
 | `auditor-next`                | `src/cli/report_findings.ts`      | Focuses findings on the earliest active strategic phase (`setup` -> `prune` -> `dedup` -> `contracts` -> `behavior` -> `hygiene` -> `polish`), postponing downstream errors (`auditor:next`, `auditor:next:human`).                                       |
 | `auditor-by-file`             | `src/cli/report_findings.ts`      | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`auditor:by-file`).                                                                                                                                          |
-| `auditor-fallow`              | `src/cli/report_fallow.ts`        | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`, `category=suppressions`, `category=flags`, `category=viz`).                                                                                                    |
+| `auditor-fallow`              | `src/cli/report_fallow.ts`        | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`, `category=suppressions`, `category=flags`, `category=viz`, `category=architecture`, `category=shared-state`, `category=mutation`, `category=mutation-tasks`, `category=doctor`). |
+| `auditor:fallow:doctor`       | `src/cli/report_fallow.ts`        | Runs Fallow environment and configuration health doctor check with structured diagnostics.                                                                                                                                                                |
+| `auditor:fallow:architecture` | `src/cli/report_fallow.ts`        | Audits and reports architectural boundary violations detected by Fallow across layer boundaries.                                                                                                                                                          |
+| `auditor:fallow:shared-state` | `src/cli/report_fallow.ts`        | Audits and reports mutable shared state (`imported_writes` and `globals`) across application layers.                                                                                                                                                     |
+| `auditor:fallow:mutation`     | `src/cli/report_fallow.ts`        | Generates and inspects Fallow mutation testing plan, mutants table, and mutation score.                                                                                                                                                                   |
+| `auditor:fallow:mutation:tasks` | `src/cli/report_fallow.ts`      | Generates and inspects atomic Fallow mutation test tasks.                                                                                                                                                                                                 |
 | `auditor:fallow:suppressions` | `src/cli/report_fallow.ts`        | Displays Box-Drawing table of all `// fallow-ignore` code suppressions, rules, and mandatory justifications.                                                                                                                                              |
 | `auditor:fallow:flags`        | `src/cli/report_fallow.ts`        | Discovers and reports active feature flags across the codebase.                                                                                                                                                                                           |
 | `auditor:fallow:viz`          | `src/cli/report_fallow.ts`        | Generates interactive architecture and dependency HTML map in `scratch/fallow_map.html`.                                                                                                                                                                  |
-| `auditor:fallow:boundaries`   | `src/cli/report_fallow.ts`        | Audits and reports architectural boundary violations detected by Fallow across layer boundaries.                                                                                                                                                          |
+| `auditor:fallow:boundaries`   | `src/cli/report_fallow.ts`        | Audits and reports architectural boundary violations detected by Fallow across layer boundaries (alias for `auditor:fallow:architecture`).                                                                                                               |
 | `auditor-complexity`          | `src/cli/report_complexity.ts`    | Fallow refactoring targets and code complexity analysis report.                                                                                                                                                                                           |
 | `auditor-dupes`               | `src/cli/refactor_dupes.ts`       | Interactive clone discovery, Dirac micro-context extraction, and safe worktree refactoring CLI (`auditor-dupes`, `npm run auditor:dupes`).                                                                                                                |
 | `auditor-magic`               | `src/cli/refactor_magic.ts`       | Interactive magic numbers discovery, Value-Clustering Super-Dirac compression, and AST span refactoring CLI (`auditor-magic`, `npm run auditor:magic`).                                                                                                   |

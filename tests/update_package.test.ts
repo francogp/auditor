@@ -588,7 +588,7 @@ describe('preSyncHostPackageJson', () => {
     expect(modified).toBe(true);
 
     const updated = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
-    expect(updated.devDependencies['vite-plus']).toBe('^1.5.0');
+    expect(updated.devDependencies['vite-plus']).toBe('^1.5.1');
     expect(updated.devDependencies['vite']).toBeUndefined();
     expect(updated.devDependencies['citty']).toBe('^0.2.2');
     expect(updated.overrides?.braces).toBeUndefined();
@@ -610,7 +610,7 @@ describe('preSyncHostPackageJson', () => {
       },
       devDependencies: {
         '@francogp/auditor': 'github:francogp/auditor#v10.1.0',
-        'vite-plus': '^1.5.0',
+        'vite-plus': '^1.5.1',
         '@vitest/coverage-v8': '^5.1.0',
         citty: '^0.2.2'
       },

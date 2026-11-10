@@ -624,6 +624,18 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   },
   fallow: {
     enabled: true,
+    minimumVersion: '3.42.0',
+    architecture: {
+      enabled: true,
+      sharedState: false
+    },
+    mutation: {
+      enabled: false,
+      runner: 'auto',
+      mutantsPerLine: 2,
+      functionScope: true,
+      typecheck: true
+    },
     health: {
       maxCognitive: 20,
       maxCyclomatic: 25,

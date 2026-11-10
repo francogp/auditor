@@ -362,7 +362,45 @@ export interface AuditFallowTypeAwareConfig {
   readonly require?: FallowTypeAwareRequirePolicy;
 }
 
+export const FALLOW_MUTATION_RUNNERS = ['auto', 'vitest', 'node-test', 'bun-test'] as const;
+export type FallowMutationRunner = (typeof FALLOW_MUTATION_RUNNERS)[number];
+
+export const FALLOW_MUTATION_OPT_IN_OPERATORS = [
+  'block-statement',
+  'array-literal',
+  'object-literal',
+  'method-expression',
+  'switch-case',
+  'call-expression',
+  'throw-statement',
+  'regex-constructor',
+  'regex-assertion'
+] as const;
+export type FallowMutationOptInOperator = (typeof FALLOW_MUTATION_OPT_IN_OPERATORS)[number];
+
+export interface AuditFallowMutationConfig extends BaseAuditSubsystemConfig {
+  readonly runner?: FallowMutationRunner;
+  readonly operators?: readonly string[];
+  readonly minScore?: number;
+  readonly concurrency?: number;
+  readonly mutantsPerLine?: number;
+  readonly functionScope?: boolean;
+  readonly timeBudget?: string;
+  readonly typecheck?: boolean;
+  readonly runnerConfig?: string;
+}
+
+export interface AuditFallowArchitectureConfig extends BaseAuditSubsystemConfig {
+  readonly cycles?: boolean;
+  readonly boundaries?: boolean;
+  readonly policy?: boolean;
+  readonly sharedState?: boolean;
+}
+
 export interface AuditFallowConfig extends BaseAuditSubsystemConfig {
+  readonly minimumVersion?: string;
+  readonly architecture?: AuditFallowArchitectureConfig;
+  readonly mutation?: AuditFallowMutationConfig;
   readonly security?: AuditSecurityConfig;
   readonly enforceTargets?: boolean;
   readonly maxTargetPriority?: FallowTargetPriority;

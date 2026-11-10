@@ -123,7 +123,7 @@ export async function initProject(options: InitProjectOptions = {}): Promise<Ini
       },
       devDependencies: {
         '@francogp/auditor': '^10.8.1',
-        'vite-plus': '^1.5.0'
+        'vite-plus': '^1.5.1'
       }
     };
     fs.writeFileSync(pkgPath, JSON.stringify(defaultPkg, null, 2) + '\n', 'utf-8');

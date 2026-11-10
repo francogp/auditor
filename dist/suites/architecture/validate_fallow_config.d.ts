@@ -25,6 +25,7 @@ export interface FallowTypeAwareConfig {
 }
 export interface FallowConfigSchema {
   $schema?: string;
+  minimumVersion?: string;
   entry?: string[];
   ignorePatterns?: string[];
   ignoreDependencies?: string[];
@@ -47,11 +48,22 @@ export interface FallowConfigSchema {
     maxCrap?: number;
     cyclomaticPolicy?: FallowCyclomaticPolicy;
   };
+  architecture?: {
+    sharedState?: boolean;
+  };
   audit?: {
     worsened?: CanonicalRuleSeverityLevel;
   };
   mutation?: {
     runnerConfig?: string;
+    runner?: string;
+    operators?: string[];
+    minScore?: number;
+    concurrency?: number;
+    mutantsPerLine?: number;
+    functionScope?: boolean;
+    timeBudget?: string;
+    typecheck?: boolean;
   };
 }
 export declare function createDefaultFallowConfigContent(): string;

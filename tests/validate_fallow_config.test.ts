@@ -22,7 +22,8 @@ import {
   FALLOW_CONFIG_RULES,
   isSymbolExportedInContent,
   validateFallowWorkspaceDiagnostics,
-  validateUndeclaredFallowEntries
+  validateUndeclaredFallowEntries,
+  projectFallowConfigFromAuditConfig
 } from '../src/suites/architecture/validate_fallow_config.ts';
 
 describe('ValidateFallowConfigAuditor', () => {
@@ -444,6 +445,86 @@ describe('ValidateFallowConfigAuditor', () => {
 
       const evaluations = auditor.getCoverageRecorder().getEvaluations('fallow-config-doctor');
       expect(evaluations).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('Fallow 3.42 Architecture & Mutation SSoT Projection & Auto-Fix Canaries', () => {
+    it('canary: projects minimumVersion, architecture, and mutation from auditConfig deterministically', () => {
+      const mockAuditConfig = {
+        fallow: {
+          enabled: true,
+          minimumVersion: '3.42.0',
+          duplicates: { nearMiss: true, mode: 'strict' },
+          health: { maxCrap: 0 },
+          architecture: {
+            enabled: true,
+            sharedState: true
+          },
+          mutation: {
+            enabled: true,
+            runner: 'vitest',
+            runnerConfig: 'vitest.unit.config.ts',
+            mutantsPerLine: 2,
+            functionScope: 'exported-only',
+            typecheck: 'off',
+            operators: ['binary_operator', 'equality_operator']
+          }
+        }
+      } as unknown as Parameters<typeof projectFallowConfigFromAuditConfig>[0];
+
+      const projected = projectFallowConfigFromAuditConfig(mockAuditConfig);
+      expect(projected.minimumVersion).toBe('3.42.0');
+      expect(projected.architecture).toEqual({ sharedState: true });
+      expect(projected.mutation).toEqual({
+        runner: 'vitest',
+        runnerConfig: 'vitest.unit.config.ts',
+        mutantsPerLine: 2,
+        functionScope: 'exported-only',
+        typecheck: 'off',
+        operators: ['binary_operator', 'equality_operator']
+      });
+    });
+
+    it('canary: flags undeclared architecture, mutation, and minimumVersion entries and auto-fixes them', async () => {
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const badConfig: Record<string, unknown> = {
+        $schema: 'https://fallow.tools/schema/config.json',
+        entry: ['src/index.ts'],
+        minimumVersion: '3.40.0',
+        architecture: {
+          sharedState: false,
+          unapprovedKey: 'prohibited'
+        },
+        mutation: {
+          runner: 'custom-runner',
+          unapprovedSetting: true
+        }
+      };
+
+      // Diagnostic detection pass (fix inactive)
+      validateUndeclaredFallowEntries(badConfig, auditor);
+      const auditResult = await auditor.finishAudit();
+      const violations = auditResult.findings.filter(
+        (f) => f.ruleId === 'fallow-undeclared-config-entry'
+      );
+      expect(violations.length).toBeGreaterThan(0);
+      expect(violations.some((v) => v.message.includes('architecture'))).toBe(true);
+      expect(violations.some((v) => v.message.includes('mutation'))).toBe(true);
+
+      // Auto-fix pass (fix active)
+      const fixAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      Reflect.set(fixAuditor, 'currentFixActive', true);
+
+      const modified = validateUndeclaredFallowEntries(badConfig, fixAuditor);
+      expect(modified).toBe(true);
+
+      // After auto-fix, minimumVersion is bumped to canonical default 3.42.0
+      expect(badConfig.minimumVersion).toBe('3.42.0');
+      // Unapproved architecture key was pruned
+      const arch = badConfig.architecture as Record<string, unknown>;
+      expect(arch.unapprovedKey).toBeUndefined();
+      // Because mutation is disabled by default in audit.config, undeclared mutation block is safely pruned
+      expect(badConfig.mutation).toBeUndefined();
     });
   });
 });
