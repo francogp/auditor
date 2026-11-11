@@ -1,7 +1,7 @@
 ---
 name: auditor
 description: >-
-  MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, administering, and UPDATING ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. Governs the strict dichotomy between CI Quality Gates (blocking, pass/fail) and Interactive Refactor Engines (elective, proposals), providing reaction protocols for CI errors (Correction Plans via auditor:next) vs elective enhancements (Improvement Plans via Dirac & worktrees). ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings, errors or warnings ('errores', 'fallos', 'advertencias', 'warnings', 'findings', 'auditor:findings', 'auditor:next'), investigating violations, debugging audit failures, planning or executing fixes, or whenever analyzing, inspecting, querying, or reading 'scratch/audits/latest_audit.json' or 'latest_audit.json' ('analizar scratch/audits/latest_audit.json', 'analizar latest_audit.json', 'leer latest_audit.json', 'inspeccionar latest_audit.json', 'ver latest_audit.json', 'scratch/audits/latest_audit.json', 'latest_audit.json', 'latest_audit'). MANDATORY TO PRIORITIZE OFFICIAL CLI TOOLS: Whenever analyzing scratch/audits/latest_audit.json or latest_audit.json, developers and AI agents MUST activate this skill and use the framework's native CLI tools ('npm run auditor:next', 'npm run auditor:findings', 'npm run auditor:rules', 'npm run auditor:by-rule', 'npm run auditor:by-file', 'npm run auditor:errors', 'npm run auditor:warnings', 'npm run auditor:summary', 'auditor guide <ruleId>') instead of reading raw JSON or writing ad-hoc scripts. ALSO TRIGGER for refactoring duplicate code ('duplicados', 'clones', 'auditor:dupes'), magic numbers ('numeros magicos', 'auditor:magic'), UI animations ('auditor:motion'), O(1) structures ('auditor:o1'), type assertions ('auditor:types'), domain models ('auditor:domain'), dependencies ('auditor:dependencies'), updating auditor ('auditor:update'), or assessing configuration hardening opportunities ('auditor:config', 'auditor-config', 'auditor config recommendations', 'harden auditor config', 'audit config advisor', 'sugerir configuraciones', 'recomendar configuraciones', 'configuraciones default', 'actualizar configuraciones', 'endurecer auditor', 'config ratchet', 'revisar configuraciones del auditor', 'comparar con defaults'). Creating ad-hoc scratch scripts or node -e one-liners is STRICTLY PROHIBITED. Never invoke npx; pass flags with --. Enforces strict OOP inheritance, Box-Drawing tables, dynamic auto-discovery, zero code duplication, zero project hardcoding, and mandatory rule timing wrappers.
+  MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, administering, and UPDATING ALL static analysis tools, sub-auditors, AST rules, CLI reporting scripts, and consumer runtime libraries/SDKs (@francogp/auditor/modals for stackable modals, customizable z-index scales, motion presets, and priority queues; @francogp/auditor/domain; vitePrecompressPlugin; BaseEntityRegistry; cittyHarness; safePath; safeUtils) across the repository. Governs the strict dichotomy between CI Quality Gates (blocking, pass/fail) and Interactive Refactor Engines (elective, proposals), providing reaction protocols for CI errors (Correction Plans via auditor:next) vs elective enhancements (Improvement Plans via Dirac & worktrees). ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings, errors or warnings ('errores', 'fallos', 'advertencias', 'warnings', 'findings', 'auditor:findings', 'auditor:next'), investigating violations, debugging audit failures, planning or executing fixes, or whenever analyzing, inspecting, querying, or reading 'scratch/audits/latest_audit.json' or 'latest_audit.json' ('analizar scratch/audits/latest_audit.json', 'analizar latest_audit.json', 'leer latest_audit.json', 'inspeccionar latest_audit.json', 'ver latest_audit.json', 'scratch/audits/latest_audit.json', 'latest_audit.json', 'latest_audit'). MANDATORY TO PRIORITIZE OFFICIAL CLI TOOLS: Whenever analyzing scratch/audits/latest_audit.json or latest_audit.json, developers and AI agents MUST activate this skill and use the framework's native CLI tools ('npm run auditor:next', 'npm run auditor:findings', 'npm run auditor:rules', 'npm run auditor:by-rule', 'npm run auditor:by-file', 'npm run auditor:errors', 'npm run auditor:warnings', 'npm run auditor:summary', 'auditor guide <ruleId>') instead of reading raw JSON or writing ad-hoc scripts. ALSO TRIGGER for modal stack & z-index management ('modals', 'modal stack', 'z-index modals', '@francogp/auditor/modals'), refactoring duplicate code ('duplicados', 'clones', 'auditor:dupes'), magic numbers ('numeros magicos', 'auditor:magic'), UI animations ('auditor:motion'), O(1) structures ('auditor:o1'), type assertions ('auditor:types'), domain models ('auditor:domain'), dependencies ('auditor:dependencies'), updating auditor ('auditor:update'), or assessing configuration hardening opportunities ('auditor:config', 'auditor-config', 'auditor config recommendations', 'harden auditor config', 'audit config advisor', 'sugerir configuraciones', 'recomendar configuraciones', 'configuraciones default', 'actualizar configuraciones', 'endurecer auditor', 'config ratchet', 'revisar configuraciones del auditor', 'comparar con defaults'). Creating ad-hoc scratch scripts or node -e one-liners is STRICTLY PROHIBITED. Never invoke npx; pass flags with --. Enforces strict OOP inheritance, Box-Drawing tables, dynamic auto-discovery, zero code duplication, zero project hardcoding, and mandatory rule timing wrappers.
 license: MIT
 metadata:
   author: Franco Gastón Pellegrini
@@ -259,59 +259,47 @@ graph TD
 
 ### 30. Sub-Auditor & Extension Hygiene Governance (`validate_auditor_hygiene`)
 
-- Enforces 17 strict hygiene rules eradicating homebrew utilities, hardcoded configurations, and inefficient I/O:
-  1. `auditor-manual-package-json` (`getPackageJson()`)
-  2. `auditor-manual-vue-sfc-regex` (`parseVueSfc()`)
-  3. `auditor-isolated-ts-ast` (`SharedAstContext`)
-  4. `auditor-manual-path-normalization` (`normalizePosixPath` / `toPosixRelative`)
-  5. `auditor-direct-console-call` (`BaseAuditor` / `UnifiedTheme`)
-  6. `auditor-manual-comment-stripping` (`stripComments` / `stripCommentsAndStrings`)
-  7. `auditor-manual-brace-counting` (`scanBalancedDelimiter`)
-  8. `auditor-manual-cwe22-path-check` (`isPathInside` / `isInsideRoot`)
-  9. `auditor-manual-dir-walk` (`collectFiles` / `collectRepositoryFiles`)
-  10. `auditor-manual-path-predicate` (`isTestPath` / `isTestFileForCodeAudit`)
-  11. `auditor-manual-timing` (`runSubAuditorSync` / `runSubAuditor`)
-  12. `auditor-hardcoded-config` (`hardcodedConfigDetector.ts` - prohibits hardcoded candidate paths, fallback filenames, or local ignore arrays)
-  13. `auditor-manual-step-logging` (prohibits `this.context.logStep(...)`)
-  14. `auditor-unmeasured-rule` (prohibits `addViolation` outside timing wrappers)
-  15. `auditor-redundant-rule-evaluated` (prohibits manual `markRuleEvaluated` before timing wrappers)
-  16. `auditor-third-party-tool-contract` (enforces `usesThirdPartyTool` and `thirdPartyToolPolicy`)
-  17. `auditor-inefficient-file-scan` (prohibits nested rule-over-files loops and blind wildcards; requires `scanFilesSinglePass` and `WorkspaceFileCache`)
+- Enforces 17 strict hygiene rules eradicating homebrew utilities, hardcoded configurations, and inefficient I/O: `auditor-manual-package-json` (`getPackageJson()`), `auditor-manual-vue-sfc-regex` (`parseVueSfc()`), `auditor-isolated-ts-ast` (`SharedAstContext`), `auditor-manual-path-normalization` (`normalizePosixPath` / `toPosixRelative`), `auditor-direct-console-call` (`BaseAuditor` / `UnifiedTheme`), `auditor-manual-comment-stripping` (`stripComments`), `auditor-manual-brace-counting` (`scanBalancedDelimiter`), `auditor-manual-cwe22-path-check` (`isPathInside`), `auditor-manual-dir-walk` (`collectFiles`), `auditor-manual-path-predicate` (`isTestPath`), `auditor-manual-timing` (`runSubAuditorSync`), `auditor-hardcoded-config` (`hardcodedConfigDetector.ts`), `auditor-manual-step-logging`, `auditor-unmeasured-rule`, `auditor-redundant-rule-evaluated`, `auditor-third-party-tool-contract`, and `auditor-inefficient-file-scan` (`scanFilesSinglePass` + `WorkspaceFileCache`).
 
-### 31. Grounded Fixability Contract (`fixable: boolean`)
+### 31. Grounded Fixability (`fixable: boolean`) & Safe-Commit Protocol
 
-- A finding reports `fixable: true` ONLY when a programmatic automated fixer exists for that exact violation.
-- Aggregated via `BaseAuditor.countFixableFindings()` and `BaseAuditor.computeFixableViolations()`.
-
-### 32. Mandatory Safe-Commit Pipeline Protocol
-
+- A finding reports `fixable: true` ONLY when a programmatic automated fixer exists (`BaseAuditor.countFixableFindings()` / `computeFixableViolations()`).
 - Manual `git commit`, `git tag`, or `git push` without running `/safe-commit` is strictly forbidden.
+- Deep subsystem specifications (Dart Sass casing, mixin ordering, sentinels, by-file grouping, emoji selectors, AGENTS.md auto-repairs, Mermaid syntax): see [subsystem-rules-reference.md](./references/subsystem-rules-reference.md).
 
-> [!NOTE]
-> 📘 **Deep Technical Subsystem Specifications**: For detailed rules on Dart Sass collision casing, mixin block ordering, sentinels, by-file grouping, monospace emoji variation selectors, idempotent AGENTS.md auto-repairs, script extensions migration, and Mermaid syntax, see [subsystem-rules-reference.md](./references/subsystem-rules-reference.md).
+## 📂 Canonical Architecture, Templates & Host Extensions
 
----
+- **Built-in Suites & Extensions**: Official suites are discovered dynamically across 6 families (`architecture/`, `domain_data/`, `performance/`, `security/`, `persistence/`, `documentation/`); host extensions reside in `scripts/auditors/` extending `BaseAuditor`. See [built-in-suites-catalog.md](./references/built-in-suites-catalog.md), [blueprints.md](./references/blueprints.md), [audit.config.enterprise.example.ts](./references/audit.config.enterprise.example.ts), and [audit.config.gaming.example.ts](./references/audit.config.gaming.example.ts).
+- **Scaffolding Templates (`assets/templates/`)**: [`file_scan_auditor_template.ts`](./assets/templates/file_scan_auditor_template.ts), [`base_auditor_template.ts`](./assets/templates/base_auditor_template.ts), [`ast_auditor_template.ts`](./assets/templates/ast_auditor_template.ts), [`auditor_unit_test_template.test.ts`](./assets/templates/auditor_unit_test_template.test.ts), [`vite_plus_config_template.ts`](./assets/templates/vite_plus_config_template.ts), and [`vite_coverage_config_template.ts`](./assets/templates/vite_coverage_config_template.ts). See [sub-auditor-authoring-guide.md](./references/sub-auditor-authoring-guide.md) and [extension-helpers-guide.md](./references/extension-helpers-guide.md).
 
-## 📂 Canonical Architecture: Built-in Suites & Host Extensions
+## 🧰 Provided Libraries, Subpath SDKs & Consumer Tooling Ecosystem
 
-Official suites are discovered dynamically across 6 architectural families (`architecture/`, `domain_data/`, `performance/`, `security/`, `persistence/`, `documentation/`). Domain-specific extensions reside in `scripts/auditors/` extending `BaseAuditor`.
+Beyond static analysis suites, `@francogp/auditor` ships **browser-safe runtime libraries, Vite+/Oxlint build plugins, typed in-memory registries, declarative Citty CLI harnesses, CWE-22 safe I/O helpers, Vitest conformance runners, and 35 CLI tools** ready to be consumed directly by host applications.
 
-📘 **Complete Catalog & Blueprints**: See [built-in-suites-catalog.md](./references/built-in-suites-catalog.md), [blueprints.md](./references/blueprints.md), [audit.config.enterprise.example.ts](./references/audit.config.enterprise.example.ts), and [audit.config.gaming.example.ts](./references/audit.config.gaming.example.ts).
+```mermaid
+flowchart TD
+    AUD["@francogp/auditor Consumer Ecosystem"]
+    AUD --> L1["1. Browser-Safe Runtime Subpaths (@francogp/auditor/modals, /domain, /version)"]
+    AUD --> L2["2. Build & Linter Plugins (vitePrecompressPlugin, /domain-type-plugin, Z_LAYERS)"]
+    AUD --> L3["3. Node SDK & Registries (BaseAuditor, BaseEntityRegistry, cittyHarness, safePath, safeUtils, UnifiedTheme)"]
+    AUD --> L4["4. CLI Gates & Dirac Refactor Engines (auditor, auditor-next, auditor-config, dupes, magic, motion, o1, types, domain, hygiene)"]
+```
 
----
+### Subpath Exports & Reuse Mandate
 
-## 🛠️ Scaffolding & Code Templates (`assets/templates/`)
+| Subpath / Export | Environment | Provided Capabilities |
+| :--- | :--- | :--- |
+| `@francogp/auditor/modals` | Browser, SSR, Node (Zero `node:*`) | `ModalStackManager` (`createModalStack`), customizable Z-layer scales (`resolveModalZLayers`, `CANONICAL_Z_LAYERS`), customizable motion presets & drivers (`DEFAULT_MODAL_MOTION_PRESETS`, `ModalAnimationController`, `createWaapiModalDriver`, `createGsapModalDriver`), structural CSS var helpers (`resolveModalCssVars`, `resolveModalStructuralStyles`, `resolveModalDomIds`), `ModalDomController`, `createBackdropPointerGuard`, and zero-polling `ModalSequenceQueue`. |
+| `@francogp/auditor/domain` | Browser, SSR, Node (Zero `node:*`) | `createDomainSet` (with `has(x: unknown): x is T` type guard) and `createDomainMap` for strict `/domain-type-first` collections. |
+| `vitePrecompressPlugin` | Vite+ (`vite.plugins.ts`) | Native `node:zlib` Brotli Q11 + Gzip L9 static precompression and Nginx/Apache/Caddy config scaffolding. |
+| `@francogp/auditor/domain-type-plugin` | Vite+ / Oxlint | AST rules enforcing `/domain-type-first`, query pagination, and security guardrails. |
+| `BaseEntityRegistry` & `cittyHarness` | Node CLI / Backend | $O(1)$ lifecycle registries (`resetAllEntityRegistries`), `defineCommand`, `COMMON_CLI_ARGS`, `runNormalizedMain`, and `isMainModule`. |
+| `safePath`, `safeUtils` & `UnifiedTheme` | Node CLI / Extensions | CWE-22 bounded `safeResolve`, `isPathContained`, `tryCatchSync`, `safeJsonParse`, 80-col `renderBoxTable`, and `runAuditorContractConformanceTests`. |
 
-Pre-formatted, production-ready templates conforming to all project standards:
+- **Mandatory Reuse Rule for AI Agents**: Never reinvent ad-hoc modal `z-index` stores, manual `Set<string>` casts, custom Brotli/Gzip Vite scripts, `process.argv` parsers, or manual directory walkers in consumer projects when `@francogp/auditor` already provides the canonical primitive.
+- **Zero Hardcoding in `@francogp/auditor/modals`**: `CANONICAL_Z_LAYERS`, `DEFAULT_MODAL_MOTION_PRESETS`, and `resolveModalStructuralStyles` act strictly as **overridable defaults**. Host projects can inject their own `zLayers` dictionary, custom `baseZIndex` / `stepZIndex` / `ceilingZIndex`, per-modal `customZIndex` / `zIndexOffset`, custom `defaultMotion` or per-modal `motion` keyframes, and custom animation drivers (WAAPI, GSAP, or custom).
 
-- **Line-by-Line Scanner (`FileScanAuditor`)**: [`assets/templates/file_scan_auditor_template.ts`](./assets/templates/file_scan_auditor_template.ts)
-- **Composite / Database / Asset Auditor (`BaseAuditor`)**: [`assets/templates/base_auditor_template.ts`](./assets/templates/base_auditor_template.ts)
-- **AST-Driven Sub-Auditor (`requiresAst: true` & `SharedAstContext`)**: [`assets/templates/ast_auditor_template.ts`](./assets/templates/ast_auditor_template.ts)
-- **Dedicated Vitest Unit Test**: [`assets/templates/auditor_unit_test_template.test.ts`](./assets/templates/auditor_unit_test_template.test.ts)
-- **Unified Vite+ Configuration (`vite.config.ts`)**: [`assets/templates/vite_plus_config_template.ts`](./assets/templates/vite_plus_config_template.ts)
-- **Vite+ Test Coverage Blueprint**: [`assets/templates/vite_coverage_config_template.ts`](./assets/templates/vite_coverage_config_template.ts)
-
-📘 **Step-by-Step Authoring Walkthrough**: See [sub-auditor-authoring-guide.md](./references/sub-auditor-authoring-guide.md) and [extension-helpers-guide.md](./references/extension-helpers-guide.md).
+📘 **Complete SDK & Modal Stack Specifications**: See [provided-libraries-and-tools-guide.md](./references/provided-libraries-and-tools-guide.md) and [modal-stack-governance-guide.md](./references/modal-stack-governance-guide.md).
 
 ---
 
@@ -464,6 +452,8 @@ flowchart LR
 
 | Reference Guide                                                                                            | Description                                                                                                            |
 | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [`references/provided-libraries-and-tools-guide.md`](./references/provided-libraries-and-tools-guide.md)   | Complete catalog, architecture diagrams, and usage recipes for all runtime libraries, subpath SDKs, plugins, and CLIs. |
+| [`references/modal-stack-governance-guide.md`](./references/modal-stack-governance-guide.md)               | Guide for `@francogp/auditor/modals`: LIFO modal stack, custom Z-layer scales, custom motion drivers, and queues.      |
 | [`references/quality-gates-vs-refactor-engines.md`](./references/quality-gates-vs-refactor-engines.md)     | Architectural dichotomy, paradox guide, reaction protocols, and plan blueprints.                                       |
 | [`references/config-advisor-guide.md`](./references/config-advisor-guide.md)                               | Guide for interactive configuration hardening and Unidirectional Config Ratchet.                                       |
 | [`references/zero-ignore-type-remediation.md`](./references/zero-ignore-type-remediation.md)               | Guide for zero escape hatches (// *-ok:) via canonical semantic types & ratchet.                                       |

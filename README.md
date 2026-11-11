@@ -2,7 +2,7 @@
 
 > **Autonomous static analysis, architectural governance, AI agent skills packaging, and zero-tolerance code quality engine for native Node.js 26+ (`--permission`, `--experimental-strip-types`).**
 
-Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, streaming concurrent runner, standardized Box-Drawing terminal reporting (80 fixed columns, visual width emoji alignment, and mandatory `TOTAL CONSOLIDADO` footer row), built-in generic suites across all architectural families, **native distribution of Antigravity AI agent skills**, **centralized single source of truth (SSoT) dependencies**, and a **cross-platform environment governance system (Linux/Windows) with zero hardcoded paths**.
+Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, streaming concurrent runner, standardized Box-Drawing terminal reporting (80 fixed columns, visual width emoji alignment, and mandatory `TOTAL CONSOLIDADO` footer row), built-in generic suites across all architectural families, **browser-safe runtime libraries (`@francogp/auditor/modals` for stackable modals, customizable Z-index scales, customizable motion presets & priority queues; `@francogp/auditor/domain` for Domain-Type-First collections)**, **Vite+ static precompression & Oxlint AST plugins**, **native distribution of Antigravity AI agent skills**, **centralized single source of truth (SSoT) dependencies**, and a **cross-platform environment governance system (Linux/Windows) with zero hardcoded paths**.
 
 ---
 
@@ -20,7 +20,8 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 10. [Centralized Configuration (`audit.config.ts`)](#10-centralized-configuration-auditconfigts)
 11. [Hermetic Testing with Vite+ & Vitest](#11-hermetic-testing-with-vite--vitest)
 12. [CLI Tools & Reporters Reference](#12-cli-tools--reporters-reference)
-13. [License & Third-Party Open Source Attribution](#13-license--third-party-open-source-attribution)
+13. [Provided Libraries, Subpath SDKs & Consumer Developer Tools](#13-provided-libraries-subpath-sdks--consumer-developer-tools)
+14. [License & Third-Party Open Source Attribution](#14-license--third-party-open-source-attribution)
 
 ---
 
@@ -92,10 +93,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.9.0`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.10.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.9.0 --allow-git=all
+npm install -D github:francogp/auditor#v10.10.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -105,7 +106,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.9.0"
+    "@francogp/auditor": "github:francogp/auditor#v10.10.0"
   }
 }
 ```
@@ -159,12 +160,12 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.9.0
+npm run auditor:update -- v10.10.0
 # or directly:
-auditor-update v10.9.0
+auditor-update v10.10.0
 ```
 
-`auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
+`auditor-update` snapshots `package.json`, `package-lock.json`, and `.npmrc` (rolling them back cleanly on failure), pre-elevates declared dependency ranges to SSoT minimums while pruning stale `vite-plus`/`vitest`/`@vitest/*` lockfile clusters to prevent `ERESOLVE` peer conflicts, installs the pinned `@francogp/auditor` tag, synchronizes agent skills in `.agents/skills/` and environment scripts (`setup-windows.ps1`, `setup-linux.sh`), runs `auditor fix`, and automatically upgrades any declared production or development dependencies below the newly installed auditor's `peerDependencies` floors.
 
 To inspect whether an update is available without making changes (safe read-only inspection), pass `check` (`-c`):
 
@@ -186,7 +187,7 @@ auditor-update --help
 
 ### Mandatory Minimum Library Versions & Caret Ranges (`validate_dependency_minimums`)
 
-The auditor exposes a conditional version floor for shared libraries (`typescript`, `vite-plus`, `vue`, `vue-router`, `pinia`, `gsap`, `valibot`, `sass`, `html-validate`, `markdownlint-cli`, `fallow`, `@playwright/test`) through the **optional `peerDependencies`** of `@francogp/auditor/package.json` (single source of truth, no hardcoded versions).
+The auditor exposes a conditional version floor for shared libraries (`typescript`, `vite-plus`, `@vitest/coverage-v8`, `citty`, `@types/node`, `@vitejs/plugin-vue`, `vue`, `vue-router`, `pinia`, `gsap`, `valibot`, `sass`, `html-validate`, `markdownlint-cli`, `fallow`, `@playwright/test`) through the **optional `peerDependencies`** of `@francogp/auditor/package.json` (single source of truth, zero hardcoded versions).
 
 - If your project declares one of these libraries (`dependencies`, `devDependencies`, `optionalDependencies`), both the declared range and the version locked in `package-lock.json` must be at least the auditor floor; otherwise the audit fails with the exact command (e.g. `npm install -D vite-plus@^1.4.0`).
 - **Zero Pinned Versions Mandate (`dependency-exact-version-pinned`)**: Under modern npm standards, dependencies MUST declare minimum ranges using caret (`^`) or greater-than operators (e.g. `"^1.4.0"`). Pinned exact version numbers without range operators (e.g. `"1.4.0"`) are strictly flagged by `validate_dependency_minimums` and automatically repaired to caret ranges via `auditor fix`.
@@ -247,7 +248,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.9.0-build.20261110-103814',
+  auditorVersion: '10.10.0-build.20261111-102755',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -306,7 +307,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.9.0"`), or install via `npm install -D github:francogp/auditor#v10.9.0 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.10.0"`), or install via `npm install -D github:francogp/auditor#v10.10.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -1086,49 +1087,300 @@ runAuditorContractConformanceTests();
 
 All binaries execute directly or through native `npm run` scripts. Running tools via `npx` is strictly prohibited.
 
-| Binary Command                | Script                            | Description                                                                                                                                                                                                                                               |
-| :---------------------------- | :-------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auditor`                     | `src/cli/audit_full.ts`           | Runs global project audit plus the warning ratchet. Supports `--list`, `--info`, `guide <ruleId\|suiteId>`, `speed=light\|heavy\|full`, `only-speed=light\|heavy\|full`, `phase=post-build`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`. |
-| `auditor-post-build`          | `src/cli/audit_post_build.ts`     | Runs post-build compiled artifact audit suites against `dist/` (`phase=post-build`).                                                                                                                                                                      |
-| `auditor-build-deploy`        | `src/cli/build_deploy.ts`         | Runs deployment build (`npm run build:deploy`) under `AUDITOR_ENV=production`.                                                                                                                                                                            |
-| `auditor-findings`            | `src/cli/report_findings.ts`      | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`).                                                                                                                                                                 |
-| `auditor-next`                | `src/cli/report_findings.ts`      | Focuses findings on the earliest active strategic phase (`setup` -> `prune` -> `dedup` -> `contracts` -> `behavior` -> `hygiene` -> `polish`), postponing downstream errors (`auditor:next`, `auditor:next:human`).                                       |
-| `auditor-by-file`             | `src/cli/report_findings.ts`      | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`auditor:by-file`).                                                                                                                                          |
-| `auditor-fallow`              | `src/cli/report_fallow.ts`        | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`, `category=suppressions`, `category=flags`, `category=viz`, `category=architecture`, `category=shared-state`, `category=mutation`, `category=mutation-tasks`, `category=doctor`). |
-| `auditor:fallow:doctor`       | `src/cli/report_fallow.ts`        | Runs Fallow environment and configuration health doctor check with structured diagnostics.                                                                                                                                                                |
-| `auditor:fallow:architecture` | `src/cli/report_fallow.ts`        | Audits and reports architectural boundary violations detected by Fallow across layer boundaries.                                                                                                                                                          |
-| `auditor:fallow:shared-state` | `src/cli/report_fallow.ts`        | Audits and reports mutable shared state (`imported_writes` and `globals`) across application layers.                                                                                                                                                     |
-| `auditor:fallow:mutation`     | `src/cli/report_fallow.ts`        | Generates and inspects Fallow mutation testing plan, mutants table, and mutation score.                                                                                                                                                                   |
-| `auditor:fallow:mutation:tasks` | `src/cli/report_fallow.ts`      | Generates and inspects atomic Fallow mutation test tasks.                                                                                                                                                                                                 |
-| `auditor:fallow:suppressions` | `src/cli/report_fallow.ts`        | Displays Box-Drawing table of all `// fallow-ignore` code suppressions, rules, and mandatory justifications.                                                                                                                                              |
-| `auditor:fallow:flags`        | `src/cli/report_fallow.ts`        | Discovers and reports active feature flags across the codebase.                                                                                                                                                                                           |
-| `auditor:fallow:viz`          | `src/cli/report_fallow.ts`        | Generates interactive architecture and dependency HTML map in `scratch/fallow_map.html`.                                                                                                                                                                  |
-| `auditor:fallow:boundaries`   | `src/cli/report_fallow.ts`        | Audits and reports architectural boundary violations detected by Fallow across layer boundaries (alias for `auditor:fallow:architecture`).                                                                                                               |
-| `auditor-complexity`          | `src/cli/report_complexity.ts`    | Fallow refactoring targets and code complexity analysis report.                                                                                                                                                                                           |
-| `auditor-dupes`               | `src/cli/refactor_dupes.ts`       | Interactive clone discovery, Dirac micro-context extraction, and safe worktree refactoring CLI (`auditor-dupes`, `npm run auditor:dupes`).                                                                                                                |
-| `auditor-magic`               | `src/cli/refactor_magic.ts`       | Interactive magic numbers discovery, Value-Clustering Super-Dirac compression, and AST span refactoring CLI (`auditor-magic`, `npm run auditor:magic`).                                                                                                   |
-| `auditor-motion`              | `src/cli/refactor_motion.ts`      | Interactive UI animation and GSAP governance refactoring CLI (`auditor-motion`, `npm run auditor:motion`).                                                                                                                                                |
-| `auditor-o1`                  | `src/cli/refactor_o1.ts`          | Interactive O(1) data structures and linear search refactoring CLI (`auditor-o1`, `npm run auditor:o1`).                                                                                                                                                  |
-| `auditor-types`               | `src/cli/refactor_types.ts`       | Type assertions (`as any`), double casts, and return contracts zero-token refactoring CLI (`auditor-types`, `npm run auditor:types`).                                                                                                                     |
-| `auditor-domain`              | `src/cli/refactor_domain.ts`      | Raw string parameters, mutable catalogs, and unbranded entity IDs refactoring CLI (`auditor-domain`, `npm run auditor:domain`).                                                                                                                           |
-| `auditor-hygiene`             | `src/cli/refactor_hygiene.ts`     | Member accessibility, globalThis, and void expressions zero-token refactoring CLI (`auditor-hygiene`, `npm run auditor:hygiene`).                                                                                                                         |
-| `auditor-similar`             | `src/cli/report_similar_code.ts`  | Semantic clone and function similarity analysis via Fallow vector embeddings.                                                                                                                                                                             |
-| `auditor-review`              | `src/cli/report_review.ts`        | Graph-grounded architectural review brief for changed code.                                                                                                                                                                                               |
-| `auditor-css`                 | `src/cli/report_css.ts`           | Stylelint and stylesheet hygiene analysis report.                                                                                                                                                                                                         |
-| `auditor-update`              | `src/cli/update_package.ts`       | Pulls upstream updates from GitHub, verifies build stamps, and updates skills. Supports `--check` for read-only status and `--help` for manual.                                                                                                           |
-| `auditor-version`             | `src/cli/bump_version.ts`         | Inspects version/build stamps, analyzes diff metrics (`analyze`), and applies SemVer bumps (`bump`).                                                                                                                                                      |
-| `auditor-guard`               | `src/cli/report_guard.ts`         | Pre-flight architectural boundary and policy inspector for target files (`auditor:guard <files>`).                                                                                                                                                        |
-| `auditor-flags`               | `src/cli/report_flags.ts`         | Feature flag usage and retirement candidates governance tool (`auditor:flags [--retirement]`).                                                                                                                                                            |
-| `auditor-test-coverage`       | `src/cli/report_test_coverage.ts` | Canonical test coverage analyzer, metrics calculator, and complexity hotspot correlator (`auditor:test-coverage`).                                                                                                                                        |
-| `auditor-coverage`            | `src/cli/report_test_coverage.ts` | Alias for `auditor-test-coverage` (`auditor:coverage`).                                                                                                                                                                                                   |
-| `auditor-init-agent`          | `src/cli/init_agent.ts`           | Registers `@francogp/auditor` in `.agents/plugins.json` for AI agent skill discovery.                                                                                                                                                                     |
-| `auditor-sync-env`            | `src/cli/sync_env_scripts.ts`     | Synchronizes `setup-linux.sh`, `setup-windows.ps1` and setup plugins into host project.                                                                                                                                                                   |
-| `auditor-check-env`           | `src/cli/check_environment.ts`    | Validates Node.js and npm version invariants during host `preinstall`.                                                                                                                                                                                    |
-| `auditor-setup-env`           | `src/cli/setup_env.ts`            | Detects host OS and runs appropriate setup script (`setup-linux.sh` / `setup-windows.ps1`).                                                                                                                                                               |
+| Binary Command                  | Script                                     | Description                                                                                                                                                                                                                                                                 |
+| :------------------------------ | :----------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auditor`                       | `src/cli/audit_full.ts`                    | Runs global project audit plus the warning ratchet. Supports `--list`, `--info`, `guide <ruleId\|suiteId>`, `speed=light\|heavy\|full`, `only-speed=light\|heavy\|full`, `phase=post-build`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`.                   |
+| `auditor-post-build`            | `src/cli/audit_post_build.ts`              | Runs post-build compiled artifact audit suites against `dist/` (`phase=post-build`).                                                                                                                                                                                        |
+| `auditor-build-deploy`          | `src/cli/build_deploy.ts`                  | Runs deployment build (`npm run build:deploy`) under `AUDITOR_ENV=production`.                                                                                                                                                                                              |
+| `auditor-findings`              | `src/cli/report_findings.ts`               | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`).                                                                                                                                                                                   |
+| `auditor-next`                  | `src/cli/report_findings.ts`               | Focuses findings on the earliest active strategic phase (`setup` -> `prune` -> `dedup` -> `contracts` -> `behavior` -> `hygiene` -> `polish`), postponing downstream errors (`auditor:next`, `auditor:next:human`).                                                         |
+| `auditor-by-file`               | `src/cli/report_findings.ts`               | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`auditor:by-file`).                                                                                                                                                            |
+| `auditor-fallow`                | `src/cli/report_fallow.ts`                 | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`, `category=suppressions`, `category=flags`, `category=viz`, `category=architecture`, `category=shared-state`, `category=mutation`, `category=mutation-tasks`, `category=doctor`). |
+| `auditor:fallow:doctor`         | `src/cli/report_fallow.ts`                 | Runs Fallow environment and configuration health doctor check with structured diagnostics.                                                                                                                                                                                  |
+| `auditor:fallow:architecture`   | `src/cli/report_fallow.ts`                 | Audits and reports architectural boundary violations detected by Fallow across layer boundaries.                                                                                                                                                                            |
+| `auditor:fallow:shared-state`   | `src/cli/report_fallow.ts`                 | Audits and reports mutable shared state (`imported_writes` and `globals`) across application layers.                                                                                                                                                                        |
+| `auditor:fallow:mutation`       | `src/cli/report_fallow.ts`                 | Generates and inspects Fallow mutation testing plan, mutants table, and mutation score.                                                                                                                                                                                     |
+| `auditor:fallow:mutation:tasks` | `src/cli/report_fallow.ts`                 | Generates and inspects atomic Fallow mutation test tasks.                                                                                                                                                                                                                   |
+| `auditor:fallow:suppressions`   | `src/cli/report_fallow.ts`                 | Displays Box-Drawing table of all `// fallow-ignore` code suppressions, rules, and mandatory justifications.                                                                                                                                                                |
+| `auditor:fallow:flags`          | `src/cli/report_fallow.ts`                 | Discovers and reports active feature flags across the codebase.                                                                                                                                                                                                             |
+| `auditor:fallow:viz`            | `src/cli/report_fallow.ts`                 | Generates interactive architecture and dependency HTML map in `scratch/fallow_map.html`.                                                                                                                                                                                    |
+| `auditor:fallow:boundaries`     | `src/cli/report_fallow.ts`                 | Audits and reports architectural boundary violations detected by Fallow across layer boundaries (alias for `auditor:fallow:architecture`).                                                                                                                                  |
+| `auditor-complexity`            | `src/cli/report_complexity.ts`             | Fallow refactoring targets and code complexity analysis report.                                                                                                                                                                                                             |
+| `auditor-dupes`                 | `src/cli/refactor_dupes.ts`                | Interactive clone discovery, Dirac micro-context extraction, and safe worktree refactoring CLI (`auditor-dupes`, `npm run auditor:dupes`).                                                                                                                                  |
+| `auditor-magic`                 | `src/cli/refactor_magic.ts`                | Interactive magic numbers discovery, Value-Clustering Super-Dirac compression, and AST span refactoring CLI (`auditor-magic`, `npm run auditor:magic`).                                                                                                                     |
+| `auditor-motion`                | `src/cli/refactor_motion.ts`               | Interactive UI animation and GSAP governance refactoring CLI (`auditor-motion`, `npm run auditor:motion`).                                                                                                                                                                  |
+| `auditor-o1`                    | `src/cli/refactor_o1.ts`                   | Interactive O(1) data structures and linear search refactoring CLI (`auditor-o1`, `npm run auditor:o1`).                                                                                                                                                                    |
+| `auditor-types`                 | `src/cli/refactor_types.ts`                | Type assertions (`as any`), double casts, and return contracts zero-token refactoring CLI (`auditor-types`, `npm run auditor:types`).                                                                                                                                       |
+| `auditor-domain`                | `src/cli/refactor_domain.ts`               | Raw string parameters, mutable catalogs, and unbranded entity IDs refactoring CLI (`auditor-domain`, `npm run auditor:domain`).                                                                                                                                             |
+| `auditor-hygiene`               | `src/cli/refactor_hygiene.ts`              | Member accessibility, globalThis, and void expressions zero-token refactoring CLI (`auditor-hygiene`, `npm run auditor:hygiene`).                                                                                                                                           |
+| `auditor-similar`               | `src/cli/report_similar_code.ts`           | Semantic clone and function similarity analysis via Fallow vector embeddings.                                                                                                                                                                                               |
+| `auditor-review`                | `src/cli/report_review.ts`                 | Graph-grounded architectural review brief for changed code.                                                                                                                                                                                                                 |
+| `auditor-css`                   | `src/cli/report_css.ts`                    | Stylelint and stylesheet hygiene analysis report.                                                                                                                                                                                                                           |
+| `auditor-update`                | `src/cli/update_package.ts`                | Pulls upstream updates from GitHub, verifies build stamps, and updates skills. Supports `--check` for read-only status and `--help` for manual.                                                                                                                             |
+| `auditor-version`               | `src/cli/bump_version.ts`                  | Inspects version/build stamps, analyzes diff metrics (`analyze`), and applies SemVer bumps (`bump`).                                                                                                                                                                        |
+| `auditor-guard`                 | `src/cli/report_guard.ts`                  | Pre-flight architectural boundary and policy inspector for target files (`auditor:guard <files>`).                                                                                                                                                                          |
+| `auditor-flags`                 | `src/cli/report_flags.ts`                  | Feature flag usage and retirement candidates governance tool (`auditor:flags [--retirement]`).                                                                                                                                                                              |
+| `auditor-test-coverage`         | `src/cli/report_test_coverage.ts`          | Canonical test coverage analyzer, metrics calculator, and complexity hotspot correlator (`auditor:test-coverage`).                                                                                                                                                          |
+| `auditor-coverage`              | `src/cli/report_test_coverage.ts`          | Alias for `auditor-test-coverage` (`auditor:coverage`).                                                                                                                                                                                                                     |
+| `auditor-init`                  | `src/cli/init_project.ts`                  | Initializes a fresh zero-defect project with Git, Vite+, root `AGENTS.md`, and `.auditor/audit.config.ts`.                                                                                                                                                                  |
+| `auditor-config`                | `src/cli/report_config_recommendations.ts` | Interactive configuration hardening advisor comparing `.auditor/audit.config.ts` against canonical defaults under the Unidirectional Config Ratchet (`diff`, `apply`, `human`).                                                                                             |
+| `auditor-dependencies`          | `src/cli/report_dependencies.ts`           | Audits minimum shared library versions against `@francogp/auditor` floors and emits ready-to-run upgrade commands (`commands`).                                                                                                                                             |
+| `auditor-rules`                 | `src/cli/report_findings.ts`               | Consolidated Box-Drawing breakdown of audit findings grouped by `ruleId` (`auditor-by-rule`).                                                                                                                                                                               |
+| `auditor-coverage-map`          | `src/cli/report_coverage_map.ts`           | Generates static audit suite file-coverage maps across workspace directories.                                                                                                                                                                                               |
+| `auditor-init-agent`            | `src/cli/init_agent.ts`                    | Registers `@francogp/auditor` in `.agents/plugins.json` for AI agent skill discovery.                                                                                                                                                                                       |
+| `auditor-sync-env`              | `src/cli/sync_env_scripts.ts`              | Synchronizes `setup-linux.sh`, `setup-windows.ps1` and setup plugins into host project.                                                                                                                                                                                     |
+| `auditor-check-env`             | `src/cli/check_environment.ts`             | Validates Node.js and npm version invariants during host `preinstall`.                                                                                                                                                                                                      |
+| `auditor-setup-env`             | `src/cli/setup_env.ts`                     | Detects host OS and runs appropriate setup script (`setup-linux.sh` / `setup-windows.ps1`).                                                                                                                                                                                 |
 
 ---
 
-## 13. License & Third-Party Open Source Attribution
+## 13. Provided Libraries, Subpath SDKs & Consumer Developer Tools
+
+`@francogp/auditor` ships a full suite of **reusable runtime libraries, Vite+/Oxlint build plugins, typed registries, Citty CLI harnesses, security-hardened path/I/O utilities, Vitest conformance runners, and interactive Dirac refactoring engines** so consumer repositories never have to reinvent foundational infrastructure.
+
+### 13.1. Consumer Tooling Ecosystem Overview
+
+```mermaid
+flowchart TD
+    ROOT["@francogp/auditor Consumer Platform"]
+
+    subgraph CLIENT["1. Browser-Safe Runtime Libraries (Zero node:* Imports)"]
+        M1["@francogp/auditor/modals (LIFO Stack, Custom Z-Layers, Custom Motion & Priority Queue)"]
+        M2["@francogp/auditor/domain (createDomainSet & createDomainMap)"]
+        M3["@francogp/auditor/version (AUDITOR_VERSION)"]
+    end
+
+    subgraph BUNDLER["2. Build, Bundling & Linter Plugins"]
+        B1["vitePrecompressPlugin (Brotli Q11 + Gzip L9 + Nginx/Apache/Caddy)"]
+        B2["@francogp/auditor/domain-type-plugin (Oxlint AST Rules)"]
+        B3["getEffectiveZLayers & resolveZLayersScssPath (Z-Layer Token Bridge)"]
+    end
+
+    subgraph SDK["3. Node Extension, Registry, CLI & Safe I/O SDK"]
+        S1["@francogp/auditor/base & /plugin (BaseAuditor, FileScanAuditor, SharedAstContext)"]
+        S2["BaseEntityRegistry & resetAllEntityRegistries (O(1) Registries)"]
+        S3["cittyHarness (defineCommand, COMMON_CLI_ARGS, runNormalizedMain)"]
+        S4["safePath & safeUtils (CWE-22 Path Containment & SafeResult)"]
+        S5["@francogp/auditor/theme & runAuditorContractConformanceTests"]
+    end
+
+    subgraph WORKFLOW["4. CLI Gates, Advisors & Dirac Refactor Engines"]
+        W1["CI Gates & Reporters (auditor, auditor-next, auditor-findings)"]
+        W2["Advisors (auditor-config, auditor-dependencies, auditor-fallow)"]
+        W3["Dirac Engines (dupes, magic, motion, o1, types, domain, hygiene)"]
+    end
+
+    ROOT --> CLIENT
+    ROOT --> BUNDLER
+    ROOT --> SDK
+    ROOT --> WORKFLOW
+```
+
+### 13.2. Subpath Exports Reference (`package.json#exports`)
+
+| Import Subpath                         | Environment Compatibility         | Primary Exports & Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| :------------------------------------- | :-------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@francogp/auditor/modals`             | Browser, SSR, Web Worker, Node    | Framework-agnostic $O(1)$ LIFO modal stack (`createModalStack`, `ModalStackManager`), customizable Z-layer scales (`resolveModalZLayers`, `CANONICAL_Z_LAYERS`), customizable motion presets & drivers (`DEFAULT_MODAL_MOTION_PRESETS`, `ModalAnimationController`, `createWaapiModalDriver`, `createGsapModalDriver`), structural CSS var helpers (`resolveModalCssVars`, `resolveModalStructuralStyles`, `resolveModalDomIds`), `ModalDomController`, `createBackdropPointerGuard`, and `ModalSequenceQueue`. |
+| `@francogp/auditor/domain`             | Browser, SSR, Web Worker, Node    | `createDomainSet` (with compile-time narrowing `has(value: unknown): value is T`) and `createDomainMap` for strict `/domain-type-first` collections.                                                                                                                                                                                                                                                                                                                                                            |
+| `@francogp/auditor/version`            | Browser, SSR, Node                | `AUDITOR_VERSION` and `AUDITOR_SEMVER` constants.                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `@francogp/auditor/domain-type-plugin` | Vite+ / Oxlint                    | Native Oxlint AST plugin enforcing domain types, security, and query rules.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `@francogp/auditor/config`             | Node (`.auditor/audit.config.ts`) | `defineAuditConfig` and `AuditEngineConfig` types.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `@francogp/auditor/base`               | Node (Custom Sub-Auditors)        | `BaseAuditor`, `FileScanAuditor`, `createRuleCapabilities`, and `resolveFileScanRoots`.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `@francogp/auditor/plugin`             | Node (Host Extensions)            | `defineAuditorExtension` helper for modular project extensions.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `@francogp/auditor/contract`           | Node / Tooling                    | `AuditViolation`, `AuditSuiteResult`, `AuditRunMetadata`, and `AuditorManifest`.                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `@francogp/auditor/theme`              | Node CLI                          | `UnifiedTheme`, `renderBoxTable`, `stringWidth`, and `padVisual` for 80-column Box-Drawing tables.                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `@francogp/auditor`                    | Node (Full Barrel)                | Complete framework SDK including `vitePrecompressPlugin`, `BaseEntityRegistry`, `COMMON_CLI_ARGS`, `safeResolve`, `tryCatchSync`, `parseVueSfc`, and `runAuditorContractConformanceTests`.                                                                                                                                                                                                                                                                                                                      |
+
+---
+
+### 13.3. Stackable Modals, Customizable Z-Index & Animation Coordinator (`@francogp/auditor/modals`)
+
+`@francogp/auditor/modals` provides a zero-dependency, 100% browser-safe coordinator for stackable windows and dialogs across Vue 3, Pinia, React, Svelte, or Vanilla TypeScript:
+
+- **Customizable Z-Index Scales (Zero Hardcoding)**: `CANONICAL_Z_LAYERS` (`MODAL: 11000`, `MODAL_STEP: 10`, `TOOLTIP: 15000`) serves strictly as an overridable default. Consumers can pass their own `zLayers` dictionary (`resolveModalZLayers`), custom `baseZIndex` / `stepZIndex` / `ceilingZIndex`, or per-modal `customZIndex` / `zIndexOffset` overrides.
+- **Customizable Animations & Styles (Zero Hardcoded Chrome)**: `DEFAULT_MODAL_MOTION_PRESETS` (`'scale-fade'`, `'fade'`, `'slide-up'`, `'slide-down'`, `'slide-left'`, `'slide-right'`, `'none'`) and `resolveModalStructuralStyles` act strictly as overridable defaults. Plug in browser-native Web Animations API (`createWaapiModalDriver`), dependency-injected GSAP (`createGsapModalDriver` with automatic `gsap.context()` cleanup), or any custom `ModalAnimationDriver`.
+- **Instant Active-Top & Hierarchical Simplification (`isSimplified`)**: When a new modal opens, lower modals immediately switch to `isSimplified: true` so heavy blurs/shaders can pause; when the top modal starts closing (`close-start`), `activeTop` and `isSimplified: false` transfer immediately to the modal below while the exiting modal freezes its `zIndex` until `close-end` (zero z-fighting).
+- **Fast-Mode Background Occlusion (`obscuresBackground`)**: Tracks whether one or more active modals obscure the viewport while allowing non-obscuring floating panels (`obscuresBackground: false`).
+- **Safe Light-Dismiss & Back-Navigation Trap**: `createBackdropPointerGuard` requires `pointerdown` + `pointerup` with `button === 0` on `activeTop`'s backdrop (preventing text-selection drags from closing modals), while `ModalDomController` handles single-listener `Escape` routing, `prefers-reduced-motion`, browser `history.pushState` traps, mouse buttons `3`/`4`, and non-editable `Backspace`.
+- **Zero-Polling Priority Sequence Queue (`ModalSequenceQueue`)**: Executes queued modals strictly one after another by descending priority (`100 -> 80 -> 60`) via event-driven `stack.waitForClose(modalUid)` and `queue.waitUntilIdle()`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> opening : "open() [allocates zIndex synchronously, marks lower modals isSimplified=true, emits open-start]"
+    opening --> open : "completeOpen(modalUid) or openTimeoutMs [emits open-end]"
+    opening --> closing : "requestClose() during entrance [clean interruption, emits close-start]"
+    open --> open : "requestClose() vetoed by dismissMode or async canClose() [emits close-prevented]"
+    open --> closing : "requestClose() approved [transfers activeTop & isSimplified=false, freezes zIndex, emits close-start]"
+    closing --> [*] : "done() / finalizeClose(modalUid) / closeTimeoutMs [emits close-end & stack-empty]"
+```
+
+```mermaid
+sequenceDiagram
+    participant U as "User (Escape / Backdrop)"
+    participant D as "ModalDomController"
+    participant S as "ModalStackManager"
+    participant A as "ModalAnimationController (WAAPI / GSAP)"
+
+    U->>D: "Presses Escape on dirty AlarmRulesModal (z=4000)"
+    D->>S: "closeTop('escape')"
+    S->>S: "canClose() opens ConfirmModal at z=4020 (AlarmRules becomes isSimplified=true)"
+    S-->>A: "Emits close-prevented (scoped micro-shake)"
+    U->>D: "Presses Escape (dismisses ConfirmModal first)"
+    D->>S: "closeTop('escape') -> ConfirmModal phase='closing' (z=4020 frozen)"
+    S-->>A: "Emits close-start with deferClose()"
+    A->>S: "Exit tween finishes -> done() -> finalizeClose()"
+    S-->>A: "Emits close-end (unmounts DOM & reverts gsap.context)"
+```
+
+```typescript
+import {
+  ModalAnimationController,
+  ModalDomController,
+  createBackdropPointerGuard,
+  createGsapModalDriver,
+  createModalSequenceQueue,
+  createModalStack,
+  resolveModalDomIds,
+  resolveModalStructuralStyles
+} from '@francogp/auditor/modals';
+import gsap from 'gsap';
+
+// 1. Configure stack with custom project Z-layers and customizable default motion
+const modalStack = createModalStack<'AlarmRules' | 'Confirm' | 'Reward'>({
+  zLayers: { MODAL: 4000, MODAL_STEP: 20, TOOLTIP: 6000 },
+  defaultMotion: {
+    basePreset: 'scale-fade',
+    enter: { durationSec: 0.24, ease: 'power2.out' },
+    exit: { durationSec: 0.18, ease: 'power2.in' }
+  }
+});
+
+// 2. Attach global Escape / history back-navigation controller + pluggable GSAP (or WAAPI) driver
+const domController = new ModalDomController({
+  stack: modalStack,
+  backNavigation: { enabled: true }
+});
+
+const animController = new ModalAnimationController({
+  stack: modalStack,
+  driver: createGsapModalDriver(gsap)
+});
+
+// 3. Open modal with async dirty-form guard spawning Confirm above AlarmRules (z=4020 > z=4000)
+let hasUnsavedChanges = true;
+const alarmEntry = modalStack.open({
+  kind: 'AlarmRules',
+  dismissMode: 'closerequest',
+  async canClose(): Promise<boolean> {
+    if (!hasUnsavedChanges) return true;
+    const confirmEntry = modalStack.open({ kind: 'Confirm', motion: 'fade' });
+    const decision = await modalStack.waitForClose(confirmEntry.modalUid);
+    return decision.reason === 'programmatic';
+  }
+});
+
+// 4. Generate accessible ARIA IDs, CSS variables, structural styles, and drag-safe backdrop guard
+const domIds = resolveModalDomIds('alarm-rules-dialog');
+const surfaceStyles = resolveModalStructuralStyles(alarmEntry, {
+  fallbackZIndexVar: 'var(--app-z-modal)'
+});
+const backdropGuard = createBackdropPointerGuard({
+  stack: modalStack,
+  getModalUid: () => alarmEntry.modalUid
+});
+
+// 5. Coordinate priority-ordered sequential modals with zero polling
+const sequenceQueue = createModalSequenceQueue<'Reward', { readonly stack: typeof modalStack }>();
+sequenceQueue.enqueue({
+  taskUid: 'reward-1',
+  kind: 'Reward',
+  priority: 100,
+  async execute(ctx): Promise<void> {
+    const opened = ctx.stack.open({ kind: 'Reward', motion: 'slide-up' });
+    await ctx.stack.waitForClose(opened.modalUid);
+  }
+});
+
+// Clean teardown when unmounting application root:
+void domIds;
+void surfaceStyles;
+void backdropGuard;
+animController.dispose();
+domController.dispose();
+```
+
+---
+
+### 13.4. Domain Collections (`@francogp/auditor/domain`), Registries & Core SDK Helpers
+
+```typescript
+// 1. Browser-safe Domain-Type-First Set & Map (@francogp/auditor/domain)
+import { createDomainMap, createDomainSet } from '@francogp/auditor/domain';
+
+export const ROLES = createDomainSet(['admin', 'editor', 'viewer'] as const);
+export const ROLE_WEIGHTS = createDomainMap([
+  ['admin', 100],
+  ['editor', 50],
+  ['viewer', 10]
+] as const);
+
+export function isKnownRole(input: string): boolean {
+  // ROLES.has(input) narrows `input` to `'admin' | 'editor' | 'viewer'`
+  return ROLES.has(input);
+}
+```
+
+```typescript
+// 2. Node SDK: BaseEntityRegistry, Citty CLI Harness & Safe Path/IO (@francogp/auditor)
+import {
+  BaseEntityRegistry,
+  COMMON_CLI_ARGS,
+  defineCommand,
+  safeJsonParse,
+  safeReadFileSync,
+  safeResolve
+} from '@francogp/auditor';
+
+interface PluginDescriptor {
+  readonly pluginId: string;
+}
+
+export const PluginRegistry = new BaseEntityRegistry<PluginDescriptor>((p) => p.pluginId);
+
+export const inspectPluginsCmd = defineCommand({
+  meta: { name: 'inspect-plugins', description: 'Lists registered plugins safely' },
+  args: { ...COMMON_CLI_ARGS },
+  run(): void {
+    const manifestPath = safeResolve('package.json');
+    const raw = safeReadFileSync(manifestPath);
+    if (raw !== null) {
+      const parsed = safeJsonParse<{ readonly name: string }>(raw);
+      if (parsed.ok) {
+        process.stdout.write(`${parsed.value.name}: ${PluginRegistry.size} plugin(s)\n`);
+      }
+    }
+  }
+});
+```
+
+### 13.5. End-to-End Developer & AI CLI Workflow
+
+```mermaid
+flowchart LR
+    INIT["auditor init / npm run auditor:setup"] --> ITER["npm run auditor:lint (Fast Iteration)"]
+    ITER -->|"Errors"| TRIAGE["npm run auditor:next & npm run auditor:guide -- <ruleId>"]
+    TRIAGE -->|"Auto-Fixable"| AUTOFIX["npm run auditor:fix"]
+    AUTOFIX --> ITER
+    ITER -->|"Clean"| GATE["npm run auditor (Full Gate + Ratchet)"]
+    GATE --> HARDEN["npm run auditor:config & npm run auditor:dependencies"]
+    GATE --> DIRAC["Dirac Refactor Engines (dupes, magic, motion, o1, types, domain, hygiene)"]
+```
+
+See the complete reference guides in [`.agents/skills/auditor/references/provided-libraries-and-tools-guide.md`](.agents/skills/auditor/references/provided-libraries-and-tools-guide.md) and [`.agents/skills/auditor/references/modal-stack-governance-guide.md`](.agents/skills/auditor/references/modal-stack-governance-guide.md).
+
+---
+
+## 14. License & Third-Party Open Source Attribution
 
 ### Package License
 

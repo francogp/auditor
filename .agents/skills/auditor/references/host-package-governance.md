@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.9.0 --allow-git=all
+npm install -D github:francogp/auditor#v10.10.0 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -62,12 +62,12 @@ auditor-update
 
 Under the hood, `auditor-update`:
 
-1. Queries upstream release tags via `git ls-remote --sort=-v:refname` (or accepts an explicit target tag via `npm run auditor:update -- [targetVersion]`).
-2. Updates `package.json` with the exact pinned tag (`github:francogp/auditor#vX.Y.Z`) and executes `npm install -D github:francogp/auditor#<targetTag>` to update `package-lock.json` hermetically.
+1. Queries upstream release tags via `git ls-remote --tags` with numerical SemVer sorting (`parseTagSemver` / `compareTagsDescending`), or accepts an explicit target tag via `npm run auditor:update -- [targetVersion]`.
+2. Snapshots `package.json`, `package-lock.json`, and `.npmrc` (restoring them atomically on failure), elevates declared dependency ranges dynamically from SSoT `peerDependencies`, prunes stale coupled `vite-plus`/`vitest`/`@vitest/*` lockfile entries to prevent `ERESOLVE`, and executes `npm install -D github:francogp/auditor#<targetTag>`.
 3. Synchronizes Antigravity agent skills in `.agents/skills/` and setup scripts (`setup-windows.ps1`, `setup-linux.sh`).
-4. Executes `auditor fix` to apply any new configuration minimums or script definitions.
-5. Inspects and prints the newly installed version with full build metadata (`auditor-version -v`).
-6. **Mandatory Post-Update Minimum Library Check & Upgrade (`auditor-dependencies`)**: Immediately after updating the auditor, ALWAYS inspect the newly enforced minimum library requirements by running `npm run auditor:dependencies` (or `auditor-dependencies`). If any declared project libraries fall below the new minimum version floors (`dependency-below-minimum-range` or `dependency-below-minimum-installed`), retrieve the exact remediation commands via `npm run auditor:dependencies -- commands` (`auditor-dependencies --commands`) and execute them immediately to upgrade the outdated libraries before running downstream audits.
+4. Executes `auditor fix` to synchronize satellite configurations and canonical scripts.
+5. Automatically enforces and installs any production or development dependencies that fall below the newly installed `@francogp/auditor`'s `peerDependencies` floors, then runs `phase=setup` verification.
+6. **Post-Update Dependency Inspection (`auditor-dependencies`)**: Run `npm run auditor:dependencies` (or `auditor-dependencies`) anytime to verify that all declared project libraries and lockfile versions satisfy the active SSoT floors (or `npm run auditor:dependencies -- commands` to inspect manual install commands).
 7. Commit the updated `package.json` and `package-lock.json` to lock the audited version for the entire team and CI.
 
 ---
@@ -144,7 +144,7 @@ The build execution is partitioned into a **2-part auditor lifecycle**:
   ```json
   {
     "scripts": {
-      "build": "npm run auditor:full && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:post-build",
+      "build": "npm run auditor:full && vp pack && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:post-build",
       "build:deploy": "auditor-build-deploy"
     }
   }
@@ -324,7 +324,7 @@ npm run auditor:findings -- project="../my-app"
   ```
 
 - **Conditional enforcement**: if the host declares a listed library in `dependencies`, `devDependencies` or `optionalDependencies`, then (a) the floor of its declared range (`dependency-below-minimum-range`) and (b) its version in `package-lock.json` (`dependency-below-minimum-installed`) MUST be >= the auditor floor. Libraries not declared by the host are ignored; non-registry specs (`github:`, `file:`, `workspace:`) are not comparable and skipped.
-- **Remediation**: the finding message carries the exact command (e.g. `npm install -D vite-plus@^1.2.0`). The suite is lint-only and never mutates host files.
+- **Remediation**: the finding message carries the exact command (e.g. `npm install -D vite-plus@<floor>`). In `auditor fix` mode (`fix: 'priority'`), `validate_dependency_minimums` automatically repairs outdated ranges, normalizes exact pinned versions to caret ranges, and caps maximum ceiling violations in `package.json`.
 - **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED. Always use `auditor-dependencies`.
 - **Raising a floor**: edit the auditor `peerDependencies`, run the build, and publish a new `vX.Y.Z` tag so hosts pick it up through `npm update`.
 - **Range parsing**: uses the `semver` package (`minVersion`, `validRange`, `lt`), never homemade regexes.

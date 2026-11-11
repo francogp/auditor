@@ -28,6 +28,11 @@ import {
   runCli,
   preSyncHostPackageJson
 } from '../src/cli/update_package.ts';
+import {
+  getAuditorCanonicalOverrides,
+  getAuditorMinimumVersions,
+  normalizeToCaretRange
+} from '../src/core/auditorMinimums.ts';
 import { ensureNpmrcAllowGit } from '../src/core/npmrcAllowGit.ts';
 
 describe('update_package CLI', () => {
@@ -564,6 +569,9 @@ describe('ensureNpmrcAllowGit', () => {
 
 describe('preSyncHostPackageJson', () => {
   const dir = path.join(process.cwd(), 'scratch', 'test_presync_pkg_' + crypto.randomUUID());
+  const minimums = getAuditorMinimumVersions();
+  const canonicalOverrides = getAuditorCanonicalOverrides();
+  const floorOf = (pkgName: string): string => normalizeToCaretRange(minimums[pkgName]!);
 
   beforeEach(() => fs.mkdirSync(dir, { recursive: true }));
   afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -573,13 +581,13 @@ describe('preSyncHostPackageJson', () => {
       name: 'legacy-host',
       devDependencies: {
         '@francogp/auditor': 'github:francogp/auditor#v9.7.0',
-        'vite-plus': '1.3.0',
-        vite: 'npm:@voidzero-dev/vite-plus-core@1.3.0'
+        'vite-plus': '1.0.0',
+        vite: 'npm:@voidzero-dev/vite-plus-core@1.0.0'
       },
       overrides: {
         braces: '^3.0.3',
         micromatch: '^4.0.8',
-        vite: 'npm:@voidzero-dev/vite-plus-core@1.3.0'
+        vite: 'npm:@voidzero-dev/vite-plus-core@1.0.0'
       }
     };
     fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(initialPkg, null, 2), 'utf-8');
@@ -588,9 +596,9 @@ describe('preSyncHostPackageJson', () => {
     expect(modified).toBe(true);
 
     const updated = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
-    expect(updated.devDependencies['vite-plus']).toBe('^1.5.1');
+    expect(updated.devDependencies['vite-plus']).toBe(floorOf('vite-plus'));
     expect(updated.devDependencies['vite']).toBeUndefined();
-    expect(updated.devDependencies['citty']).toBe('^0.2.2');
+    expect(updated.devDependencies['citty']).toBe(floorOf('citty'));
     expect(updated.overrides?.braces).toBeUndefined();
     expect(updated.overrides?.micromatch).toBeUndefined();
     expect(updated.overrides?.vite).toBeUndefined();
@@ -610,16 +618,11 @@ describe('preSyncHostPackageJson', () => {
       },
       devDependencies: {
         '@francogp/auditor': 'github:francogp/auditor#v10.1.0',
-        'vite-plus': '^1.5.1',
-        '@vitest/coverage-v8': '^5.1.0',
-        citty: '^0.2.2'
+        'vite-plus': floorOf('vite-plus'),
+        '@vitest/coverage-v8': floorOf('@vitest/coverage-v8'),
+        citty: floorOf('citty')
       },
-      overrides: {
-        'js-yaml': '^5.5.0',
-        katex: '^0.19.1',
-        'smol-toml': '^1.9.1',
-        'stylelint-config-recommended': '^18.0.0'
-      }
+      overrides: { ...canonicalOverrides }
     };
     fs.writeFileSync(
       path.join(dir, 'package.json'),
@@ -629,5 +632,234 @@ describe('preSyncHostPackageJson', () => {
 
     const modified = preSyncHostPackageJson(dir);
     expect(modified).toBe(false);
+  });
+
+  it('elevates all governed minimums and prunes stale vitest/vite-plus cluster from package-lock.json to prevent ERESOLVE', () => {
+    const initialPkg = {
+      name: 'consumer-web-app',
+      dependencies: {
+        gsap: '^1.0.0',
+        pinia: floorOf('pinia'),
+        vue: '^3.0.0'
+      },
+      devDependencies: {
+        '@francogp/auditor': 'github:francogp/auditor#v10.7.13',
+        '@playwright/test': '^1.0.0',
+        '@vitest/coverage-v8': '^1.0.0',
+        fallow: '^1.0.0',
+        'html-validate': '^1.0.0',
+        sass: '^1.0.0',
+        'vite-plus': '^1.0.0',
+        vitest: '^1.0.0'
+      }
+    };
+    const initialLock = {
+      name: 'consumer-web-app',
+      lockfileVersion: 3,
+      packages: {
+        '': {
+          name: 'consumer-web-app',
+          devDependencies: {
+            'vite-plus': '^1.0.0',
+            vitest: '^1.0.0',
+            '@vitest/coverage-v8': '^1.0.0'
+          }
+        },
+        'node_modules/pinia': { version: floorOf('pinia').replace(/^\^/, '') },
+        'node_modules/vite-plus': { version: '1.0.0' },
+        'node_modules/vite-plus/node_modules/vite': { version: '1.0.0' },
+        'node_modules/vitest': {
+          version: '1.0.0',
+          peerDependencies: { '@vitest/coverage-v8': '1.0.0', '@vitest/ui': '1.0.0' }
+        },
+        'node_modules/@vitest/coverage-v8': {
+          version: '1.0.0',
+          peerDependencies: { vitest: '1.0.0' }
+        },
+        'node_modules/@vitest/browser': {
+          version: '1.0.0',
+          peerDependencies: { vitest: '1.0.0' }
+        },
+        'node_modules/sub-pkg/node_modules/@vitest/browser-preview': {
+          version: '1.0.0',
+          peerDependencies: { vitest: '1.0.0' }
+        },
+        'node_modules/@vitest/ui': {
+          version: '1.0.0',
+          peerDependencies: { vitest: '1.0.0' }
+        }
+      }
+    };
+
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(initialPkg, null, 2), 'utf-8');
+    fs.writeFileSync(
+      path.join(dir, 'package-lock.json'),
+      JSON.stringify(initialLock, null, 2),
+      'utf-8'
+    );
+
+    const modified = preSyncHostPackageJson(dir);
+    expect(modified).toBe(true);
+
+    const updatedPkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
+    expect(updatedPkg.dependencies.gsap).toBe(floorOf('gsap'));
+    expect(updatedPkg.dependencies.vue).toBe(floorOf('vue'));
+    expect(updatedPkg.devDependencies['@playwright/test']).toBe(floorOf('@playwright/test'));
+    expect(updatedPkg.devDependencies.fallow).toBe(floorOf('fallow'));
+    expect(updatedPkg.devDependencies['html-validate']).toBe(floorOf('html-validate'));
+    expect(updatedPkg.devDependencies.sass).toBe(floorOf('sass'));
+    expect(updatedPkg.devDependencies['vite-plus']).toBe(floorOf('vite-plus'));
+    expect(updatedPkg.devDependencies['@vitest/coverage-v8']).toBe(floorOf('@vitest/coverage-v8'));
+    expect(updatedPkg.devDependencies.vitest).toBeUndefined();
+
+    const updatedLock = JSON.parse(fs.readFileSync(path.join(dir, 'package-lock.json'), 'utf-8'));
+    expect(updatedLock.packages['node_modules/pinia']).toEqual({
+      version: floorOf('pinia').replace(/^\^/, '')
+    });
+    expect(updatedLock.packages['node_modules/vite-plus']).toBeUndefined();
+    expect(updatedLock.packages['node_modules/vite-plus/node_modules/vite']).toBeUndefined();
+    expect(updatedLock.packages['node_modules/vitest']).toBeUndefined();
+    expect(updatedLock.packages['node_modules/@vitest/coverage-v8']).toBeUndefined();
+    expect(updatedLock.packages['node_modules/@vitest/browser']).toBeUndefined();
+    expect(
+      updatedLock.packages['node_modules/sub-pkg/node_modules/@vitest/browser-preview']
+    ).toBeUndefined();
+    expect(updatedLock.packages['node_modules/@vitest/ui']).toBeUndefined();
+  });
+
+  it('restores original package.json, package-lock.json, and .npmrc when npm install fails mid-update', () => {
+    const rawPkg =
+      JSON.stringify(
+        {
+          name: 'rollback-host',
+          devDependencies: {
+            '@francogp/auditor': 'github:francogp/auditor#v10.7.13',
+            'vite-plus': '^1.0.0',
+            vitest: '^1.0.0',
+            '@vitest/coverage-v8': '^1.0.0'
+          }
+        },
+        null,
+        2
+      ) + '\n';
+    const rawLock =
+      JSON.stringify(
+        {
+          name: 'rollback-host',
+          lockfileVersion: 3,
+          packages: {
+            'node_modules/vite-plus': { version: '1.0.0' },
+            'node_modules/vitest': { version: '1.0.0' },
+            'node_modules/@vitest/coverage-v8': { version: '1.0.0' }
+          }
+        },
+        null,
+        2
+      ) + '\n';
+
+    fs.writeFileSync(path.join(dir, 'package.json'), rawPkg, 'utf-8');
+    fs.writeFileSync(path.join(dir, 'package-lock.json'), rawLock, 'utf-8');
+
+    const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation(() => ({
+      status: 1,
+      stdout: Buffer.from(''),
+      stderr: Buffer.from('npm error code ERESOLVE'),
+      output: [],
+      pid: 4321,
+      signal: null
+    }));
+
+    const result = updateAuditorPackage({ cwd: dir, targetVersion: 'v10.9.0', silent: true });
+    spy.mockRestore();
+
+    expect(result.success).toBe(false);
+    expect(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8')).toBe(rawPkg);
+    expect(fs.readFileSync(path.join(dir, 'package-lock.json'), 'utf-8')).toBe(rawLock);
+    expect(fs.existsSync(path.join(dir, '.npmrc'))).toBe(false);
+  });
+
+  it('forces npm install of outdated minimums declared by newly installed @francogp/auditor including vitest cluster upgrades', () => {
+    const hostPkg = {
+      name: 'minimums-enforcement-host',
+      dependencies: {
+        gsap: '^99.0.0'
+      },
+      devDependencies: {
+        '@francogp/auditor': 'github:francogp/auditor#v10.9.0',
+        fallow: '^99.0.0',
+        'vite-plus': floorOf('vite-plus'),
+        '@vitest/coverage-v8': floorOf('@vitest/coverage-v8'),
+        citty: floorOf('citty')
+      }
+    };
+    const hostLock = {
+      name: 'minimums-enforcement-host',
+      lockfileVersion: 3,
+      packages: {
+        'node_modules/gsap': { version: '1.0.0' },
+        'node_modules/fallow': { version: '1.0.0' },
+        'node_modules/vite-plus': { version: floorOf('vite-plus').replace(/^\^/, '') },
+        'node_modules/@vitest/coverage-v8': {
+          version: floorOf('@vitest/coverage-v8').replace(/^\^/, '')
+        },
+        'node_modules/citty': { version: floorOf('citty').replace(/^\^/, '') }
+      }
+    };
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(hostPkg, null, 2), 'utf-8');
+    fs.writeFileSync(
+      path.join(dir, 'package-lock.json'),
+      JSON.stringify(hostLock, null, 2),
+      'utf-8'
+    );
+
+    const auditorPkgDir = path.join(dir, 'node_modules/@francogp/auditor');
+    fs.mkdirSync(auditorPkgDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(auditorPkgDir, 'package.json'),
+      JSON.stringify({
+        name: '@francogp/auditor',
+        version: '99.0.0',
+        peerDependencies: {
+          gsap: '^99.0.0',
+          fallow: '^99.0.0',
+          'vite-plus': '^99.0.0',
+          '@vitest/coverage-v8': '^99.0.0',
+          citty: floorOf('citty')
+        }
+      }),
+      'utf-8'
+    );
+
+    const npmInstallCalls: string[][] = [];
+    const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation((cmd, args) => {
+      const argList = (args as string[]) ?? [];
+      if (String(cmd).startsWith('npm') && argList[0] === 'install') {
+        npmInstallCalls.push(argList);
+      }
+      return {
+        status: 0,
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        output: [],
+        pid: 1234,
+        signal: null
+      };
+    });
+
+    const result = updateAuditorPackage({ cwd: dir, targetVersion: 'v99.0.0', silent: true });
+    spy.mockRestore();
+
+    expect(result.success).toBe(true);
+    expect(npmInstallCalls).toContainEqual(['install', '-D', 'github:francogp/auditor#v99.0.0']);
+    expect(npmInstallCalls).toContainEqual(['install', '--no-audit', '--no-fund', 'gsap@^99.0.0']);
+    expect(npmInstallCalls).toContainEqual([
+      'install',
+      '-D',
+      '--no-audit',
+      '--no-fund',
+      'fallow@^99.0.0',
+      'vite-plus@^99.0.0',
+      '@vitest/coverage-v8@^99.0.0'
+    ]);
   });
 });

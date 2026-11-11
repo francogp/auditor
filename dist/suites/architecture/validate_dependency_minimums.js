@@ -1,6 +1,6 @@
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { findDeclaredDependency, getAuditorMaximumVersions, getAuditorMinimumVersions } from "../../core/auditorMinimums.js";
-import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
+import { extractExactPinnedVersion, findDeclaredDependency, getAuditorMaximumVersions, getAuditorMinimumVersions, repairPackageJsonMinimumRanges } from "../../core/auditorMinimums.js";
+import { getPackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -24,26 +24,6 @@ const DEPENDENCY_MINIMUMS_RULES = [
 	"dependency-exceeds-maximum-range",
 	"dependency-exceeds-maximum-installed"
 ];
-function extractExactPinnedVersion(range) {
-	if (semver.valid(range)) return range;
-	if (range.startsWith("npm:")) {
-		const lastAt = range.lastIndexOf("@");
-		if (lastAt > 4) {
-			const verPart = range.slice(lastAt + 1);
-			if (semver.valid(verPart)) return verPart;
-		}
-	}
-	return null;
-}
-function normalizePinnedVersionToCaret(range) {
-	const exact = extractExactPinnedVersion(range);
-	if (!exact) return null;
-	if (range.startsWith("npm:")) {
-		const lastAt = range.lastIndexOf("@");
-		return `${range.slice(0, lastAt + 1)}^${exact}`;
-	}
-	return `^${exact}`;
-}
 var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
@@ -160,45 +140,7 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 		});
 	}
 	repairDeclaredRangesInPackageJson(pkg, minimums, maximums) {
-		let modified = false;
-		const nextDeps = pkg.dependencies ? { ...pkg.dependencies } : void 0;
-		const nextDevDeps = pkg.devDependencies ? { ...pkg.devDependencies } : void 0;
-		const nextOptDeps = pkg.optionalDependencies ? { ...pkg.optionalDependencies } : void 0;
-		const sectionMap = {
-			dependencies: nextDeps,
-			devDependencies: nextDevDeps,
-			optionalDependencies: nextOptDeps
-		};
-		for (const [name, floor] of Object.entries(minimums)) {
-			const declared = findDeclaredDependency(pkg, name);
-			if (!declared) continue;
-			const declaredMin = semver.validRange(declared.range) ? semver.minVersion(declared.range) : null;
-			const requiredMin = semver.minVersion(floor);
-			const belowMin = Boolean(declaredMin && requiredMin && semver.lt(declaredMin, requiredMin));
-			const maxSpec = maximums[name];
-			const exceedsMax = Boolean(maxSpec && semver.validRange(declared.range) && semver.intersects(declared.range, maxSpec.prohibitedRange));
-			const targetSection = sectionMap[declared.section];
-			if (!targetSection) continue;
-			if (belowMin || exceedsMax) {
-				targetSection[name] = floor;
-				modified = true;
-			} else {
-				const normalizedCaret = normalizePinnedVersionToCaret(declared.range);
-				if (normalizedCaret) {
-					targetSection[name] = normalizedCaret;
-					modified = true;
-				}
-			}
-		}
-		if (!modified) return pkg;
-		const updatedPkg = {
-			...pkg,
-			...nextDeps ? { dependencies: nextDeps } : {},
-			...nextDevDeps ? { devDependencies: nextDevDeps } : {},
-			...nextOptDeps ? { optionalDependencies: nextOptDeps } : {}
-		};
-		writePackageJson(this.projectRoot, updatedPkg);
-		return updatedPkg;
+		return repairPackageJsonMinimumRanges(this.projectRoot, pkg, minimums, maximums).pkg;
 	}
 	async runAudit() {
 		this.recordScanned("package.json");
@@ -255,4 +197,4 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateDependencyMinimumsAuditor());
-export { DEPENDENCY_MINIMUMS_RULES, ValidateDependencyMinimumsAuditor, extractExactPinnedVersion, findDeclaredDependency, normalizePinnedVersionToCaret };
+export { DEPENDENCY_MINIMUMS_RULES, ValidateDependencyMinimumsAuditor };

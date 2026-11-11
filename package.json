@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "10.9.0-build.20261110-103814",
+  "version": "10.10.0-build.20261111-102755",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -107,6 +107,14 @@
     "./domain-type-plugin": {
       "types": "./dist/core/domainTypeOxlintPlugin.d.ts",
       "default": "./dist/core/domainTypeOxlintPlugin.js"
+    },
+    "./domain": {
+      "types": "./dist/core/domainCollections.d.ts",
+      "default": "./dist/core/domainCollections.js"
+    },
+    "./modals": {
+      "types": "./dist/modals/index.d.ts",
+      "default": "./dist/modals/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -335,6 +343,7 @@
     "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
     "@vitejs/plugin-vue": "^6.0.10",
+    "@vitest/coverage-v8": "^5.1.0",
     "citty": "^0.2.2",
     "fallow": "^3.42.0",
     "gsap": "^3.15.1",
@@ -356,6 +365,9 @@
       "optional": true
     },
     "@vitejs/plugin-vue": {
+      "optional": true
+    },
+    "@vitest/coverage-v8": {
       "optional": true
     },
     "typescript": {

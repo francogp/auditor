@@ -481,7 +481,8 @@ const OBSOLETE_OVERRIDES = [
 ];
 function syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions) {
 	let modified = false;
-	const vitePlusFloor = minVersions["vite-plus"] ?? "^1.4.0";
+	const vitePlusFloor = minVersions["vite-plus"];
+	if (!vitePlusFloor) return false;
 	const vitePlusCaret = normalizeToCaretRange(vitePlusFloor);
 	if (!nextDeps?.["vite-plus"] && !nextDevDeps["vite-plus"]) {
 		nextDevDeps["vite-plus"] = vitePlusCaret;
@@ -551,7 +552,8 @@ function syncVitestDevDeps(nextDevDeps, nextScripts, minVersions, nextDeps) {
 		delete nextDeps.vitest;
 		modified = true;
 	}
-	const vitestFloor = minVersions["@vitest/coverage-v8"] ?? minVersions.vitest ?? "^5.1.0";
+	const vitestFloor = minVersions["@vitest/coverage-v8"] ?? minVersions.vitest;
+	if (!vitestFloor) return modified;
 	const vitestCaret = normalizeToCaretRange(vitestFloor);
 	const reqVitestMin = semver.minVersion(vitestCaret);
 	if (nextScripts["test:coverage"] && !nextDevDeps["@vitest/coverage-v8"]) {

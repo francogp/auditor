@@ -11,11 +11,10 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
-import { getAuditorMinimumVersions } from '../src/core/auditorMinimums.ts';
+import { findDeclaredDependency, getAuditorMinimumVersions } from '../src/core/auditorMinimums.ts';
 import {
   ValidateDependencyMinimumsAuditor,
-  DEPENDENCY_MINIMUMS_RULES,
-  findDeclaredDependency
+  DEPENDENCY_MINIMUMS_RULES
 } from '../src/suites/architecture/validate_dependency_minimums.ts';
 
 describe('validate_dependency_minimums', () => {

@@ -26,10 +26,11 @@ import {
   getAuditorMaximumVersions,
   type DependencyMaximumSpec,
   findDeclaredDependency,
-  type DeclaredDependency
+  type DeclaredDependency,
+  extractExactPinnedVersion,
+  repairPackageJsonMinimumRanges
 } from '../../core/auditorMinimums.ts';
-export { findDeclaredDependency, type DeclaredDependency } from '../../core/auditorMinimums.ts';
-import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
+import { getPackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 
 enableCompileCache();
 
@@ -45,32 +46,6 @@ export type DependencyMinimumsRuleId = (typeof DEPENDENCY_MINIMUMS_RULES)[number
 
 interface LockfileShape {
   readonly packages?: Readonly<Record<string, { readonly version?: string }>>; // open-record: lockfile v2/v3 package entries
-}
-
-export function extractExactPinnedVersion(range: string): string | null {
-  if (semver.valid(range)) {
-    return range;
-  }
-  if (range.startsWith('npm:')) {
-    const lastAt = range.lastIndexOf('@');
-    if (lastAt > 4) {
-      const verPart = range.slice(lastAt + 1);
-      if (semver.valid(verPart)) {
-        return verPart;
-      }
-    }
-  }
-  return null;
-}
-
-export function normalizePinnedVersionToCaret(range: string): string | null {
-  const exact = extractExactPinnedVersion(range);
-  if (!exact) return null;
-  if (range.startsWith('npm:')) {
-    const lastAt = range.lastIndexOf('@');
-    return `${range.slice(0, lastAt + 1)}^${exact}`;
-  }
-  return `^${exact}`;
 }
 
 export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMinimumsRuleId> {
@@ -286,57 +261,7 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
     minimums: Readonly<Record<string, string>>,
     maximums: Readonly<Record<string, DependencyMaximumSpec>>
   ): PackageJsonDTO {
-    let modified = false;
-    const nextDeps = pkg.dependencies ? { ...pkg.dependencies } : undefined;
-    const nextDevDeps = pkg.devDependencies ? { ...pkg.devDependencies } : undefined;
-    const nextOptDeps = pkg.optionalDependencies ? { ...pkg.optionalDependencies } : undefined;
-
-    const sectionMap: Record<string, Record<string, string> | undefined> = {
-      dependencies: nextDeps,
-      devDependencies: nextDevDeps,
-      optionalDependencies: nextOptDeps
-    };
-
-    for (const [name, floor] of Object.entries(minimums)) {
-      const declared = findDeclaredDependency(pkg, name);
-      if (!declared) continue;
-      const declaredMin = semver.validRange(declared.range)
-        ? semver.minVersion(declared.range)
-        : null;
-      const requiredMin = semver.minVersion(floor);
-      const belowMin = Boolean(declaredMin && requiredMin && semver.lt(declaredMin, requiredMin));
-      const maxSpec = maximums[name];
-      const exceedsMax = Boolean(
-        maxSpec &&
-        semver.validRange(declared.range) &&
-        semver.intersects(declared.range, maxSpec.prohibitedRange)
-      );
-
-      const targetSection = sectionMap[declared.section];
-      if (!targetSection) continue;
-
-      if (belowMin || exceedsMax) {
-        targetSection[name] = floor;
-        modified = true;
-      } else {
-        const normalizedCaret = normalizePinnedVersionToCaret(declared.range);
-        if (normalizedCaret) {
-          targetSection[name] = normalizedCaret;
-          modified = true;
-        }
-      }
-    }
-
-    if (!modified) return pkg;
-
-    const updatedPkg: PackageJsonDTO = {
-      ...pkg,
-      ...(nextDeps ? { dependencies: nextDeps } : {}),
-      ...(nextDevDeps ? { devDependencies: nextDevDeps } : {}),
-      ...(nextOptDeps ? { optionalDependencies: nextOptDeps } : {})
-    };
-    writePackageJson(this.projectRoot, updatedPkg);
-    return updatedPkg;
+    return repairPackageJsonMinimumRanges(this.projectRoot, pkg, minimums, maximums).pkg;
   }
 
   public override async runAudit(): Promise<void> {

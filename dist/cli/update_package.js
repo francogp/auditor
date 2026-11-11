@@ -1,9 +1,11 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import "../core/auditConfig.js";
-import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
+import { evaluateProjectDependencies, findDeclaredDependency, getAuditorMaximumVersions, getAuditorMinimumVersions, normalizeToCaretRange, pruneStaleVitestClusterFromLockfile, readHostInstalledAuditorMinimums, repairPackageJsonMinimumRanges } from "../core/auditorMinimums.js";
 import { isSelfProviderProject } from "../core/auditProjectIdentity.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { runNpmCommandSync } from "../core/npmCommandUtils.js";
 import { ensureNpmrcAllowGit } from "../core/npmrcAllowGit.js";
+import { getPackageJson, writePackageJson } from "../core/packageJson.js";
 import { safeJsonParse, safeReadFileSync, tryOrNull } from "../core/safeUtils.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { AUDITOR_VERSION } from "../core/version.js";
@@ -101,24 +103,102 @@ function resolveLatestAuditorTag(repoUrl = "https://github.com/francogp/auditor.
 function preSyncHostPackageJson(projectRoot) {
 	let modified = false;
 	if (tryOrNull(() => syncPackageJsonForVitePlus(projectRoot))) modified = true;
-	const pkgPath = path.join(projectRoot, "package.json");
-	if (fs.existsSync(pkgPath)) {
-		const raw = safeReadFileSync(pkgPath);
-		if (raw) {
-			const pkg = safeJsonParse(raw);
-			if (pkg) {
-				const devDeps = pkg.devDependencies || {};
-				const deps = pkg.dependencies || {};
-				if (!devDeps["citty"] && !deps["citty"]) {
-					devDeps["citty"] = "^0.2.2";
-					pkg.devDependencies = devDeps;
-					fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf8");
-					modified = true;
-				}
+	const minimums = getAuditorMinimumVersions();
+	let currentPkg = getPackageJson(projectRoot, true);
+	const cittyFloor = minimums.citty;
+	if (currentPkg && cittyFloor && !findDeclaredDependency(currentPkg, "citty")) {
+		currentPkg = {
+			...currentPkg,
+			devDependencies: {
+				...currentPkg.devDependencies,
+				citty: normalizeToCaretRange(cittyFloor)
+			}
+		};
+		writePackageJson(projectRoot, currentPkg);
+		modified = true;
+	}
+	if (currentPkg) {
+		if (repairPackageJsonMinimumRanges(projectRoot, currentPkg, minimums, getAuditorMaximumVersions()).modified) modified = true;
+	}
+	if (pruneStaleVitestClusterFromLockfile(projectRoot)) modified = true;
+	return modified;
+}
+function installMinimumBatch(options) {
+	const { projectRoot, specs, isDev, silent } = options;
+	if (specs.length === 0) return { ok: true };
+	const scopeLabel = isDev ? "development" : "production";
+	if (!silent) console.log(styleText("cyan", `[DEPS] Enforcing mandatory ${scopeLabel} minimums: ${specs.join(", ")}...\n`));
+	const npmArgs = isDev ? [
+		"install",
+		"-D",
+		"--no-audit",
+		"--no-fund",
+		...specs
+	] : [
+		"install",
+		"--no-audit",
+		"--no-fund",
+		...specs
+	];
+	const proc = runNpmCommandSync(npmArgs, {
+		cwd: projectRoot,
+		stdio: silent ? "pipe" : "inherit",
+		encoding: "utf-8"
+	});
+	if (proc.error || proc.status !== 0) return {
+		ok: false,
+		error: proc.error?.message || proc.stderr?.toString() || `Failed to install mandatory ${scopeLabel} minimums (exit code ${proc.status})`
+	};
+	return { ok: true };
+}
+function enforceHostMinimumDependencies(projectRoot, silent) {
+	const installedMinimums = readHostInstalledAuditorMinimums(projectRoot);
+	if (installedMinimums) {
+		const hostPkg = getPackageJson(projectRoot, true);
+		if (hostPkg) repairPackageJsonMinimumRanges(projectRoot, hostPkg, installedMinimums, getAuditorMaximumVersions());
+	}
+	const report = evaluateProjectDependencies(projectRoot, installedMinimums ?? void 0);
+	const prodUpdates = [...report.prodUpdates];
+	const devUpdates = [...report.devUpdates];
+	const lockPath = path.join(projectRoot, "package-lock.json");
+	const lockSnapshot = fs.existsSync(lockPath) ? fs.readFileSync(lockPath, "utf-8") : null;
+	if (pruneStaleVitestClusterFromLockfile(projectRoot)) {
+		const pkgNow = getPackageJson(projectRoot, true);
+		const effectiveMinimums = installedMinimums ?? getAuditorMinimumVersions();
+		for (const clusterDep of ["vite-plus", "@vitest/coverage-v8"]) {
+			const declared = pkgNow ? findDeclaredDependency(pkgNow, clusterDep) : null;
+			const floor = effectiveMinimums[clusterDep];
+			if (declared && floor) {
+				const spec = `${clusterDep}@${floor}`;
+				const targetList = declared.isProduction ? prodUpdates : devUpdates;
+				if (!targetList.includes(spec)) targetList.push(spec);
 			}
 		}
 	}
-	return modified;
+	const restoreLockOnFailure = () => {
+		if (lockSnapshot !== null) fs.writeFileSync(lockPath, lockSnapshot, "utf-8");
+	};
+	const prodRes = installMinimumBatch({
+		projectRoot,
+		specs: prodUpdates,
+		isDev: false,
+		silent
+	});
+	if (!prodRes.ok) {
+		restoreLockOnFailure();
+		return prodRes;
+	}
+	const devRes = installMinimumBatch({
+		projectRoot,
+		specs: devUpdates,
+		isDev: true,
+		silent
+	});
+	if (!devRes.ok) {
+		restoreLockOnFailure();
+		return devRes;
+	}
+	return { ok: true };
 }
 function updateAuditorPackage(options = {}) {
 	const projectRoot = findHostProjectRoot(options.cwd ?? process.cwd(), options.stopAt);
@@ -131,9 +211,10 @@ function updateAuditorPackage(options = {}) {
 		updated: false,
 		error: `package.json not found in ${projectRoot}`
 	};
+	const originalPkgRaw = fs.readFileSync(hostPkgJsonPath, "utf-8");
 	let hostPkg;
 	try {
-		hostPkg = JSON.parse(fs.readFileSync(hostPkgJsonPath, "utf-8"));
+		hostPkg = JSON.parse(originalPkgRaw);
 	} catch (err) {
 		return {
 			success: false,
@@ -144,9 +225,7 @@ function updateAuditorPackage(options = {}) {
 			error: `Failed to read package.json: ${err.message}`
 		};
 	}
-	const deps = hostPkg.dependencies || {};
-	const devDeps = hostPkg.devDependencies || {};
-	if (!Boolean(devDeps["@francogp/auditor"] || deps["@francogp/auditor"])) return {
+	if (!Boolean(hostPkg.devDependencies?.["@francogp/auditor"] || hostPkg.dependencies?.["@francogp/auditor"])) return {
 		success: false,
 		projectRoot,
 		previousVersion: "(undeclared)",
@@ -168,6 +247,17 @@ function updateAuditorPackage(options = {}) {
 			updateAvailable: previousVersion === "(not installed)" || previousVersion === "(unknown)" || cleanPrev !== cleanTarget
 		};
 	}
+	const hostLockJsonPath = path.join(projectRoot, "package-lock.json");
+	const hostNpmrcPath = path.join(projectRoot, ".npmrc");
+	const originalLockRaw = fs.existsSync(hostLockJsonPath) ? fs.readFileSync(hostLockJsonPath, "utf-8") : null;
+	const originalNpmrcRaw = fs.existsSync(hostNpmrcPath) ? fs.readFileSync(hostNpmrcPath, "utf-8") : null;
+	const restoreHostManifestSnapshot = () => {
+		fs.writeFileSync(hostPkgJsonPath, originalPkgRaw, "utf-8");
+		if (originalLockRaw !== null) fs.writeFileSync(hostLockJsonPath, originalLockRaw, "utf-8");
+		else if (fs.existsSync(hostLockJsonPath)) fs.rmSync(hostLockJsonPath, { force: true });
+		if (originalNpmrcRaw !== null) fs.writeFileSync(hostNpmrcPath, originalNpmrcRaw, "utf-8");
+		else if (fs.existsSync(hostNpmrcPath)) fs.rmSync(hostNpmrcPath, { force: true });
+	};
 	const npmArgs = [
 		"install",
 		"-D",
@@ -184,14 +274,17 @@ function updateAuditorPackage(options = {}) {
 		stdio: options.silent ? "pipe" : "inherit",
 		encoding: "utf-8"
 	});
-	if (proc.error || proc.status !== 0) return {
-		success: false,
-		projectRoot,
-		previousVersion,
-		newVersion: previousVersion,
-		updated: false,
-		error: proc.error?.message || proc.stderr?.toString() || `npm ${npmArgs[0]} failed with exit code ${proc.status}`
-	};
+	if (proc.error || proc.status !== 0) {
+		restoreHostManifestSnapshot();
+		return {
+			success: false,
+			projectRoot,
+			previousVersion,
+			newVersion: previousVersion,
+			updated: false,
+			error: proc.error?.message || proc.stderr?.toString() || `npm ${npmArgs[0]} failed with exit code ${proc.status}`
+		};
+	}
 	const newVersion = readInstalledAuditorVersion(projectRoot);
 	const updated = previousVersion !== newVersion;
 	const agentInitResult = initAgentSkill({ targetDir: projectRoot });
@@ -199,6 +292,15 @@ function updateAuditorPackage(options = {}) {
 	const envSyncResult = syncEnvScripts({ targetDir: projectRoot });
 	if (!options.silent && envSyncResult.filesUpdated.length > 0) console.log(styleText("green", `[OK] ${envSyncResult.message}\n`));
 	runAuditorFixAutoRemediation(projectRoot, options.silent);
+	const minEnforcement = enforceHostMinimumDependencies(projectRoot, options.silent);
+	if (!minEnforcement.ok) return {
+		success: false,
+		projectRoot,
+		previousVersion,
+		newVersion,
+		updated,
+		error: minEnforcement.error
+	};
 	const setupHealthy = runAuditorSetupCheck(projectRoot, options.silent);
 	if (!options.silent) {
 		if (setupHealthy) console.log(styleText("green", "[OK] Phase setup verification passed: Project infrastructure and satellite configurations are healthy.\n"));
@@ -264,9 +366,8 @@ function runAuditorFixAutoRemediation(projectRoot, silent) {
 		});
 		const pkgAfter = fs.existsSync(pkgPath) ? fs.readFileSync(pkgPath, "utf-8") : "";
 		if (pkgBefore && pkgAfter && pkgBefore !== pkgAfter) {
-			const isWindows = process.platform === "win32";
-			const npmCmd = isWindows ? "npm.cmd" : "npm";
-			childProcess.spawnSync(npmCmd, [
+			pruneStaleVitestClusterFromLockfile(projectRoot);
+			runNpmCommandSync([
 				"install",
 				"--ignore-scripts",
 				"--no-audit",
@@ -274,8 +375,7 @@ function runAuditorFixAutoRemediation(projectRoot, silent) {
 			], {
 				cwd: projectRoot,
 				stdio: silent ? "pipe" : "inherit",
-				encoding: "utf-8",
-				shell: isWindows
+				encoding: "utf-8"
 			});
 		}
 		return proc.status === 0;

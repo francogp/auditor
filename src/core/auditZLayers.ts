@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { CANONICAL_Z_LAYERS } from '../modals/modalZLayers.ts';
 import { getAuditConfig } from './auditConfigLoader.ts';
 
 /**
@@ -41,23 +42,7 @@ export function resolveZLayersScssPath(projectRoot: string = process.cwd()): str
 /**
  * Canonical fallback Z-Layers scale matching framework standards.
  */
-export const Z_LAYERS: Readonly<Record<string, number>> = Object.freeze({
-  BASE: 0,
-  LOW: 50,
-  CONTENT: 100,
-  HEADER: 500,
-  SIDEBAR: 800,
-  HUD: 1000,
-  NAVIGATION: 5000,
-  DROPDOWN: 7000,
-  OVERLAY: 10000,
-  MODAL: 11000,
-  MODAL_STEP: 10,
-  TOOLTIP: 15000,
-  TOAST: 20000,
-  MAX: 100000,
-  CRITICAL: 999999
-});
+export const Z_LAYERS: Readonly<Record<string, number>> = CANONICAL_Z_LAYERS;
 
 function parseZLayersFromTs(tsPath: string): Record<string, number> | null {
   if (!fs.existsSync(tsPath)) return null;

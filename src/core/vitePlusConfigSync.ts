@@ -683,7 +683,10 @@ function syncVitePlusDevDep(
   minVersions: Record<string, string>
 ): boolean {
   let modified = false;
-  const vitePlusFloor = minVersions['vite-plus'] ?? '^1.4.0';
+  const vitePlusFloor = minVersions['vite-plus'];
+  if (!vitePlusFloor) {
+    return false;
+  }
   const vitePlusCaret = normalizeToCaretRange(vitePlusFloor);
   if (!nextDeps?.['vite-plus'] && !nextDevDeps['vite-plus']) {
     nextDevDeps['vite-plus'] = vitePlusCaret;
@@ -777,7 +780,10 @@ function syncVitestDevDeps(
     modified = true;
   }
 
-  const vitestFloor = minVersions['@vitest/coverage-v8'] ?? minVersions.vitest ?? '^5.1.0';
+  const vitestFloor = minVersions['@vitest/coverage-v8'] ?? minVersions.vitest;
+  if (!vitestFloor) {
+    return modified;
+  }
   const vitestCaret = normalizeToCaretRange(vitestFloor);
   const reqVitestMin = semver.minVersion(vitestCaret);
 

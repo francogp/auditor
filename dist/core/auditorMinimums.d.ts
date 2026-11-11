@@ -1,3 +1,4 @@
+import { PackageJsonDTO } from "./packageJson.js";
 import { DependencyLocation } from "fallow/types";
 export type AuditorMinimumVersions = Readonly<Record<string, string>>;
 export interface DependencyMaximumSpec {
@@ -11,6 +12,8 @@ export declare function getAuditorMaximumVersions(): AuditorMaximumVersions;
 export declare function normalizeToCaretRange(range: string): string;
 export declare function getAuditorMinimumVersions(): AuditorMinimumVersions;
 export declare function getAuditorCanonicalOverrides(): Readonly<Record<string, string>>;
+export declare function readHostInstalledAuditorMinimums(projectRoot: string): AuditorMinimumVersions | null;
+export declare function extractExactPinnedVersion(range: string): string | null;
 export type DependencyDeclarationSection = DependencyLocation;
 export interface DeclaredDependency {
   readonly range: string;
@@ -38,7 +41,19 @@ export interface ProjectDependenciesReport {
   readonly satisfiedCount: number;
   readonly outdatedCount: number;
   readonly undeclaredCount: number;
+  readonly prodUpdates: readonly string[];
+  readonly devUpdates: readonly string[];
   readonly prodInstallCommand?: string;
   readonly devInstallCommand?: string;
 }
-export declare function evaluateProjectDependencies(projectRoot?: string): ProjectDependenciesReport;
+export declare function repairPackageJsonMinimumRanges(projectRoot: string, pkg: PackageJsonDTO, minimums?: AuditorMinimumVersions, maximums?: AuditorMaximumVersions): {
+  readonly modified: boolean;
+  readonly pkg: PackageJsonDTO;
+};
+/**
+ * Prunes coupled vite-plus / vitest / @vitest/* entries from package-lock.json when
+ * their locked versions fall below the floors declared in package.json, preventing
+ * npm Arborist ERESOLVE peer conflicts caused by exact peerDependencies across @vitest/*.
+ */
+export declare function pruneStaleVitestClusterFromLockfile(projectRoot: string): boolean;
+export declare function evaluateProjectDependencies(projectRoot?: string, minimumsOverride?: AuditorMinimumVersions): ProjectDependenciesReport;

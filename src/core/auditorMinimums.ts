@@ -13,9 +13,10 @@ import { fileURLToPath } from 'node:url';
 import type { DependencyLocation } from 'fallow/types';
 import semver from 'semver';
 
-import { getPackageJson } from './packageJson.ts';
+import { getPackageJson, writePackageJson, type PackageJsonDTO } from './packageJson.ts';
+import { safeJsonParse, safeReadFileSync } from './safeUtils.ts';
 
-export type AuditorMinimumVersions = Readonly<Record<string, string>>; // open-record: package name -> declared semver range
+export type AuditorMinimumVersions = Readonly<Record<string, string>>;
 
 export interface DependencyMaximumSpec {
   readonly ceiling: string;
@@ -81,6 +82,58 @@ export function getAuditorCanonicalOverrides(): Readonly<Record<string, string>>
   return readAuditorPackageJsonSection('overrides') ?? {};
 }
 
+export function readHostInstalledAuditorMinimums(
+  projectRoot: string
+): AuditorMinimumVersions | null {
+  const hostAuditorPkgPath = path.join(
+    path.resolve(projectRoot),
+    'node_modules/@francogp/auditor/package.json'
+  );
+  if (!fs.existsSync(hostAuditorPkgPath)) {
+    return null;
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(hostAuditorPkgPath, 'utf8')) as {
+      readonly peerDependencies?: Readonly<Record<string, string>>;
+    };
+    return data.peerDependencies && Object.keys(data.peerDependencies).length > 0
+      ? data.peerDependencies
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function splitNpmAliasRange(
+  range: string
+): { readonly prefix: string; readonly versionPart: string } | null {
+  if (!range.startsWith('npm:')) return null;
+  const lastAt = range.lastIndexOf('@');
+  if (lastAt <= 4) return null;
+  return {
+    prefix: range.slice(0, lastAt + 1),
+    versionPart: range.slice(lastAt + 1)
+  };
+}
+
+export function extractExactPinnedVersion(range: string): string | null {
+  if (semver.valid(range)) {
+    return range;
+  }
+  const alias = splitNpmAliasRange(range);
+  if (alias && semver.valid(alias.versionPart)) {
+    return alias.versionPart;
+  }
+  return null;
+}
+
+function normalizePinnedVersionToCaret(range: string): string | null {
+  const exact = extractExactPinnedVersion(range);
+  if (!exact) return null;
+  const alias = splitNpmAliasRange(range);
+  return alias ? `${alias.prefix}^${exact}` : `^${exact}`;
+}
+
 export type DependencyDeclarationSection = DependencyLocation;
 
 export interface DeclaredDependency {
@@ -116,23 +169,22 @@ export function findDeclaredDependency(
 }
 
 interface LockfileShape {
-  readonly packages?: Readonly<Record<string, { readonly version?: string }>>;
-  readonly dependencies?: Readonly<Record<string, { readonly version?: string }>>;
+  packages?: Record<string, { readonly version?: string }>;
+  dependencies?: Record<string, { readonly version?: string }>;
 }
 
 function readLockfileInstalledVersion(projectRoot: string, name: string): string | null {
   const lockPath = path.resolve(projectRoot, 'package-lock.json');
   if (!fs.existsSync(lockPath)) return null;
-  try {
-    const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as LockfileShape;
-    const pkgVersion = lock.packages?.[`node_modules/${name}`]?.version;
-    if (pkgVersion) return pkgVersion;
-    const legacyDepVersion = lock.dependencies?.[name]?.version;
-    if (legacyDepVersion) return legacyDepVersion;
-    return null;
-  } catch {
-    return null;
-  }
+  const raw = safeReadFileSync(lockPath);
+  if (!raw) return null;
+  const lock = safeJsonParse<LockfileShape>(raw);
+  if (!lock) return null;
+  const pkgVersion = lock.packages?.[`node_modules/${name}`]?.version;
+  if (pkgVersion) return pkgVersion;
+  const legacyDepVersion = lock.dependencies?.[name]?.version;
+  if (legacyDepVersion) return legacyDepVersion;
+  return null;
 }
 
 export type DependencyEvaluationStatus =
@@ -163,8 +215,169 @@ export interface ProjectDependenciesReport {
   readonly satisfiedCount: number;
   readonly outdatedCount: number;
   readonly undeclaredCount: number;
+  readonly prodUpdates: readonly string[];
+  readonly devUpdates: readonly string[];
   readonly prodInstallCommand?: string;
   readonly devInstallCommand?: string;
+}
+
+export function repairPackageJsonMinimumRanges(
+  projectRoot: string,
+  pkg: PackageJsonDTO,
+  minimums: AuditorMinimumVersions = getAuditorMinimumVersions(),
+  maximums: AuditorMaximumVersions = getAuditorMaximumVersions()
+): { readonly modified: boolean; readonly pkg: PackageJsonDTO } {
+  let modified = false;
+  const nextDeps = pkg.dependencies ? { ...pkg.dependencies } : undefined;
+  const nextDevDeps = pkg.devDependencies ? { ...pkg.devDependencies } : undefined;
+  const nextOptDeps = pkg.optionalDependencies ? { ...pkg.optionalDependencies } : undefined;
+
+  const sectionMap: Record<DependencyDeclarationSection, Record<string, string> | undefined> = {
+    dependencies: nextDeps,
+    devDependencies: nextDevDeps,
+    optionalDependencies: nextOptDeps
+  };
+
+  for (const [name, floor] of Object.entries(minimums)) {
+    const declared = findDeclaredDependency(pkg, name);
+    if (!declared) continue;
+    const targetSection = sectionMap[declared.section];
+    if (!targetSection) continue;
+
+    const declaredMin = semver.validRange(declared.range)
+      ? semver.minVersion(declared.range)
+      : null;
+    const requiredMin = semver.minVersion(floor);
+    const belowMin = Boolean(declaredMin && requiredMin && semver.lt(declaredMin, requiredMin));
+    const maxSpec = maximums[name];
+    const exceedsMax = Boolean(
+      maxSpec &&
+      semver.validRange(declared.range) &&
+      semver.intersects(declared.range, maxSpec.prohibitedRange)
+    );
+
+    if (belowMin || exceedsMax) {
+      targetSection[name] = normalizeToCaretRange(floor);
+      modified = true;
+    } else {
+      const normalizedCaret = normalizePinnedVersionToCaret(declared.range);
+      if (normalizedCaret) {
+        targetSection[name] = normalizedCaret;
+        modified = true;
+      }
+    }
+  }
+
+  if (!modified) {
+    return { modified: false, pkg };
+  }
+
+  const updatedPkg: PackageJsonDTO = {
+    ...pkg,
+    ...(nextDeps ? { dependencies: nextDeps } : {}),
+    ...(nextDevDeps ? { devDependencies: nextDevDeps } : {}),
+    ...(nextOptDeps ? { optionalDependencies: nextOptDeps } : {})
+  };
+  writePackageJson(projectRoot, updatedPkg);
+  return { modified: true, pkg: updatedPkg };
+}
+
+function isLockedVersionBelowRange(
+  lockedVersion: string | undefined,
+  declaredRange: string | undefined
+): boolean {
+  if (!lockedVersion || !declaredRange || !semver.valid(lockedVersion)) return false;
+  if (!semver.validRange(declaredRange)) return false;
+  const minRequired = semver.minVersion(declaredRange);
+  return Boolean(minRequired && semver.lt(lockedVersion, minRequired));
+}
+
+function isVitestClusterPackageName(pkgName: string): boolean {
+  const cleanName = pkgName.replace(/\/$/, '');
+  return (
+    cleanName === 'vite-plus' ||
+    cleanName.startsWith('vite-plus/') ||
+    cleanName === 'vitest' ||
+    cleanName.startsWith('vitest/') ||
+    cleanName.startsWith('@vitest/')
+  );
+}
+
+function isVitestClusterLockKey(lockKey: string): boolean {
+  const normalized = lockKey.replaceAll('\\', '/');
+  const segments = normalized.split('node_modules/').slice(1);
+  return segments.some((seg) => isVitestClusterPackageName(seg));
+}
+
+/**
+ * Prunes coupled vite-plus / vitest / @vitest/* entries from package-lock.json when
+ * their locked versions fall below the floors declared in package.json, preventing
+ * npm Arborist ERESOLVE peer conflicts caused by exact peerDependencies across @vitest/*.
+ */
+export function pruneStaleVitestClusterFromLockfile(projectRoot: string): boolean {
+  const root = path.resolve(projectRoot);
+  const lockPath = path.join(root, 'package-lock.json');
+  if (!fs.existsSync(lockPath)) return false;
+
+  const pkg = getPackageJson(root, true);
+  if (!pkg) return false;
+
+  const rawText = safeReadFileSync(lockPath);
+  if (!rawText) return false;
+  const rawLock = safeJsonParse<LockfileShape & Record<string, unknown>>(rawText);
+  if (!rawLock) return false;
+
+  const packages = rawLock.packages;
+  const legacyDeps = rawLock.dependencies;
+  if (!packages && !legacyDeps) return false;
+
+  const vitePlusRange = findDeclaredDependency(pkg, 'vite-plus')?.range;
+  const coverageRange = findDeclaredDependency(pkg, '@vitest/coverage-v8')?.range;
+  const vitestRange = findDeclaredDependency(pkg, 'vitest')?.range;
+
+  const lockedVitePlus =
+    packages?.['node_modules/vite-plus']?.version ?? legacyDeps?.['vite-plus']?.version;
+  const lockedVitest = packages?.['node_modules/vitest']?.version ?? legacyDeps?.vitest?.version;
+  const lockedCoverage =
+    packages?.['node_modules/@vitest/coverage-v8']?.version ??
+    legacyDeps?.['@vitest/coverage-v8']?.version;
+
+  const needsClusterPrune =
+    isLockedVersionBelowRange(lockedVitePlus, vitePlusRange) ||
+    isLockedVersionBelowRange(lockedCoverage, coverageRange) ||
+    isLockedVersionBelowRange(lockedVitest, coverageRange) ||
+    isLockedVersionBelowRange(lockedVitest, vitestRange);
+
+  if (!needsClusterPrune) return false;
+
+  let removed = false;
+  if (packages && typeof packages === 'object') {
+    const nextPackages: Record<string, { readonly version?: string }> = {};
+    for (const [key, val] of Object.entries(packages)) {
+      if (isVitestClusterLockKey(key)) {
+        removed = true;
+      } else {
+        nextPackages[key] = val;
+      }
+    }
+    rawLock.packages = nextPackages;
+  }
+
+  if (legacyDeps && typeof legacyDeps === 'object') {
+    const nextDeps: Record<string, { readonly version?: string }> = {};
+    for (const [key, val] of Object.entries(legacyDeps)) {
+      if (isVitestClusterPackageName(key)) {
+        removed = true;
+      } else {
+        nextDeps[key] = val;
+      }
+    }
+    rawLock.dependencies = nextDeps;
+  }
+
+  if (!removed) return false;
+  fs.writeFileSync(lockPath, JSON.stringify(rawLock, null, 2) + '\n', 'utf8');
+  return true;
 }
 
 function classifyDependencyStatus(
@@ -200,16 +413,17 @@ function classifyDependencyStatus(
 }
 
 export function evaluateProjectDependencies(
-  projectRoot: string = process.cwd()
+  projectRoot: string = process.cwd(),
+  minimumsOverride?: AuditorMinimumVersions
 ): ProjectDependenciesReport {
   const root = path.resolve(projectRoot);
-  const minimums = getAuditorMinimumVersions();
+  const minimums = minimumsOverride ?? getAuditorMinimumVersions();
   const maximums = getAuditorMaximumVersions();
   const pkg = getPackageJson(root, true);
 
   const evaluated: DependencyEvaluation[] = [];
-  const prodUpdates: string[] = []; // no-domain: Dynamic npm install package specifier accumulator
-  const devUpdates: string[] = []; // no-domain: Dynamic npm install package specifier accumulator
+  const prodUpdates: string[] = [];
+  const devUpdates: string[] = [];
 
   for (const [name, floor] of Object.entries(minimums)) {
     const declared = pkg ? findDeclaredDependency(pkg, name) : null;
@@ -276,6 +490,8 @@ export function evaluateProjectDependencies(
     satisfiedCount,
     outdatedCount,
     undeclaredCount,
+    prodUpdates,
+    devUpdates,
     prodInstallCommand: prodUpdates.length > 0 ? `npm install ${prodUpdates.join(' ')}` : undefined,
     devInstallCommand: devUpdates.length > 0 ? `npm install -D ${devUpdates.join(' ')}` : undefined
   };

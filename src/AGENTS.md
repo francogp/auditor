@@ -1,6 +1,6 @@
 # Purpose
 
-Core source directory for `@francogp/auditor`. Contains framework foundations (`core/`), CLI runners and reporting tools (`cli/`), static code analyzers (`analyzers/`), Antigravity agent plugin registration (`plugin/`), and modular audit suites (`suites/`).
+Core source directory for `@francogp/auditor`. Contains framework foundations (`core/`), CLI runners and reporting tools (`cli/`), static code analyzers (`analyzers/`), Antigravity agent plugin registration (`plugin/`), isomorphic modal stack governance (`modals/`), and modular audit suites (`suites/`).
 
 ## Ownership
 
@@ -37,4 +37,5 @@ Architecture & Tooling Engineers.
 - [`cli/AGENTS.md`](./cli/AGENTS.md): CLI orchestrators (`audit_full.ts` with the built-in warning ratchet, `audit_bundle.ts`, and reports).
 - [`analyzers/AGENTS.md`](./analyzers/AGENTS.md): Specialized static analyzers (AST constant analysis, Z-index rules, DOX integrity, TypeScript AST helpers).
 - [`plugin/AGENTS.md`](./plugin/AGENTS.md): Antigravity plugin manifest discovery and agent hooks.
+- [`modals/AGENTS.md`](./modals/AGENTS.md): Browser-safe LIFO modal stack manager, monotonic Z-index bridge, DOM dismissal guards, and priority sequence queue (`@francogp/auditor/modals`).
 - [`suites/AGENTS.md`](./suites/AGENTS.md): Automated verification suites grouped by architectural families.

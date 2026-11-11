@@ -13,6 +13,16 @@ import { styleText } from 'node:util';
 
 import { isSelfProviderProject } from '../core/auditConfig.ts';
 import {
+  evaluateProjectDependencies,
+  findDeclaredDependency,
+  getAuditorMaximumVersions,
+  getAuditorMinimumVersions,
+  normalizeToCaretRange,
+  pruneStaleVitestClusterFromLockfile,
+  readHostInstalledAuditorMinimums,
+  repairPackageJsonMinimumRanges
+} from '../core/auditorMinimums.ts';
+import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
   parseCittyArgs,
@@ -21,6 +31,7 @@ import {
 } from '../core/cli/cittyHarness.ts';
 import { runNpmCommandSync } from '../core/npmCommandUtils.ts';
 import { ensureNpmrcAllowGit } from '../core/npmrcAllowGit.ts';
+import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../core/packageJson.ts';
 import { safeReadFileSync, safeJsonParse, tryOrNull } from '../core/safeUtils.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { AUDITOR_VERSION } from '../core/version.ts';
@@ -147,24 +158,149 @@ export function preSyncHostPackageJson(projectRoot: string): boolean {
     modified = true;
   }
 
-  const pkgPath = path.join(projectRoot, 'package.json');
-  if (fs.existsSync(pkgPath)) {
-    const raw = safeReadFileSync(pkgPath);
-    if (raw) {
-      const pkg = safeJsonParse<Record<string, unknown>>(raw);
-      if (pkg) {
-        const devDeps = (pkg.devDependencies || {}) as Record<string, string>;
-        const deps = (pkg.dependencies || {}) as Record<string, string>;
-        if (!devDeps['citty'] && !deps['citty']) {
-          devDeps['citty'] = '^0.2.2';
-          pkg.devDependencies = devDeps;
-          fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
-          modified = true;
+  const minimums = getAuditorMinimumVersions();
+  let currentPkg = getPackageJson(projectRoot, true);
+  const cittyFloor = minimums.citty;
+  if (currentPkg && cittyFloor && !findDeclaredDependency(currentPkg, 'citty')) {
+    currentPkg = {
+      ...currentPkg,
+      devDependencies: {
+        ...currentPkg.devDependencies,
+        citty: normalizeToCaretRange(cittyFloor)
+      }
+    };
+    writePackageJson(projectRoot, currentPkg);
+    modified = true;
+  }
+
+  if (currentPkg) {
+    const repaired = repairPackageJsonMinimumRanges(
+      projectRoot,
+      currentPkg,
+      minimums,
+      getAuditorMaximumVersions()
+    );
+    if (repaired.modified) {
+      modified = true;
+    }
+  }
+
+  if (pruneStaleVitestClusterFromLockfile(projectRoot)) {
+    modified = true;
+  }
+
+  return modified;
+}
+
+function installMinimumBatch(options: {
+  readonly projectRoot: string;
+  readonly specs: readonly string[];
+  readonly isDev: boolean;
+  readonly silent?: boolean;
+}): { readonly ok: boolean; readonly error?: string } {
+  const { projectRoot, specs, isDev, silent } = options;
+  if (specs.length === 0) {
+    return { ok: true };
+  }
+  const scopeLabel = isDev ? 'development' : 'production';
+  if (!silent) {
+    console.log(
+      styleText(
+        'cyan',
+        `[DEPS] Enforcing mandatory ${scopeLabel} minimums: ${specs.join(', ')}...\n`
+      )
+    );
+  }
+  const npmArgs = isDev
+    ? ['install', '-D', '--no-audit', '--no-fund', ...specs]
+    : ['install', '--no-audit', '--no-fund', ...specs];
+  const proc = runNpmCommandSync(npmArgs, {
+    cwd: projectRoot,
+    stdio: silent ? 'pipe' : 'inherit',
+    encoding: 'utf-8'
+  });
+  if (proc.error || proc.status !== 0) {
+    return {
+      ok: false,
+      error:
+        proc.error?.message ||
+        proc.stderr?.toString() ||
+        `Failed to install mandatory ${scopeLabel} minimums (exit code ${proc.status})`
+    };
+  }
+  return { ok: true };
+}
+
+function enforceHostMinimumDependencies(
+  projectRoot: string,
+  silent?: boolean
+): { readonly ok: boolean; readonly error?: string } {
+  const installedMinimums = readHostInstalledAuditorMinimums(projectRoot);
+  if (installedMinimums) {
+    const hostPkg = getPackageJson(projectRoot, true);
+    if (hostPkg) {
+      repairPackageJsonMinimumRanges(
+        projectRoot,
+        hostPkg,
+        installedMinimums,
+        getAuditorMaximumVersions()
+      );
+    }
+  }
+
+  const report = evaluateProjectDependencies(projectRoot, installedMinimums ?? undefined);
+  const prodUpdates = [...report.prodUpdates];
+  const devUpdates = [...report.devUpdates];
+
+  const lockPath = path.join(projectRoot, 'package-lock.json');
+  const lockSnapshot = fs.existsSync(lockPath) ? fs.readFileSync(lockPath, 'utf-8') : null;
+  const prunedCluster = pruneStaleVitestClusterFromLockfile(projectRoot);
+
+  if (prunedCluster) {
+    const pkgNow = getPackageJson(projectRoot, true);
+    const effectiveMinimums = installedMinimums ?? getAuditorMinimumVersions();
+    for (const clusterDep of ['vite-plus', '@vitest/coverage-v8'] as const) {
+      const declared = pkgNow ? findDeclaredDependency(pkgNow, clusterDep) : null;
+      const floor = effectiveMinimums[clusterDep];
+      if (declared && floor) {
+        const spec = `${clusterDep}@${floor}`;
+        const targetList = declared.isProduction ? prodUpdates : devUpdates;
+        if (!targetList.includes(spec)) {
+          targetList.push(spec);
         }
       }
     }
   }
-  return modified;
+
+  const restoreLockOnFailure = (): void => {
+    if (lockSnapshot !== null) {
+      fs.writeFileSync(lockPath, lockSnapshot, 'utf-8');
+    }
+  };
+
+  const prodRes = installMinimumBatch({
+    projectRoot,
+    specs: prodUpdates,
+    isDev: false,
+    silent
+  });
+  if (!prodRes.ok) {
+    restoreLockOnFailure();
+    return prodRes;
+  }
+
+  const devRes = installMinimumBatch({
+    projectRoot,
+    specs: devUpdates,
+    isDev: true,
+    silent
+  });
+  if (!devRes.ok) {
+    restoreLockOnFailure();
+    return devRes;
+  }
+
+  return { ok: true };
 }
 
 export function updateAuditorPackage(options: UpdateAuditorOptions = {}): UpdateAuditorResult {
@@ -182,9 +318,10 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     };
   }
 
-  let hostPkg: Record<string, unknown>;
+  const originalPkgRaw = fs.readFileSync(hostPkgJsonPath, 'utf-8');
+  let hostPkg: PackageJsonDTO;
   try {
-    hostPkg = JSON.parse(fs.readFileSync(hostPkgJsonPath, 'utf-8'));
+    hostPkg = JSON.parse(originalPkgRaw) as PackageJsonDTO;
   } catch (err) {
     // Propagate error when parsing invalid package.json
     return {
@@ -197,9 +334,9 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     };
   }
 
-  const deps = (hostPkg.dependencies || {}) as Record<string, string>; // open-record: Generic parsed package.json dependencies dictionary
-  const devDeps = (hostPkg.devDependencies || {}) as Record<string, string>; // open-record: Generic parsed package.json devDependencies dictionary
-  const isDeclared = Boolean(devDeps['@francogp/auditor'] || deps['@francogp/auditor']);
+  const isDeclared = Boolean(
+    hostPkg.devDependencies?.['@francogp/auditor'] || hostPkg.dependencies?.['@francogp/auditor']
+  );
 
   if (!isDeclared) {
     return {
@@ -238,6 +375,29 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     };
   }
 
+  const hostLockJsonPath = path.join(projectRoot, 'package-lock.json');
+  const hostNpmrcPath = path.join(projectRoot, '.npmrc');
+  const originalLockRaw = fs.existsSync(hostLockJsonPath)
+    ? fs.readFileSync(hostLockJsonPath, 'utf-8')
+    : null;
+  const originalNpmrcRaw = fs.existsSync(hostNpmrcPath)
+    ? fs.readFileSync(hostNpmrcPath, 'utf-8')
+    : null;
+
+  const restoreHostManifestSnapshot = (): void => {
+    fs.writeFileSync(hostPkgJsonPath, originalPkgRaw, 'utf-8');
+    if (originalLockRaw !== null) {
+      fs.writeFileSync(hostLockJsonPath, originalLockRaw, 'utf-8');
+    } else if (fs.existsSync(hostLockJsonPath)) {
+      fs.rmSync(hostLockJsonPath, { force: true });
+    }
+    if (originalNpmrcRaw !== null) {
+      fs.writeFileSync(hostNpmrcPath, originalNpmrcRaw, 'utf-8');
+    } else if (fs.existsSync(hostNpmrcPath)) {
+      fs.rmSync(hostNpmrcPath, { force: true });
+    }
+  };
+
   const npmArgs = ['install', '-D', `github:francogp/auditor#${targetTag}`];
   preSyncHostPackageJson(projectRoot);
   ensureNpmrcAllowGit(projectRoot);
@@ -261,6 +421,7 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
   });
 
   if (proc.error || proc.status !== 0) {
+    restoreHostManifestSnapshot();
     const errorMsg =
       proc.error?.message ||
       proc.stderr?.toString() ||
@@ -288,6 +449,18 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
   }
 
   runAuditorFixAutoRemediation(projectRoot, options.silent);
+  const minEnforcement = enforceHostMinimumDependencies(projectRoot, options.silent);
+  if (!minEnforcement.ok) {
+    return {
+      success: false,
+      projectRoot,
+      previousVersion,
+      newVersion,
+      updated,
+      error: minEnforcement.error
+    };
+  }
+
   const setupHealthy = runAuditorSetupCheck(projectRoot, options.silent);
 
   if (!options.silent) {
@@ -397,13 +570,11 @@ export function runAuditorFixAutoRemediation(projectRoot: string, silent?: boole
 
     const pkgAfter = fs.existsSync(pkgPath) ? fs.readFileSync(pkgPath, 'utf-8') : '';
     if (pkgBefore && pkgAfter && pkgBefore !== pkgAfter) {
-      const isWindows = process.platform === 'win32';
-      const npmCmd = isWindows ? 'npm.cmd' : 'npm';
-      childProcess.spawnSync(npmCmd, ['install', '--ignore-scripts', '--no-audit', '--no-fund'], {
+      pruneStaleVitestClusterFromLockfile(projectRoot);
+      runNpmCommandSync(['install', '--ignore-scripts', '--no-audit', '--no-fund'], {
         cwd: projectRoot,
         stdio: silent ? 'pipe' : 'inherit',
-        encoding: 'utf-8',
-        shell: isWindows
+        encoding: 'utf-8'
       });
     }
 

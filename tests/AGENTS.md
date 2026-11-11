@@ -53,6 +53,9 @@ Architecture & Tooling Engineers.
 - [`entity_registries_ssot.test.ts`](./entity_registries_ssot.test.ts): Tests asserting entity registry inheritance and zero legacy alias methods.
 - [`function_identity_deduplication.test.ts`](./function_identity_deduplication.test.ts): Tests verifying single execution for shared sub-auditor audit and fix functions.
 - [`markdown_lint_config_remediations.test.ts`](./markdown_lint_config_remediations.test.ts): Tests for markdownlint configuration remediation and MD033 table line break auto-injection.
+- [`modal_dom_and_motion.test.ts`](./modal_dom_and_motion.test.ts): Tests for `ModalDomController`, two-step backdrop light-dismiss pointer guard, history back-navigation guard, customizable motion presets, WAAPI/GSAP drivers, and browser isomorphic purity.
+- [`modal_sequence_queue.test.ts`](./modal_sequence_queue.test.ts): Tests for priority-ordered sequential modal execution (`ModalSequenceQueue`), zero-polling `waitForClose`/`waitUntilIdle`, error isolation, and cancellation.
+- [`modal_stack_manager.test.ts`](./modal_stack_manager.test.ts): Tests for LIFO modal stack governance (`ModalStackManager`), customizable Z-layer scales, hierarchical simplification, background occlusion, dirty-form async guards, and concurrent exit freeze.
 - [`oxlint_native_paths_migration.test.ts`](./oxlint_native_paths_migration.test.ts): Canary migration tests for native path and URL analyzer rules in Oxlint.
 - [`path_exemption_ssot.test.ts`](./path_exemption_ssot.test.ts): Tests asserting SSoT path exemption resolution in reportUtils.ts.
 - [`refactor_harness_compact.test.ts`](./refactor_harness_compact.test.ts): Tests for refactoring harness execution under compact console mode.

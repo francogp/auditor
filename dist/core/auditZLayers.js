@@ -1,3 +1,4 @@
+import { CANONICAL_Z_LAYERS } from "../modals/modalZLayers.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -33,23 +34,7 @@ function resolveZLayersScssPath(projectRoot = process.cwd()) {
 /**
 * Canonical fallback Z-Layers scale matching framework standards.
 */
-const Z_LAYERS = Object.freeze({
-	BASE: 0,
-	LOW: 50,
-	CONTENT: 100,
-	HEADER: 500,
-	SIDEBAR: 800,
-	HUD: 1e3,
-	NAVIGATION: 5e3,
-	DROPDOWN: 7e3,
-	OVERLAY: 1e4,
-	MODAL: 11e3,
-	MODAL_STEP: 10,
-	TOOLTIP: 15e3,
-	TOAST: 2e4,
-	MAX: 1e5,
-	CRITICAL: 999999
-});
+const Z_LAYERS = CANONICAL_Z_LAYERS;
 function parseZLayersFromTs(tsPath) {
 	if (!fs.existsSync(tsPath)) return null;
 	try {
