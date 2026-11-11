@@ -12,6 +12,12 @@ export declare function resolveZLayersScssPath(projectRoot?: string): string | u
  */
 export declare const Z_LAYERS: Readonly<Record<string, number>>;
 /**
+ * Parses `Z_LAYERS` declarations from TypeScript source code using the TypeScript AST,
+ * supporting plain object literals, `Object.freeze(...)`, `...CANONICAL_Z_LAYERS` spreads,
+ * and `resolveModalZLayers({ ... })` factory calls with custom domain keys.
+ */
+export declare function parseZLayersFromSource(content: string): Record<string, number> | null;
+/**
  * Resolves the effective Z-Layers dictionary from config.styles.zLayers,
  * or by parsing the TypeScript file defined in config.styles.zLayersTsFile or config.domain.zLayersFile,
  * or falls back to the default Z_LAYERS.

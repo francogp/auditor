@@ -1,10 +1,9 @@
-import "../core/auditConfig.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
-import { Z_LAYERS } from "../core/auditZLayers.js";
+import "../core/auditConfig.js";
+import { Z_LAYERS, getEffectiveZLayers } from "../core/auditZLayers.js";
 import { isExemptFile } from "../core/auditPathPredicates.js";
-import { safeReadFileSync } from "../core/safeUtils.js";
+import { CANONICAL_Z_LAYERS } from "../modals/modalZLayers.js";
 import { normalizeFilePath } from "./auditRuleTypes.js";
-import path from "node:path";
 // src/analyzers/zIndexRules.ts
 /**
 * packages/auditor/src/analyzers/zIndexRules.ts
@@ -23,63 +22,36 @@ const Z_INDEX_CONSISTENCY_DESCRIPTOR = {
 		"z-index-parity"
 	]
 };
-const CANONICAL_DEFAULT_Z_LAYERS = {
-	BASE: 0,
-	LOW: 50,
-	CONTENT: 100,
-	HEADER: 500,
-	SIDEBAR: 800,
-	HUD: 1e3,
-	NAVIGATION: 5e3,
-	DROPDOWN: 7e3,
-	OVERLAY: 1e4,
-	MODAL: 11e3,
-	MODAL_STEP: 10,
-	TOOLTIP: 15e3,
-	TOAST: 2e4,
-	MAX: 1e5,
-	CRITICAL: 999999
-};
-function parseZLayersFromContent(content) {
-	const match = content.match(/export\s+const\s+Z_LAYERS\s*=\s*\{([\s\S]*?)\}\s*(?:as\s+const)?;/);
-	if (!match?.[1]) return null;
-	const result = {};
-	for (const line of match[1].split("\n")) {
-		const m = line.match(/([A-Z_]\w*)\s*:\s*(-?\d+)/i);
-		if (m?.[1] && m?.[2]) result[m[1]] = parseInt(m[2], 10);
-	}
-	return result;
-}
-function tryReadZLayersFile(relFile) {
-	const absPath = path.resolve(process.cwd(), relFile);
-	const content = safeReadFileSync(absPath);
-	return content ? parseZLayersFromContent(content) : null;
-}
-function loadZLayers() {
-	const config = getAuditConfig();
-	if (config.styles?.zLayers && Object.keys(config.styles.zLayers).length > 0) return { ...config.styles.zLayers };
-	const relFile = config.styles?.zLayersTsFile ?? config.domain?.zLayersFile;
-	if (relFile) {
-		const parsed = tryReadZLayersFile(relFile);
-		if (parsed) return parsed;
-	}
-	return CANONICAL_DEFAULT_Z_LAYERS;
-}
-const ACTIVE_Z_LAYERS = loadZLayers();
+const ACTIVE_Z_LAYERS = getEffectiveZLayers();
 const Z_VALUE_MAP = Object.fromEntries(Object.entries(ACTIVE_Z_LAYERS).map(([key, value]) => [value, key]));
 const Z_SORTED_ENTRIES = Object.entries(ACTIVE_Z_LAYERS).sort((a, b) => a[1] - b[1]);
-/** Sentinel: initial minDiff larger than any possible difference between Z layer values. */
-const Z_LAYERS_DIFF_SENTINEL = Z_SORTED_ENTRIES.length + 1;
-function resolveZLayer(val) {
-	const entry = Z_VALUE_MAP[val];
-	if (entry) return {
-		exactKey: entry,
-		cssVarExpr: `var(--z-${entry.toLowerCase().replace(/_/g, "-")})`
+const zLayerIndexCache = /* @__PURE__ */ new WeakMap();
+function getZLayerIndex(layers) {
+	const cached = zLayerIndexCache.get(layers);
+	if (cached) return cached;
+	const allEntries = Object.entries(layers);
+	const layerEntries = allEntries.filter(([key]) => key !== "MODAL_STEP");
+	const effectiveEntries = layerEntries.length > 0 ? layerEntries : allEntries;
+	const exactByValue = /* @__PURE__ */ new Map();
+	for (const [key, value] of effectiveEntries) exactByValue.set(value, key);
+	const built = {
+		exactByValue,
+		sortedLayers: [...effectiveEntries].sort((a, b) => a[1] - b[1])
+	};
+	zLayerIndexCache.set(layers, built);
+	return built;
+}
+function resolveZLayer(val, layers = getEffectiveZLayers()) {
+	const index = getZLayerIndex(layers);
+	const exactEntry = index.exactByValue.get(val);
+	if (exactEntry) return {
+		exactKey: exactEntry,
+		cssVarExpr: `var(--z-${exactEntry.toLowerCase().replace(/_/g, "-")})`
 	};
 	let nearestKey = "";
 	let nearestVal = 0;
-	let minDiff = Z_LAYERS_DIFF_SENTINEL;
-	for (const [key, zVal] of Z_SORTED_ENTRIES) {
+	let minDiff = Number.POSITIVE_INFINITY;
+	for (const [key, zVal] of index.sortedLayers) {
 		const diff = Math.abs(val - zVal);
 		if (diff < minDiff) {
 			minDiff = diff;
@@ -98,10 +70,10 @@ function resolveZLayer(val) {
 	}
 	return {};
 }
-function fixZIndexLiteral(match) {
+function fixZIndexLiteral(match, layers = getEffectiveZLayers()) {
 	const valMatch = match.match(/-?\d+/);
 	if (!valMatch || !valMatch[0]) return match;
-	const { cssVarExpr } = resolveZLayer(parseInt(valMatch[0], 10));
+	const { cssVarExpr } = resolveZLayer(parseInt(valMatch[0], 10), layers);
 	if (!cssVarExpr) return match;
 	const isJsProp = match.startsWith("zIndex");
 	const propName = isJsProp ? "zIndex" : "z-index";
@@ -153,4 +125,4 @@ const zIndexConstantDeclaration = {
 	},
 	fixable: false
 };
-export { ACTIVE_Z_LAYERS, CANONICAL_DEFAULT_Z_LAYERS, Z_INDEX_CONSISTENCY_DESCRIPTOR, Z_LAYERS, Z_SORTED_ENTRIES, Z_VALUE_MAP, fixZIndexLiteral, resolveZLayer, zIndexAudit, zIndexConstantDeclaration };
+export { ACTIVE_Z_LAYERS, CANONICAL_Z_LAYERS, Z_INDEX_CONSISTENCY_DESCRIPTOR, Z_LAYERS, Z_SORTED_ENTRIES, Z_VALUE_MAP, fixZIndexLiteral, resolveZLayer, zIndexAudit, zIndexConstantDeclaration };

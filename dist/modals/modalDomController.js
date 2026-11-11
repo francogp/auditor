@@ -22,6 +22,14 @@ const EDITABLE_TAG_NAMES = createDomainSet([
 ]);
 const BROWSER_HISTORY_KEYS = createDomainSet(["BrowserBack", "BrowserForward"]);
 const ALT_HISTORY_ARROW_KEYS = createDomainSet(["ArrowLeft", "ArrowRight"]);
+const MOUSE_SIDE_BUTTON_EVENTS = [
+	"mousedown",
+	"mouseup",
+	"auxclick",
+	"pointerdown",
+	"pointerup"
+];
+const CAPTURE_LISTENER_OPTIONS = Object.freeze({ capture: true });
 function defaultIsBackdropTarget(event) {
 	return event.target !== null && event.target === event.currentTarget;
 }
@@ -81,7 +89,8 @@ var ModalDomController = class {
 	preventDefaultOnEscape;
 	backNavigation;
 	disposed = false;
-	boundKeydown;
+	boundEscapeKeydown;
+	boundBackNavKeydown;
 	boundPopState;
 	boundMouseSideButton;
 	constructor(config) {
@@ -89,8 +98,11 @@ var ModalDomController = class {
 		this.target = config.target ?? resolveDefaultDomTarget();
 		this.preventDefaultOnEscape = config.preventDefaultOnEscape ?? true;
 		this.backNavigation = config.backNavigation?.enabled ? config.backNavigation : void 0;
-		this.boundKeydown = (event) => {
-			this.handleKeydown(event);
+		this.boundEscapeKeydown = (event) => {
+			this.handleEscapeKeydown(event);
+		};
+		this.boundBackNavKeydown = (event) => {
+			this.handleBackNavKeydown(event);
 		};
 		this.boundPopState = () => {
 			this.handlePopState();
@@ -108,51 +120,66 @@ var ModalDomController = class {
 		if (this.disposed) return;
 		this.disposed = true;
 		if (!this.target) return;
-		this.target.removeEventListener("keydown", this.boundKeydown);
+		this.target.removeEventListener("keydown", this.boundEscapeKeydown);
 		if (this.backNavigation) {
+			this.target.removeEventListener("keydown", this.boundBackNavKeydown, CAPTURE_LISTENER_OPTIONS);
 			this.target.removeEventListener("popstate", this.boundPopState);
-			if (this.backNavigation.blockMouseSideButtons !== false) {
-				this.target.removeEventListener("mouseup", this.boundMouseSideButton);
-				this.target.removeEventListener("auxclick", this.boundMouseSideButton);
-			}
+			if (this.backNavigation.blockMouseSideButtons !== false) for (const eventName of MOUSE_SIDE_BUTTON_EVENTS) this.target.removeEventListener(eventName, this.boundMouseSideButton, CAPTURE_LISTENER_OPTIONS);
 		}
 	}
 	attachListeners() {
 		if (!this.target) return;
-		this.target.addEventListener("keydown", this.boundKeydown);
+		this.target.addEventListener("keydown", this.boundEscapeKeydown);
 		if (!this.backNavigation) return;
 		this.pushHistoryTrap();
+		this.target.addEventListener("keydown", this.boundBackNavKeydown, CAPTURE_LISTENER_OPTIONS);
 		this.target.addEventListener("popstate", this.boundPopState);
-		if (this.backNavigation.blockMouseSideButtons !== false) {
-			this.target.addEventListener("mouseup", this.boundMouseSideButton);
-			this.target.addEventListener("auxclick", this.boundMouseSideButton);
-		}
+		if (this.backNavigation.blockMouseSideButtons !== false) for (const eventName of MOUSE_SIDE_BUTTON_EVENTS) this.target.addEventListener(eventName, this.boundMouseSideButton, CAPTURE_LISTENER_OPTIONS);
 	}
 	pushHistoryTrap() {
 		if (!this.target?.history || !this.backNavigation) return;
 		const guardKey = this.backNavigation.guardStateKey ?? DEFAULT_HISTORY_GUARD_KEY;
 		const currentHref = this.target.location?.href ?? "";
-		this.target.history.pushState({ [guardKey]: true }, "", currentHref);
+		const prevState = this.target.history.state;
+		const nextState = typeof prevState === "object" && prevState !== null && !Array.isArray(prevState) ? {
+			...prevState,
+			[guardKey]: true
+		} : { [guardKey]: true };
+		try {
+			this.target.history.pushState(nextState, "", currentHref);
+		} catch {}
 	}
-	handleKeydown(event) {
-		if (event.defaultPrevented || event.isComposing) return;
-		if (event.key === "Escape") {
-			if (this.stack.getSnapshot().activeTop !== null) {
-				if (this.preventDefaultOnEscape) event.preventDefault();
-				this.stack.closeTop("escape");
-			}
-			return;
+	handleEscapeKeydown(event) {
+		if (event.defaultPrevented || event.isComposing || event.key !== "Escape") return;
+		if (this.stack.getSnapshot().activeTop !== null) {
+			if (this.preventDefaultOnEscape) event.preventDefault();
+			this.stack.closeTop("escape");
 		}
-		if (this.backNavigation && shouldBlockHistoryKeyboardShortcut(event, this.backNavigation)) event.preventDefault();
+	}
+	handleBackNavKeydown(event) {
+		if (event.defaultPrevented || event.isComposing || !this.backNavigation) return;
+		if (shouldBlockHistoryKeyboardShortcut(event, this.backNavigation)) {
+			event.preventDefault();
+			event.stopPropagation?.();
+			event.stopImmediatePropagation?.();
+		}
 	}
 	handlePopState() {
 		if (!this.backNavigation) return;
 		this.pushHistoryTrap();
 		if (this.backNavigation.onBeforePopStateDismiss?.()) return;
-		if (this.stack.getSnapshot().activeTop !== null) this.stack.closeTop("back-navigation");
+		if (this.stack.getSnapshot().activeTop !== null) {
+			this.stack.closeTop("back-navigation");
+			return;
+		}
+		this.backNavigation.onUnhandledPopState?.();
 	}
 	handleMouseSideButton(event) {
-		if (event.button === MOUSE_BACK_BUTTON || event.button === MOUSE_FORWARD_BUTTON) event.preventDefault();
+		if (event.button === MOUSE_BACK_BUTTON || event.button === MOUSE_FORWARD_BUTTON) {
+			event.preventDefault();
+			event.stopPropagation?.();
+			event.stopImmediatePropagation?.();
+		}
 	}
 };
 export { ModalDomController, createBackdropPointerGuard, isEditableEventTarget };

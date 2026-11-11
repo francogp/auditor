@@ -69,7 +69,7 @@ flowchart TD
 
 ### 3.1 Stackable Modals, Customizable Z-Index & Animation Coordinator (`@francogp/auditor/modals`)
 
-Provides deterministic LIFO modal stacking, customizable Z-layer scales (`resolveModalZLayers`), instant `activeTop` / `isSimplified` transitions, fast-mode `obscuresBackground` tracking, customizable motion presets (`DEFAULT_MODAL_MOTION_PRESETS`, `ModalAnimationController`), two-step backdrop pointer guards, history back-navigation traps, and zero-polling `ModalSequenceQueue`.
+Provides deterministic LIFO modal stacking, customizable Z-layer scales with extra domain keys (`resolveModalZLayers`), singleton discrimination (`tryOpen`), reactive in-place entry updates (`updateEntry`, `bindSurface(..., { motion, patch })`), LIFO kind closing (`closeLatestByKind`, `getLatestByKind`), injectable timer drivers (`timerDriver`), instant `activeTop` / `isSimplified` transitions, fast-mode `obscuresBackground` tracking, customizable motion presets (`DEFAULT_MODAL_MOTION_PRESETS`, `ModalAnimationController`), two-step backdrop pointer guards, non-destructive Vue Router-safe history back-navigation traps (`onUnhandledPopState`), and zero-polling `ModalSequenceQueue`.
 
 ```typescript
 import {

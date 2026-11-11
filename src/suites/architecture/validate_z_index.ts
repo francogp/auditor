@@ -20,6 +20,8 @@ import path from 'node:path';
 
 import { resolveZLayer, fixZIndexLiteral } from '../../analyzers/zIndexRules.ts';
 import {
+  AuditedDocument,
+  type DocumentReplacement,
   FileScanAuditor,
   createUniformRemediationPhases,
   createRuleCapabilities,
@@ -34,7 +36,6 @@ import {
   isTestPath,
   type RuleFixContext,
   deriveCoverageFromRoots,
-  toPosixRelative,
   normalizePosixPath
 } from '../../core/auditorBase.ts';
 
@@ -155,6 +156,8 @@ export function auditZIndexParity(
 }
 
 export const HARDCODED_Z_INDEX_REGEX = /(?:z-index|zIndex)\s*:\s*(-?\d+)\b/gi;
+export const VUE_TEMPLATE_Z_INDEX_ATTR_REGEX =
+  /(?<=\s)(?::|v-bind:)?(?:z-index|zIndex)\s*=\s*["']\s*(-?\d+)\s*["']/g;
 export const ISOLATED_Z_INDEX_CONST_REGEX =
   /const\s+(\w*Z_INDEX\w*)\s*=\s*(?:'[^']+'|"[^"]+"|\d+)/gi;
 
@@ -181,6 +184,35 @@ export async function fixZIndexVariables(
     return false;
   }
   return false;
+}
+
+function formatHardcodedZIndexMessage(
+  rawMatch: string,
+  exactKey: string | undefined,
+  nearestKey: string | undefined,
+  cssVarExpr: string | undefined
+): string {
+  if (exactKey && cssVarExpr) {
+    return `Hardcoded Z-Index detected: '${rawMatch}'. Corresponds to Z_LAYERS.${exactKey}. Use '${cssVarExpr}'.`;
+  }
+  if (nearestKey && cssVarExpr) {
+    return `Relative Z-Index detected: '${rawMatch}'. Near Z_LAYERS.${nearestKey}. Use '${cssVarExpr}'.`;
+  }
+  return `Non-standard hardcoded Z-Index: '${rawMatch}'. Register the layer in Z_LAYERS or use an existing one.`;
+}
+
+function formatVueZIndexPropMessage(
+  rawMatch: string,
+  exactKey: string | undefined,
+  nearestKey: string | undefined
+): string {
+  if (exactKey) {
+    return `Hardcoded Vue Z-Index prop detected: '${rawMatch}'. Corresponds to Z_LAYERS.${exactKey}. Bind ':z-index="Z_LAYERS.${exactKey}"' or modal stack zIndex.`;
+  }
+  if (nearestKey) {
+    return `Hardcoded Vue Z-Index prop detected: '${rawMatch}'. Near Z_LAYERS.${nearestKey}. Register a named layer in Z_LAYERS or use modal stack zIndexOffset.`;
+  }
+  return `Hardcoded Vue Z-Index prop detected: '${rawMatch}'. Register the layer in Z_LAYERS or consume modal stack zIndex.`;
 }
 
 export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
@@ -232,17 +264,17 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       ruleRemediations: {
         'z-index-missing-var':
           '📖 REMEDIATION GUIDE: z-index-missing-var\n' +
-          '1. Root Cause: A stacking layer was declared in TypeScript (`Z_LAYERS` in `src/types/zLayers.ts` or in `audit.config.ts`), but lacks its matching `$z-<layer>` variable in the base styles file (`src/styles/_base.scss`).\n' +
-          '2. Diagnosis: Compare `Z_LAYERS` keys against `$z-*` variables declared in `_base.scss`.\n' +
-          '3. Canonical Solution: Add the corresponding SCSS variable in `_base.scss` matching the numeric value in TypeScript.\n' +
+          '1. Root Cause: A stacking layer was declared in TypeScript (`Z_LAYERS` in `src/types/zLayers.ts` or in `audit.config.ts`), but lacks its matching `--z-<layer>` CSS custom property in the base styles file (`src/styles/_base.scss`).\n' +
+          '2. Diagnosis: Compare `Z_LAYERS` keys against `:root` `--z-*` custom properties declared in `_base.scss`.\n' +
+          '3. Canonical Solution: Add the corresponding `--z-<layer>` CSS custom property inside `:root` in `_base.scss` matching the numeric value in TypeScript, or run `npm run auditor:fix`.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   - In TS: `Z_LAYERS = { DROPDOWN: 9000 }`\n' +
-          '   - In SCSS: `$z-dropdown: 9000;`',
+          '   - In TS: `Z_LAYERS = { DROPDOWN: 7000 }`\n' +
+          '   - In SCSS (`:root`): `--z-dropdown: 7000;`',
         'z-index-mismatch':
           '📖 REMEDIATION GUIDE: z-index-mismatch\n' +
-          '1. Root Cause: Numerical divergence exists between the z-index value defined in TypeScript (`Z_LAYERS`) and the value in the SCSS variable (`$z-*`) for the same stacking layer.\n' +
+          '1. Root Cause: Numerical divergence exists between the z-index value defined in TypeScript (`Z_LAYERS`) and the value in the CSS custom property (`--z-*`) for the same stacking layer.\n' +
           '2. Diagnosis: Review the error message indicating which layer and values diverge (e.g., TS=11000 vs SCSS=10000).\n' +
-          '3. Canonical Solution: Unify both values by updating the SCSS variable to match the canonical TypeScript constant.\n' +
+          '3. Canonical Solution: Unify both values by updating the `--z-*` property in `_base.scss` to match the canonical TypeScript constant.\n' +
           '4. Example / Auto-fix command:\n' +
           '   `npm run auditor:fix`',
         'z-index-read-error':
@@ -254,14 +286,14 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
           '   Verify `styles.baseScssFile` in `.auditor/audit.config.ts`.',
         'z-index-hardcoded-literal':
           '📖 REMEDIATION GUIDE: z-index-hardcoded-literal\n' +
-          '1. Root Cause: A raw numeric literal was assigned to z-index (e.g. `z-index: 9999` or `zIndex: 100`) instead of using canonical `Z_LAYERS` variables. Hardcoded values trigger specificity wars and modal z-fighting.\n' +
-          '2. Diagnosis: Look for numeric literals in z-index properties within styles or GSAP tweens.\n' +
+          '1. Root Cause: A raw numeric literal was assigned to z-index (e.g. `z-index: 9999`, `zIndex: 100`, or `:z-index="13000"`) instead of using canonical `Z_LAYERS` tokens or `--z-*` CSS custom properties. Hardcoded values trigger specificity wars and modal z-fighting.\n' +
+          '2. Diagnosis: Look for numeric literals in CSS/SCSS `z-index` properties, JS inline styles, or Vue template `:z-index` props.\n' +
           '3. Canonical Solution:\n' +
-          '   a) In CSS/SCSS: replace the number with official variables: `z-index: $z-modal;` or `z-index: var(--z-modal);`.\n' +
-          '   b) In TypeScript/GSAP: import and use canonical layers: `zIndex: Z_LAYERS.MODAL`.\n' +
+          '   a) In CSS/SCSS: replace the number with official custom properties: `z-index: var(--z-modal);`.\n' +
+          '   b) In TypeScript/Vue props: bind canonical layers (`Z_LAYERS.MODAL`) or modal stack `zIndex` / `zIndexOffset`.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   ❌ Incorrect: `.tooltip { z-index: 9999; }`\n' +
-          '   ✅ Correct:   `.tooltip { z-index: $z-tooltip; }`',
+          '   ❌ Incorrect: `.tooltip { z-index: 15000; }`\n' +
+          '   ✅ Correct:   `.tooltip { z-index: var(--z-tooltip); }`',
         'z-index-isolated-constant':
           '📖 REMEDIATION GUIDE: z-index-isolated-constant\n' +
           '1. Root Cause: An isolated numeric z-index constant was defined outside the unified `Z_LAYERS` catalog (e.g. `const MODAL_Z = 5000` in a local file).\n' +
@@ -283,99 +315,130 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
 
     // 1. Canonical sub-auditor declaration for hardcoded numeric literals
     this.declareFileSubAuditor('z-index-hardcoded-literal', (doc) => {
-      const isTest = isTestPath(doc.relPath);
-      const isExempt = isExemptFile(doc.relPath);
-      if (isTest || isExempt) return;
-
-      HARDCODED_Z_INDEX_REGEX.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      const replacements: Array<{ start: number; end: number; replacement: string }> = [];
-      while ((m = HARDCODED_Z_INDEX_REGEX.exec(doc.rawContent)) !== null) {
-        if (doc.isInsideComment(m.index)) continue;
-        const pos = doc.getLineAndColumn(m.index);
-
-        const numMatch = m[0].match(/-?\d+/);
-        const val = numMatch ? parseInt(numMatch[0], 10) : 0;
-        const { exactKey, nearestKey, cssVarExpr } = resolveZLayer(val);
-        const canFix = Boolean(cssVarExpr);
-
-        if (this.isFixActive() && canFix) {
-          const replaced = fixZIndexLiteral(m[0]);
-          if (replaced !== m[0]) {
-            replacements.push({
-              start: m.index,
-              end: m.index + m[0].length,
-              replacement: replaced
-            });
-            continue;
-          }
-        }
-
-        let msg: string;
-        if (exactKey && cssVarExpr) {
-          msg = `Hardcoded Z-Index detected: '${m[0]}'. Corresponds to Z_LAYERS.${exactKey}. Use '${cssVarExpr}'.`;
-        } else if (nearestKey && cssVarExpr) {
-          msg = `Relative Z-Index detected: '${m[0]}'. Near Z_LAYERS.${nearestKey}. Use '${cssVarExpr}'.`;
-        } else {
-          msg = `Non-standard hardcoded Z-Index: '${m[0]}'. Register the layer in Z_LAYERS or use an existing one.`;
-        }
-
-        this.addViolation({
-          ruleId: 'z-index-hardcoded-literal',
-          severity: 'error',
-          file: doc.relPath,
-          line: pos.line,
-          col: pos.col,
-          message: msg,
-          context: m[0],
-          fixable: canFix
-        });
-      }
-
-      if (replacements.length > 0) {
-        let updated = doc.rawContent;
-        for (let i = replacements.length - 1; i >= 0; i--) {
-          const r = replacements[i]!;
-          updated = updated.slice(0, r.start) + r.replacement + updated.slice(r.end);
-        }
-        writeFileSync(doc.filePath, updated, 'utf-8');
-      }
+      this.auditDocumentHardcodedZIndex(doc);
     });
 
     // 2. Canonical sub-auditor declaration for isolated constants outside Z_LAYERS
     this.declareFileSubAuditor('z-index-isolated-constant', (doc) => {
-      const norm = normalizePosixPath(doc.relPath).toLowerCase();
-      const isTest = isTestPath(doc.relPath);
-      const isExempt = isExemptFile(doc.relPath);
-      if (isTest || isExempt) return;
+      this.auditDocumentIsolatedZIndexConstants(doc);
+    });
+  }
 
-      if (norm.endsWith('.ts') || norm.endsWith('.tsx') || norm.endsWith('.vue')) {
-        const auditConfig = getAuditConfig(this.projectRoot);
-        const zFile = auditConfig.styles?.zLayersTsFile ?? auditConfig.domain?.zLayersFile;
-        const isZLayersDeclFile =
-          zFile && norm.includes(toPosixRelative(this.projectRoot, zFile).toLowerCase());
+  private auditDocumentHardcodedZIndex(doc: AuditedDocument): void {
+    if (isTestPath(doc.relPath) || isExemptFile(doc.relPath)) return;
+    const effectiveLayers = getEffectiveZLayers(this.projectRoot);
+    const replacements = this.scanCssAndJsHardcodedLiterals(doc, effectiveLayers);
+    this.scanVueTemplateHardcodedProps(doc, effectiveLayers);
 
-        if (!isZLayersDeclFile && !norm.includes('node_modules')) {
-          ISOLATED_Z_INDEX_CONST_REGEX.lastIndex = 0;
-          let cMatch: RegExpExecArray | null;
-          while ((cMatch = ISOLATED_Z_INDEX_CONST_REGEX.exec(doc.rawContent)) !== null) {
-            if (doc.isInsideComment(cMatch.index)) continue;
-            const pos = doc.getLineAndColumn(cMatch.index);
+    if (replacements.length === 0) return;
+    let updated = doc.rawContent;
+    for (let i = replacements.length - 1; i >= 0; i--) {
+      const r = replacements[i]!;
+      updated = updated.slice(0, r.start) + r.newText + updated.slice(r.end);
+    }
+    writeFileSync(doc.filePath, updated, 'utf-8');
+  }
 
-            this.addViolation({
-              ruleId: 'z-index-isolated-constant',
-              severity: 'error',
-              file: doc.relPath,
-              line: pos.line,
-              col: pos.col,
-              message: `Isolated Z-Index constant declaration detected: '${cMatch[0]}'. Declaring Z-Index constants outside Z_LAYERS is PROHIBITED. Register the layer in Z_LAYERS or consume 'Z_LAYERS.<LAYER>'.`,
-              context: cMatch[0],
-              fixable: false
-            });
-          }
+  private scanCssAndJsHardcodedLiterals(
+    doc: AuditedDocument,
+    effectiveLayers: Readonly<Record<string, number>>
+  ): DocumentReplacement[] {
+    HARDCODED_Z_INDEX_REGEX.lastIndex = 0;
+    const replacements: DocumentReplacement[] = [];
+    let m: RegExpExecArray | null;
+
+    while ((m = HARDCODED_Z_INDEX_REGEX.exec(doc.rawContent)) !== null) {
+      if (doc.isInsideComment(m.index)) continue;
+      const numMatch = m[0].match(/-?\d+/);
+      const val = numMatch ? parseInt(numMatch[0], 10) : 0;
+      const { exactKey, nearestKey, cssVarExpr } = resolveZLayer(val, effectiveLayers);
+      const canFix = Boolean(cssVarExpr);
+
+      if (this.isFixActive() && canFix) {
+        const replaced = fixZIndexLiteral(m[0], effectiveLayers);
+        if (replaced !== m[0]) {
+          replacements.push({
+            start: m.index,
+            end: m.index + m[0].length,
+            newText: replaced
+          });
+          continue;
         }
       }
-    });
+
+      const pos = doc.getLineAndColumn(m.index);
+      this.addViolation({
+        ruleId: 'z-index-hardcoded-literal',
+        severity: 'error',
+        file: doc.relPath,
+        line: pos.line,
+        col: pos.col,
+        message: formatHardcodedZIndexMessage(m[0], exactKey, nearestKey, cssVarExpr),
+        context: m[0],
+        fixable: canFix
+      });
+    }
+
+    return replacements;
+  }
+
+  private scanVueTemplateHardcodedProps(
+    doc: AuditedDocument,
+    effectiveLayers: Readonly<Record<string, number>>
+  ): void {
+    const templateBlock = doc.getVueBlocks()?.template;
+    if (!templateBlock) return;
+
+    VUE_TEMPLATE_Z_INDEX_ATTR_REGEX.lastIndex = 0;
+    let propMatch: RegExpExecArray | null;
+    while ((propMatch = VUE_TEMPLATE_Z_INDEX_ATTR_REGEX.exec(templateBlock.content)) !== null) {
+      const absOffset = templateBlock.contentStart + propMatch.index;
+      if (doc.isInsideComment(absOffset)) continue;
+      const pos = doc.getLineAndColumn(absOffset);
+      const val = propMatch[1] ? parseInt(propMatch[1], 10) : 0;
+      const { exactKey, nearestKey } = resolveZLayer(val, effectiveLayers);
+
+      this.addViolation({
+        ruleId: 'z-index-hardcoded-literal',
+        severity: 'error',
+        file: doc.relPath,
+        line: pos.line,
+        col: pos.col,
+        message: formatVueZIndexPropMessage(propMatch[0], exactKey, nearestKey),
+        context: propMatch[0],
+        fixable: false
+      });
+    }
+  }
+
+  private auditDocumentIsolatedZIndexConstants(doc: AuditedDocument): void {
+    if (isTestPath(doc.relPath) || isExemptFile(doc.relPath)) return;
+    const norm = normalizePosixPath(doc.relPath).toLowerCase();
+    const isScriptOrSfc = norm.endsWith('.ts') || norm.endsWith('.tsx') || norm.endsWith('.vue');
+    if (!isScriptOrSfc || norm.includes('node_modules')) return;
+
+    const auditConfig = getAuditConfig(this.projectRoot);
+    const zFile = auditConfig.styles?.zLayersTsFile ?? auditConfig.domain?.zLayersFile;
+    if (zFile && path.resolve(this.projectRoot, zFile) === path.resolve(doc.filePath)) {
+      return;
+    }
+
+    ISOLATED_Z_INDEX_CONST_REGEX.lastIndex = 0;
+    let cMatch: RegExpExecArray | null;
+    while ((cMatch = ISOLATED_Z_INDEX_CONST_REGEX.exec(doc.rawContent)) !== null) {
+      if (doc.isInsideComment(cMatch.index)) continue;
+      const pos = doc.getLineAndColumn(cMatch.index);
+      this.addViolation({
+        ruleId: 'z-index-isolated-constant',
+        severity: 'error',
+        file: doc.relPath,
+        line: pos.line,
+        col: pos.col,
+        message: `Isolated Z-Index constant declaration detected: '${cMatch[0]}'. Declaring Z-Index constants outside Z_LAYERS is PROHIBITED. Register the layer in Z_LAYERS or consume 'Z_LAYERS.<LAYER>'.`,
+        context: cMatch[0],
+        fixable: false
+      });
+    }
   }
 
   public override async runAudit(): Promise<void> {
@@ -492,7 +555,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
         await fs.writeFile(this.scssPath, result.scssContent, 'utf-8');
       }
 
-      this.context.setMetric('Total Layers Checked', Object.keys(Z_LAYERS).length);
+      this.context.setMetric('Total Layers Checked', Object.keys(effectiveLayers).length);
       this.context.setMetric('Status', result.modified ? 'Auto-fixed' : 'Synced');
     } else {
       this.runSubAuditorSync('z-index-missing-var', () => {

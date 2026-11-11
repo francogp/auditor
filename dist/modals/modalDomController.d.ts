@@ -1,4 +1,7 @@
 import { ModalStackManager } from "./modalStackManager.js";
+export interface ModalEventListenerOptions {
+  readonly capture?: boolean;
+}
 export interface ModalPointerLikeEvent {
   readonly button: number;
   readonly target: unknown;
@@ -22,11 +25,13 @@ export interface ModalBackNavigationConfig {
   readonly blockBrowserShortcuts?: boolean;
   readonly blockBackspaceOutsideInputs?: boolean;
   readonly onBeforePopStateDismiss?: () => boolean;
+  readonly onUnhandledPopState?: () => boolean | void;
 }
 export interface ModalDomTargetLike {
-  addEventListener(type: string, listener: (event: Event) => void, options?: boolean): void;
-  removeEventListener(type: string, listener: (event: Event) => void, options?: boolean): void;
+  addEventListener(type: string, listener: (event: Event) => void, options?: boolean | ModalEventListenerOptions): void;
+  removeEventListener(type: string, listener: (event: Event) => void, options?: boolean | ModalEventListenerOptions): void;
   readonly history?: {
+    readonly state?: unknown;
     pushState(data: unknown, unused: string, url?: string): void;
   };
   readonly location?: {
@@ -55,14 +60,16 @@ export declare class ModalDomController<TModalKind extends string = string, TMet
   private readonly preventDefaultOnEscape;
   private readonly backNavigation;
   private disposed;
-  private readonly boundKeydown;
+  private readonly boundEscapeKeydown;
+  private readonly boundBackNavKeydown;
   private readonly boundPopState;
   private readonly boundMouseSideButton;
   constructor(config: ModalDomControllerConfig<TModalKind, TMeta>);
   dispose(): void;
   private attachListeners;
   private pushHistoryTrap;
-  private handleKeydown;
+  private handleEscapeKeydown;
+  private handleBackNavKeydown;
   private handlePopState;
   private handleMouseSideButton;
 }

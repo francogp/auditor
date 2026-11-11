@@ -23,6 +23,12 @@ const USER_DISMISS_REASONS = createDomainSet([
 	"close-button",
 	"back-navigation"
 ]);
+const DEFAULT_MODAL_TIMER_DRIVER = { schedule(delayMs, callback) {
+	const handle = globalThis.setTimeout(callback, delayMs);
+	return () => {
+		globalThis.clearTimeout(handle);
+	};
+} };
 function defaultUidFactory() {
 	return globalThis.crypto.randomUUID();
 }
@@ -55,6 +61,7 @@ var ModalStackManager = class {
 	closeTimeoutMs;
 	isReducedMotionFn;
 	uidFactory;
+	timerDriver;
 	onCeilingExceeded;
 	nextSlot = 0;
 	orderedUids = [];
@@ -86,6 +93,7 @@ var ModalStackManager = class {
 		this.closeTimeoutMs = config.closeTimeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS;
 		this.isReducedMotionFn = config.isReducedMotion;
 		this.uidFactory = config.uidFactory ?? defaultUidFactory;
+		this.timerDriver = config.timerDriver ?? DEFAULT_MODAL_TIMER_DRIVER;
 		this.onCeilingExceeded = config.onCeilingExceeded;
 		this.cachedSnapshot = this.computeSnapshot();
 	}
@@ -120,6 +128,18 @@ var ModalStackManager = class {
 		}
 		return false;
 	}
+	getLatestByKind(kind, options = {}) {
+		const bucket = this.uidsByKind.get(kind);
+		if (!bucket || bucket.size === 0) return void 0;
+		for (let i = this.orderedUids.length - 1; i >= 0; i--) {
+			const uid = this.orderedUids[i];
+			if (!bucket.has(uid)) continue;
+			const rec = this.recordsByUid.get(uid);
+			if (!rec) continue;
+			if (!options.includeClosing && rec.phase === "closing") continue;
+			return this.cachedEntriesByUid.get(uid);
+		}
+	}
 	isActiveTop(modalUid) {
 		return this.cachedSnapshot.activeTop?.modalUid === modalUid;
 	}
@@ -135,9 +155,12 @@ var ModalStackManager = class {
 			bucket.delete(listener);
 		};
 	}
-	open(options) {
+	tryOpen(options) {
 		const singletonResult = this.resolveSingletonOnOpen(options);
-		if (singletonResult) return singletonResult;
+		if (singletonResult) return {
+			entry: singletonResult,
+			created: false
+		};
 		const modalUid = options.modalUid !== void 0 ? options.modalUid : this.uidFactory();
 		if (this.recordsByUid.has(modalUid)) throw new Error(`Duplicate modalUid "${modalUid}" is already present in ModalStackManager`);
 		const record = this.createModalRecord(modalUid, options);
@@ -147,13 +170,41 @@ var ModalStackManager = class {
 		this.emitLifecycleEvent("open-start", entry);
 		if (this.shouldShortCircuitMotion() || record.openTimeoutMs === 0 && entry.motion.enter.durationSec === 0) {
 			this.completeOpen(modalUid);
-			return this.cachedEntriesByUid.get(modalUid) ?? entry;
+			return {
+				entry: this.cachedEntriesByUid.get(modalUid) ?? entry,
+				created: true
+			};
 		}
-		if (record.openTimeoutMs > 0) record.openTimer = globalThis.setTimeout(() => {
-			record.openTimer = null;
+		if (record.openTimeoutMs > 0) record.cancelOpenTimer = this.timerDriver.schedule(record.openTimeoutMs, () => {
+			record.cancelOpenTimer = null;
 			this.completeOpen(modalUid);
-		}, record.openTimeoutMs);
-		return this.cachedEntriesByUid.get(modalUid) ?? entry;
+		});
+		return {
+			entry: this.cachedEntriesByUid.get(modalUid) ?? entry,
+			created: true
+		};
+	}
+	open(options) {
+		return this.tryOpen(options).entry;
+	}
+	updateEntry(modalUid, patch) {
+		const record = this.recordsByUid.get(modalUid);
+		if (!record || record.phase === "closing") return;
+		if ("meta" in patch) record.meta = patch.meta;
+		if (patch.dismissMode !== void 0) record.dismissMode = patch.dismissMode;
+		if (patch.obscuresBackground !== void 0) record.obscuresBackground = patch.obscuresBackground;
+		if (patch.motion !== void 0) record.motionInput = patch.motion;
+		if ("canClose" in patch) record.canClose = patch.canClose;
+		if ("customZIndex" in patch || patch.zIndexOffset !== void 0) {
+			if ("customZIndex" in patch) record.customZIndex = patch.customZIndex;
+			if (patch.zIndexOffset !== void 0) record.zIndexOffset = patch.zIndexOffset;
+			const baseCalculatedZ = record.customZIndex ?? record.allocatedBaseZIndex;
+			this.applyComputedZIndex(record, baseCalculatedZ + record.zIndexOffset);
+		}
+		this.commitSnapshot();
+		const updated = this.cachedEntriesByUid.get(modalUid);
+		this.emitLifecycleEvent("updated", updated ?? null);
+		return updated;
 	}
 	completeOpen(modalUid) {
 		const record = this.recordsByUid.get(modalUid);
@@ -204,6 +255,11 @@ var ModalStackManager = class {
 		let closedCount = 0;
 		for (let i = uids.length - 1; i >= 0; i--) if (this.requestClose(uids[i], reason)) closedCount++;
 		return closedCount;
+	}
+	closeLatestByKind(kind, reason = "programmatic") {
+		const latest = this.getLatestByKind(kind);
+		if (!latest) return false;
+		return this.requestClose(latest.modalUid, reason);
 	}
 	finalizeClose(modalUid) {
 		const record = this.recordsByUid.get(modalUid);
@@ -281,14 +337,15 @@ var ModalStackManager = class {
 	createModalRecord(modalUid, options) {
 		const slot = this.nextSlot++;
 		const zIndexOffset = options.zIndexOffset ?? DEFAULT_Z_INDEX_OFFSET;
-		const autoBaseZ = this.computeNextMonotonicBaseZ(slot);
-		const zIndex = (options.customZIndex ?? autoBaseZ) + zIndexOffset;
+		const allocatedBaseZIndex = this.computeNextMonotonicBaseZ(slot);
+		const zIndex = (options.customZIndex ?? allocatedBaseZIndex) + zIndexOffset;
 		this.notifyCeilingIfNeeded(modalUid, options.kind, slot, zIndex);
 		return {
 			modalUid,
 			kind: options.kind,
 			phase: "opening",
 			slot,
+			allocatedBaseZIndex,
 			customZIndex: options.customZIndex,
 			zIndexOffset,
 			zIndex,
@@ -305,19 +362,24 @@ var ModalStackManager = class {
 			canClose: options.canClose,
 			onCloseAnimation: options.onCloseAnimation,
 			closingReason: "programmatic",
-			openTimer: null,
-			closeTimer: null
+			cancelOpenTimer: null,
+			cancelCloseTimer: null
 		};
 	}
 	assignNextSlot(record) {
 		const slot = this.nextSlot++;
 		const monotonicZ = this.computeNextMonotonicBaseZ(slot, record.modalUid);
-		const zIndex = (record.customZIndex !== void 0 ? Math.max(record.customZIndex, monotonicZ) : monotonicZ) + record.zIndexOffset;
+		if (record.customZIndex !== void 0 && record.customZIndex < monotonicZ) record.customZIndex = monotonicZ;
 		record.slot = slot;
+		record.allocatedBaseZIndex = monotonicZ;
+		const elevatedBase = record.customZIndex ?? monotonicZ;
+		this.applyComputedZIndex(record, elevatedBase + record.zIndexOffset);
+	}
+	applyComputedZIndex(record, zIndex) {
 		record.zIndex = zIndex;
 		record.backdropZIndex = zIndex + this.backdropOffset;
 		record.contentZIndex = zIndex + this.contentOffset;
-		this.notifyCeilingIfNeeded(record.modalUid, record.kind, slot, zIndex);
+		this.notifyCeilingIfNeeded(record.modalUid, record.kind, record.slot, zIndex);
 	}
 	computeNextMonotonicBaseZ(slot, excludeUid) {
 		const slotZ = this.baseZIndex + slot * this.stepZIndex;
@@ -401,10 +463,10 @@ var ModalStackManager = class {
 			if (!settled && this.recordsByUid.has(record.modalUid)) this.finalizeClose(record.modalUid);
 			return;
 		}
-		if (record.closeTimeoutMs > 0) record.closeTimer = globalThis.setTimeout(() => {
-			record.closeTimer = null;
+		if (record.closeTimeoutMs > 0) record.cancelCloseTimer = this.timerDriver.schedule(record.closeTimeoutMs, () => {
+			record.cancelCloseTimer = null;
 			done();
-		}, record.closeTimeoutMs);
+		});
 	}
 	shouldShortCircuitMotion() {
 		return Boolean(this.instantOnReducedMotion && this.isReducedMotionFn?.());
@@ -439,15 +501,17 @@ var ModalStackManager = class {
 		return active;
 	}
 	clearOpenTimer(record) {
-		if (record.openTimer !== null) {
-			globalThis.clearTimeout(record.openTimer);
-			record.openTimer = null;
+		if (record.cancelOpenTimer !== null) {
+			const cancel = record.cancelOpenTimer;
+			record.cancelOpenTimer = null;
+			cancel();
 		}
 	}
 	clearCloseTimer(record) {
-		if (record.closeTimer !== null) {
-			globalThis.clearTimeout(record.closeTimer);
-			record.closeTimer = null;
+		if (record.cancelCloseTimer !== null) {
+			const cancel = record.cancelCloseTimer;
+			record.cancelCloseTimer = null;
+			cancel();
 		}
 	}
 	resolveCloseWaiters(modalUid, result) {

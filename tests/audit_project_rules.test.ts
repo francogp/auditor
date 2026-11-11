@@ -40,7 +40,7 @@ import {
   functionCallsInTemplates,
   zIndexAudit,
   zIndexConstantDeclaration,
-  CANONICAL_DEFAULT_Z_LAYERS,
+  CANONICAL_Z_LAYERS,
   Z_LAYERS
 } from '../src/suites/architecture/audit_rules.ts';
 
@@ -264,9 +264,9 @@ describe('Project Architecture Rules & Auditor', () => {
     });
 
     it('Z_LAYERS contains canonical layer values', () => {
-      expect(CANONICAL_DEFAULT_Z_LAYERS.BASE).toBe(0);
-      expect(CANONICAL_DEFAULT_Z_LAYERS.MODAL).toBe(11000);
-      expect(CANONICAL_DEFAULT_Z_LAYERS.TOOLTIP).toBe(15000);
+      expect(CANONICAL_Z_LAYERS.BASE).toBe(0);
+      expect(CANONICAL_Z_LAYERS.MODAL).toBe(11000);
+      expect(CANONICAL_Z_LAYERS.TOOLTIP).toBe(15000);
       expect(Z_LAYERS.MODAL).toBe(11000);
     });
   });

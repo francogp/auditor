@@ -7,16 +7,17 @@
 ### Core Guarantees
 
 1. **Zero Hardcoding of Z-Index, Styles, or Motion**:
-   - `CANONICAL_Z_LAYERS` acts strictly as the **default** fallback scale (`MODAL: 11000`, `MODAL_STEP: 10`, `TOOLTIP: 15000`). Consumers can pass their own `zLayers` scale (`{ MODAL: 3000, MODAL_STEP: 20, TOOLTIP: 5000 }`), explicit `baseZIndex` / `stepZIndex` / `ceilingZIndex`, or per-modal `customZIndex` / `zIndexOffset` overrides.
+   - `CANONICAL_Z_LAYERS` acts strictly as the **default** fallback scale (`MODAL: 11000`, `MODAL_STEP: 10`, `TOOLTIP: 15000`). `resolveModalZLayers(overrides)` merges both canonical overrides and arbitrary project domain keys (`MAP_FLOOR`, `MAP_SPAWNS`) with 100% compile-time inference, and `validate_z_index` (`parseZLayersFromSource`) natively parses `...CANONICAL_Z_LAYERS` spreads and `resolveModalZLayers({...})` declarations alongside Vue `:z-index` template prop audits (`fixable: false`).
    - `DEFAULT_MODAL_MOTION_PRESETS` (`'scale-fade'`, `'fade'`, `'slide-up'`, `'slide-down'`, `'slide-left'`, `'slide-right'`, `'none'`) and `resolveModalStructuralStyles` provide **overridable defaults** with zero hardcoded colors, borders, or themes.
-   - Pluggable `ModalAnimationDriver` supports browser-native Web Animations API (`createWaapiModalDriver`), dependency-injected GSAP (`createGsapModalDriver`), or custom engines.
-2. **Deterministic $O(1)$ LIFO Stack & Monotonic Z-Index Freeze**:
-   - Unifies declarative (`<BaseModal>`) and imperative (`Confirm`, `Prompt`) dialogs in a single LIFO stack with reference-stable immutable snapshots (`getSnapshot()`).
+   - Pluggable `ModalAnimationDriver` supports browser-native Web Animations API (`createWaapiModalDriver`), dependency-injected GSAP (`createGsapModalDriver`), or custom engines, plus injectable `ModalTimerDriver` (`timerDriver`) for GSAP-governed repositories (`zeroTimerLogic`).
+2. **Deterministic $O(1)$ LIFO Stack, Singleton Discrimination & Reactive Entry Patching**:
+   - Unifies declarative (`<BaseModal>`) and imperative (`Confirm`, `Prompt`) dialogs in a single LIFO stack with reference-stable immutable snapshots (`getSnapshot()`), `tryOpen()` (`{ entry, created }` singleton discrimination), `getLatestByKind()`, and `closeLatestByKind()`.
+   - Supports hot reactive updates on mounted modals via `stack.updateEntry(modalUid, patch)` (emitting `'updated'`) and declarative child surface overrides via `animController.bindSurface(modalUid, elements, { motion, patch })`.
    - Transfers `activeTop` and `isSimplified` **instantaneously** at `open-start` and `close-start`, while freezing the exiting modal's `zIndex` until `finalizeClose` (`close-end`) and resetting `nextSlot = 0` exclusively on `stack-empty`.
 3. **W3C & Modern Web Light-Dismiss Safety**:
-   - Single global `Escape` router (`ModalDomController`) respecting `event.defaultPrevented` and IME `event.isComposing`.
+   - Single global `Escape` router (`ModalDomController`) in bubble phase respecting child `event.defaultPrevented` and IME `event.isComposing`.
    - Two-phase backdrop pointer guard (`createBackdropPointerGuard`) requiring both `pointerdown` and `pointerup` with `button === 0` on `activeTop`'s backdrop so text-selection drags never dismiss dialogs.
-   - Optional browser history / mouse side-button / non-editable `Backspace` back-navigation trap (`ModalBackNavigationConfig`).
+   - Non-destructive browser history trap (`ModalBackNavigationConfig`) preserving existing router `history.state` metadata, tolerating restricted `pushState` environments, intercepting mouse buttons `3`/`4` and history shortcuts in `{ capture: true }` phase, and running `onUnhandledPopState` strictly after `activeTop` modal dismissal.
 4. **Zero-Polling Priority Sequence Queue (`ModalSequenceQueue`)**:
    - Replaces `setInterval` / `sleep(50)` loops with event-driven `stack.waitForClose(modalUid)` and `queue.waitUntilIdle()`.
 
@@ -86,8 +87,10 @@ import {
   resolveModalCssVars
 } from '@francogp/auditor/modals';
 
-// 1. Supply your project's custom Z-Layer dictionary (merges onto CANONICAL_Z_LAYERS)
+// 1. Supply your project's custom Z-Layer dictionary (supports extra domain keys too)
 const APP_Z_LAYERS = resolveModalZLayers({
+  MAP_FLOOR: 10,
+  MAP_SPAWNS: 50,
   OVERLAY: 2500,
   MODAL: 3000,
   MODAL_STEP: 20,

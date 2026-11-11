@@ -334,6 +334,84 @@ describe('ModalDomController, Light-Dismiss Pointer Guard, Motion Presets & Isom
       controller.dispose();
       dom.window.close();
     });
+
+    it('preserves existing Vue Router history.state keys, tolerates restricted pushState errors, runs onUnhandledPopState AFTER activeTop modal closes, and intercepts mousedown/pointerdown side buttons in capture phase', () => {
+      const dom = new JSDOM(
+        '<!doctype html><html><body><button id="inner-btn"></button></body></html>',
+        {
+          url: 'https://game.example.test/adventure'
+        }
+      );
+      // Simulate pre-existing vue-router history.state metadata
+      dom.window.history.replaceState(
+        { current: '/adventure', position: 4, scroll: { left: 0, top: 0 } },
+        '',
+        'https://game.example.test/adventure'
+      );
+
+      let isSecondaryChatOpen = true;
+      const stack = createModalStack<UiModalKind>({ animatedClose: false });
+      const controller = new ModalDomController({
+        stack,
+        target: dom.window,
+        backNavigation: {
+          enabled: true,
+          guardStateKey: 'pokevicioGuard',
+          onUnhandledPopState: () => {
+            if (isSecondaryChatOpen) {
+              isSecondaryChatOpen = false;
+              return true;
+            }
+            return false;
+          }
+        }
+      });
+
+      // 1. Existing vue-router state keys MUST be preserved alongside pokevicioGuard
+      expect(dom.window.history.state).toEqual({
+        current: '/adventure',
+        position: 4,
+        scroll: { left: 0, top: 0 },
+        pokevicioGuard: true
+      });
+
+      // 2. Mousedown / pointerdown with mouse button 3 on inner child is intercepted in capture phase BEFORE child bubble listeners fire
+      const innerBtn = dom.window.document.getElementById('inner-btn')!;
+      let bubbleReached = false;
+      const onInnerMouseDown = (): void => {
+        bubbleReached = true;
+      };
+      innerBtn.addEventListener('mousedown', onInnerMouseDown);
+      const sideMouseDown = new dom.window.MouseEvent('mousedown', {
+        button: 3,
+        bubbles: true,
+        cancelable: true
+      });
+      innerBtn.dispatchEvent(sideMouseDown);
+      innerBtn.removeEventListener('mousedown', onInnerMouseDown);
+      expect(sideMouseDown.defaultPrevented).toBe(true);
+      expect(bubbleReached).toBe(false);
+
+      // 3. When a modal is open ABOVE secondary chat panel, popstate closes the modal FIRST, and only closes secondary chat on the NEXT popstate
+      stack.open({ kind: 'Settings', modalUid: 'settings-top' });
+      dom.window.dispatchEvent(new dom.window.PopStateEvent('popstate'));
+      expect(stack.hasKind('Settings')).toBe(false);
+      expect(isSecondaryChatOpen).toBe(true);
+
+      dom.window.dispatchEvent(new dom.window.PopStateEvent('popstate'));
+      expect(isSecondaryChatOpen).toBe(false);
+
+      // 4. Restricted pushState throwing SecurityError does not crash controller
+      vi.spyOn(dom.window.history, 'pushState').mockImplementation(() => {
+        throw new Error('SecurityError: pushState throttled');
+      });
+      expect(() =>
+        dom.window.dispatchEvent(new dom.window.PopStateEvent('popstate'))
+      ).not.toThrow();
+
+      controller.dispose();
+      dom.window.close();
+    });
   });
 
   describe('Ported PokeBorrador Suite: DOM IDs, Surface Placement Motion, Custom Styles & Animation Drivers', () => {
@@ -473,6 +551,18 @@ describe('ModalDomController, Light-Dismiss Pointer Guard, Motion Presets & Isom
       expect(stack.getByUid('headless-1')?.phase).toBe('open');
       expect(stack.requestClose('headless-1', 'escape')).toBe(true);
       expect(stack.hasUid('headless-1', { includeClosing: true })).toBe(false);
+
+      // Declarative child SFC passing motion override in bindSurface() animates with child preset ('slide-left')
+      stack.open({ kind: 'Drawer', modalUid: 'late-drawer' });
+      const drawerPanelMock = createMockWaapiElement();
+      animController.bindSurface(
+        'late-drawer',
+        { panel: drawerPanelMock.element },
+        { motion: 'slide-left' }
+      );
+      expect(stack.getByUid('late-drawer')?.motion.name).toBe('slide-left');
+      expect(drawerPanelMock.animations[0]?.keyframes[0]?.transform).toContain('-100%');
+      drawerPanelMock.animations[0]!.finish();
 
       unbind();
       animController.dispose();

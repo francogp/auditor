@@ -3,7 +3,7 @@ import { isCliPath, isInCodeRoots, isScriptPath, isSrcPath } from "./auditCodeRo
 import { matchesAnyRoot } from "./auditRootMatcher.js";
 import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
 import { isSelfProviderProject } from "./auditProjectIdentity.js";
-import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
+import { Z_LAYERS, getEffectiveZLayers, parseZLayersFromSource, resolveZLayersScssPath } from "./auditZLayers.js";
 /**
  * packages/auditor/src/core/auditPathPredicates.ts
  *
@@ -23,4 +23,4 @@ export declare function isDemoPath(filePath: string, config?: AuditEngineConfig)
  * Checks whether a file path belongs to an explicitly exempt file in paths.exemptFiles.
  */
 export declare function isExemptFile(filePath: string, config?: AuditEngineConfig): boolean;
-export { Z_LAYERS, getEffectiveZLayers, isCliPath, isInCodeRoots, isScriptPath, isSelfProviderProject, isSrcPath, isTestFileForCodeAudit, isTestPath, matchesAnyRoot, resolveZLayersScssPath };
+export { Z_LAYERS, getEffectiveZLayers, isCliPath, isInCodeRoots, isScriptPath, isSelfProviderProject, isSrcPath, isTestFileForCodeAudit, isTestPath, matchesAnyRoot, parseZLayersFromSource, resolveZLayersScssPath };

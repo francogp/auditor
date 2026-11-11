@@ -30,10 +30,14 @@ export declare const CANONICAL_Z_LAYERS: Readonly<{
 export type CanonicalZLayerKey = keyof typeof CANONICAL_Z_LAYERS;
 export type ModalZLayerScale = Readonly<Record<CanonicalZLayerKey, number>>;
 export type CustomModalZLayers = Readonly<Partial<Record<CanonicalZLayerKey, number>>>;
+export type ModalZLayerOverrides<TOverrides> = { readonly [K in keyof TOverrides]: K extends CanonicalZLayerKey ? number | undefined : number; };
 /**
- * Merges consumer-provided Z-Layer overrides onto `CANONICAL_Z_LAYERS`
- * without mutating the canonical defaults.
+ * Merges consumer-provided Z-Layer overrides (including custom domain keys such
+ * as `MAP_FLOOR` or `MAP_SPAWNS`) onto `CANONICAL_Z_LAYERS` without mutating
+ * the canonical defaults.
  */
+export declare function resolveModalZLayers(): ModalZLayerScale;
+export declare function resolveModalZLayers<const TOverrides extends ModalZLayerOverrides<TOverrides>>(overrides: TOverrides): Readonly<ModalZLayerScale & { readonly [K in keyof TOverrides]: number; }>;
 export declare function resolveModalZLayers(overrides?: CustomModalZLayers): ModalZLayerScale;
 export declare const MODAL_CSS_VAR_NAMES: readonly ["--modal-z", "--modal-backdrop-z", "--modal-content-z"];
 export type ModalCssVarName = (typeof MODAL_CSS_VAR_NAMES)[number];

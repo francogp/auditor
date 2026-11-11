@@ -528,5 +528,101 @@ describe('ModalStackManager & Customizable Z-Layer Governance', () => {
         vi.useRealTimers();
       }
     });
+
+    it('supports reactive updateEntry(), tryOpen() singleton discrimination, closeLatestByKind(), extended resolveModalZLayers(), and injectable timerDriver', () => {
+      const extendedScale = resolveModalZLayers({
+        MODAL: 11000,
+        MAP_FLOOR: 10,
+        MAP_SPAWNS: 50
+      });
+      expect(extendedScale.MODAL).toBe(11000);
+      expect(extendedScale.MAP_FLOOR).toBe(10);
+      expect(extendedScale.MAP_SPAWNS).toBe(50);
+      expect(extendedScale.TOOLTIP).toBe(CANONICAL_Z_LAYERS.TOOLTIP);
+
+      const scheduledCallbacks: Array<{ delayMs: number; cb: () => void; cancelled: boolean }> = [];
+      const stack = createModalStack<GameModalKind, ModalPayload>({
+        openTimeoutMs: 400,
+        closeTimeoutMs: 500,
+        holdClosingUntilFinalized: true,
+        timerDriver: {
+          schedule(delayMs, callback) {
+            const task = { delayMs, cb: callback, cancelled: false };
+            scheduledCallbacks.push(task);
+            return () => {
+              task.cancelled = true;
+            };
+          }
+        }
+      });
+
+      // 1. tryOpen distinguishes created: true vs singleton ignore-new created: false
+      const firstConfirm = stack.tryOpen({
+        kind: 'Confirm',
+        modalUid: 'confirm-1',
+        singletonPolicy: 'ignore-new'
+      });
+      expect(firstConfirm.created).toBe(true);
+      expect(firstConfirm.entry.modalUid).toBe('confirm-1');
+
+      const duplicateConfirm = stack.tryOpen({
+        kind: 'Confirm',
+        modalUid: 'confirm-2',
+        singletonPolicy: 'ignore-new'
+      });
+      expect(duplicateConfirm.created).toBe(false);
+      expect(duplicateConfirm.entry.modalUid).toBe('confirm-1');
+
+      // Custom timerDriver scheduled openTimeoutMs (400ms) without global setTimeout
+      expect(scheduledCallbacks).toHaveLength(1);
+      expect(scheduledCallbacks[0]?.delayMs).toBe(400);
+      scheduledCallbacks[0]!.cb();
+      expect(stack.getByUid('confirm-1')?.phase).toBe('open');
+
+      // 2. Reactive updateEntry mutates dismissMode, obscuresBackground, motion, and meta on hot mounted SFCs
+      const updatedEvents: string[] = [];
+      stack.on('updated', (ev) => {
+        if (ev.entry) updatedEvents.push(ev.entry.modalUid);
+      });
+
+      const patched = stack.updateEntry('confirm-1', {
+        dismissMode: 'none',
+        obscuresBackground: false,
+        motion: 'slide-left',
+        meta: { title: 'Submitting faction...', dirty: true }
+      });
+      expect(patched?.dismissMode).toBe('none');
+      expect(patched?.obscuresBackground).toBe(false);
+      expect(patched?.motion.name).toBe('slide-left');
+      expect(stack.getSnapshot().obscuresBackground).toBe(false);
+      expect(updatedEvents).toEqual(['confirm-1']);
+
+      // Escape is now blocked dynamically because dismissMode became 'none'
+      expect(stack.closeTop('escape')).toBe(false);
+
+      // Re-enabling dismissMode in-flight immediately allows Escape again
+      stack.updateEntry('confirm-1', { dismissMode: 'any', obscuresBackground: true });
+      expect(stack.getSnapshot().obscuresBackground).toBe(true);
+      expect(stack.closeTop('escape')).toBe(true);
+      // closeTimeoutMs scheduled via custom timerDriver
+      expect(scheduledCallbacks).toHaveLength(2);
+      expect(scheduledCallbacks[1]?.delayMs).toBe(500);
+      scheduledCallbacks[1]!.cb();
+      expect(stack.hasUid('confirm-1', { includeClosing: true })).toBe(false);
+
+      // 3. closeLatestByKind closes ONLY the most recent LIFO instance of a repeated kind,
+      // and updateEntry(zIndexOffset) on a lower modal preserves LIFO z-order below activeTop
+      const n1 = stack.open({ kind: 'Notification', modalUid: 'n-1' });
+      const n2 = stack.open({ kind: 'Notification', modalUid: 'n-2' });
+      const patchedLower = stack.updateEntry('n-1', { zIndexOffset: 2 });
+      expect(patchedLower?.zIndex).toBe(n1.zIndex + 2);
+      expect(patchedLower!.zIndex).toBeLessThan(n2.zIndex);
+      expect(stack.getLatestByKind('Notification')?.modalUid).toBe('n-2');
+      expect(stack.closeLatestByKind('Notification', 'programmatic')).toBe(true);
+      expect(stack.hasUid('n-2')).toBe(false);
+      expect(stack.hasUid('n-1')).toBe(true);
+      expect(stack.getLatestByKind('Notification')?.modalUid).toBe('n-1');
+      stack.dispose();
+    });
   });
 });

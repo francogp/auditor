@@ -235,21 +235,23 @@ var ModalAnimationController = class {
 			if (!event.entry) return;
 			const elements = this.surfacesByUid.get(event.entry.modalUid);
 			if (!elements) return;
+			const latestEntry = this.stack.getByUid(event.entry.modalUid) ?? event.entry;
 			const done = event.deferClose();
 			this.driver.animateClose({
-				modalUid: event.entry.modalUid,
+				modalUid: latestEntry.modalUid,
 				elements,
-				preset: event.entry.motion,
+				preset: latestEntry.motion,
 				onComplete: done
 			});
 		}), this.stack.on("close-prevented", (event) => {
 			if (!event.entry || !this.driver.animatePrevented) return;
 			const elements = this.surfacesByUid.get(event.entry.modalUid);
 			if (!elements) return;
+			const latestEntry = this.stack.getByUid(event.entry.modalUid) ?? event.entry;
 			this.driver.animatePrevented({
-				modalUid: event.entry.modalUid,
+				modalUid: latestEntry.modalUid,
 				elements,
-				preset: event.entry.motion
+				preset: latestEntry.motion
 			});
 		}), this.stack.on("close-end", (event) => {
 			if (!event.entry) return;
@@ -257,11 +259,19 @@ var ModalAnimationController = class {
 		}));
 	}
 	/**
-	* Registers the rendered DOM elements for a modal instance. If the modal is currently
-	* in its `'opening'` phase, immediately triggers the entrance animation.
+	* Registers the rendered DOM elements for a modal instance (optionally applying
+	* child-component declarative `motion` or `patch` overrides). If the modal is
+	* currently in its `'opening'` phase, immediately triggers the entrance animation.
 	*/
-	bindSurface(modalUid, elements) {
+	bindSurface(modalUid, elements, options) {
 		this.surfacesByUid.set(modalUid, elements);
+		if (options?.patch || options?.motion !== void 0) {
+			const mergedPatch = options.motion !== void 0 ? {
+				...options.patch,
+				motion: options.motion
+			} : options.patch;
+			this.stack.updateEntry(modalUid, mergedPatch);
+		}
 		const currentEntry = this.stack.getByUid(modalUid);
 		if (currentEntry && currentEntry.phase === "opening") this.runOpenIfBound(currentEntry);
 		return () => {

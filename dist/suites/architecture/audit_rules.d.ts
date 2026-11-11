@@ -1,8 +1,9 @@
 import { AuditEngineConfig } from "../../core/auditConfigTypes.js";
 import "../../index.js";
 import { Z_LAYERS } from "../../core/auditZLayers.js";
+import { CANONICAL_Z_LAYERS } from "../../modals/modalZLayers.js";
 import { AUDIT_SEVERITIES, AuditRule, AuditSeverity, RuleDescriptor, Violation, getLineAtMatch, isCommentLine, isTestOrNodeModules, matchesRule, normalizeFilePath } from "../../analyzers/auditRuleTypes.js";
-import { CANONICAL_DEFAULT_Z_LAYERS, ZLayerResolution, Z_INDEX_CONSISTENCY_DESCRIPTOR, Z_SORTED_ENTRIES, Z_VALUE_MAP, resolveZLayer, zIndexAudit, zIndexConstantDeclaration } from "../../analyzers/zIndexRules.js";
+import { ZLayerResolution, Z_INDEX_CONSISTENCY_DESCRIPTOR, Z_SORTED_ENTRIES, Z_VALUE_MAP, resolveZLayer, zIndexAudit, zIndexConstantDeclaration } from "../../analyzers/zIndexRules.js";
 import { DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, badConstantNames, isAuditableCodeFile, isConstantNameExemptFromNumericSuffixCheck, noAliasConstants, noLiteralSuffixInConstantName } from "../../analyzers/constantRules.js";
 export declare const FALLOW_SUITE_DESCRIPTORS: Record<'dupes' | 'triplets' | 'security' | 'dead-code' | 'health', RuleDescriptor>;
 export declare const SASS_MIGRATOR_DESCRIPTOR: RuleDescriptor;
@@ -50,4 +51,4 @@ export declare const auditRulesConfig: {
   noRawJsonImportsOutsideData: AuditRule;
   noSassAtImport: AuditRule;
 };
-export { AUDIT_SEVERITIES, type AuditRule, type AuditSeverity, CANONICAL_DEFAULT_Z_LAYERS, DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, type RuleDescriptor, type Violation, type ZLayerResolution, Z_INDEX_CONSISTENCY_DESCRIPTOR, Z_LAYERS, Z_SORTED_ENTRIES, Z_VALUE_MAP, badConstantNames, getLineAtMatch, isAuditableCodeFile, isCommentLine, isConstantNameExemptFromNumericSuffixCheck, isTestOrNodeModules, matchesRule, noAliasConstants, noLiteralSuffixInConstantName, normalizeFilePath, resolveZLayer, zIndexAudit, zIndexConstantDeclaration };
+export { AUDIT_SEVERITIES, type AuditRule, type AuditSeverity, CANONICAL_Z_LAYERS, DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, type RuleDescriptor, type Violation, type ZLayerResolution, Z_INDEX_CONSISTENCY_DESCRIPTOR, Z_LAYERS, Z_SORTED_ENTRIES, Z_VALUE_MAP, badConstantNames, getLineAtMatch, isAuditableCodeFile, isCommentLine, isConstantNameExemptFromNumericSuffixCheck, isTestOrNodeModules, matchesRule, noAliasConstants, noLiteralSuffixInConstantName, normalizeFilePath, resolveZLayer, zIndexAudit, zIndexConstantDeclaration };

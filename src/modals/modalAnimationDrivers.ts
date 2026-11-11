@@ -11,10 +11,11 @@ import {
   DEFAULT_MODAL_ENTER_CSS_EASING,
   DEFAULT_MODAL_ENTER_EASE,
   type ModalKeyframeState,
+  type ModalMotionInput,
   type ModalMotionPreset
 } from './modalMotionPresets.ts';
 import type { ModalStackManager } from './modalStackManager.ts';
-import type { ModalStackEntry } from './modalStackTypes.ts';
+import type { ModalEntryPatch, ModalStackEntry } from './modalStackTypes.ts';
 
 const MS_PER_SECOND = 1000;
 
@@ -369,6 +370,11 @@ export interface ModalAnimationControllerConfig<
   readonly driver?: ModalAnimationDriver;
 }
 
+export interface ModalBindSurfaceOptions<TModalKind extends string = string, TMeta = undefined> {
+  readonly motion?: ModalMotionInput;
+  readonly patch?: ModalEntryPatch<TModalKind, TMeta>;
+}
+
 /**
  * Coordinates lifecycle events from `ModalStackManager` (`open-start`, `close-start`,
  * `close-prevented`, `close-end`) with any pluggable `ModalAnimationDriver`.
@@ -392,11 +398,12 @@ export class ModalAnimationController<TModalKind extends string = string, TMeta 
         if (!event.entry) return;
         const elements = this.surfacesByUid.get(event.entry.modalUid);
         if (!elements) return;
+        const latestEntry = this.stack.getByUid(event.entry.modalUid) ?? event.entry;
         const done = event.deferClose();
         this.driver.animateClose({
-          modalUid: event.entry.modalUid,
+          modalUid: latestEntry.modalUid,
           elements,
-          preset: event.entry.motion,
+          preset: latestEntry.motion,
           onComplete: done
         });
       }),
@@ -404,10 +411,11 @@ export class ModalAnimationController<TModalKind extends string = string, TMeta 
         if (!event.entry || !this.driver.animatePrevented) return;
         const elements = this.surfacesByUid.get(event.entry.modalUid);
         if (!elements) return;
+        const latestEntry = this.stack.getByUid(event.entry.modalUid) ?? event.entry;
         this.driver.animatePrevented({
-          modalUid: event.entry.modalUid,
+          modalUid: latestEntry.modalUid,
           elements,
-          preset: event.entry.motion
+          preset: latestEntry.motion
         });
       }),
       this.stack.on('close-end', (event) => {
@@ -418,11 +426,23 @@ export class ModalAnimationController<TModalKind extends string = string, TMeta 
   }
 
   /**
-   * Registers the rendered DOM elements for a modal instance. If the modal is currently
-   * in its `'opening'` phase, immediately triggers the entrance animation.
+   * Registers the rendered DOM elements for a modal instance (optionally applying
+   * child-component declarative `motion` or `patch` overrides). If the modal is
+   * currently in its `'opening'` phase, immediately triggers the entrance animation.
    */
-  public bindSurface(modalUid: string, elements: ModalSurfaceElements): () => void {
+  public bindSurface(
+    modalUid: string,
+    elements: ModalSurfaceElements,
+    options?: ModalBindSurfaceOptions<TModalKind, TMeta>
+  ): () => void {
     this.surfacesByUid.set(modalUid, elements);
+    if (options?.patch || options?.motion !== undefined) {
+      const mergedPatch: ModalEntryPatch<TModalKind, TMeta> =
+        options.motion !== undefined
+          ? { ...options.patch, motion: options.motion }
+          : options.patch!;
+      this.stack.updateEntry(modalUid, mergedPatch);
+    }
     const currentEntry = this.stack.getByUid(modalUid);
     if (currentEntry && currentEntry.phase === 'opening') {
       this.runOpenIfBound(currentEntry);

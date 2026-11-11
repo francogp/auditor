@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import {
-  CANONICAL_DEFAULT_Z_LAYERS,
+  CANONICAL_Z_LAYERS,
   Z_INDEX_CONSISTENCY_DESCRIPTOR,
   ACTIVE_Z_LAYERS,
   resolveZLayer,
@@ -25,12 +25,12 @@ describe('zIndexRules Analyzer', () => {
     resetAuditConfig();
   });
 
-  describe('CANONICAL_DEFAULT_Z_LAYERS & Descriptors', () => {
+  describe('CANONICAL_Z_LAYERS & Descriptors', () => {
     it('declares canonical default Z-index layers', () => {
-      expect(CANONICAL_DEFAULT_Z_LAYERS.BASE).toBe(0);
-      expect(CANONICAL_DEFAULT_Z_LAYERS.MODAL).toBe(11000);
-      expect(CANONICAL_DEFAULT_Z_LAYERS.TOOLTIP).toBe(15000);
-      expect(CANONICAL_DEFAULT_Z_LAYERS.TOAST).toBe(20000);
+      expect(CANONICAL_Z_LAYERS.BASE).toBe(0);
+      expect(CANONICAL_Z_LAYERS.MODAL).toBe(11000);
+      expect(CANONICAL_Z_LAYERS.TOOLTIP).toBe(15000);
+      expect(CANONICAL_Z_LAYERS.TOAST).toBe(20000);
     });
 
     it('declares valid rule descriptor for z-index parity', () => {

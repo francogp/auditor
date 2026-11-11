@@ -1,5 +1,6 @@
-import { ModalMotionPreset } from "./modalMotionPresets.js";
+import { ModalMotionInput, ModalMotionPreset } from "./modalMotionPresets.js";
 import { ModalStackManager } from "./modalStackManager.js";
+import { ModalEntryPatch } from "./modalStackTypes.js";
 export declare const MODAL_WAAPI_FILL_MODES: readonly ["forwards", "none"];
 export type ModalWaapiFillMode = (typeof MODAL_WAAPI_FILL_MODES)[number];
 export declare const GSAP_OVERWRITE_MODES: readonly ["auto"];
@@ -64,6 +65,10 @@ export interface ModalAnimationControllerConfig<TModalKind extends string = stri
   readonly stack: ModalStackManager<TModalKind, TMeta>;
   readonly driver?: ModalAnimationDriver;
 }
+export interface ModalBindSurfaceOptions<TModalKind extends string = string, TMeta = undefined> {
+  readonly motion?: ModalMotionInput;
+  readonly patch?: ModalEntryPatch<TModalKind, TMeta>;
+}
 /**
  * Coordinates lifecycle events from `ModalStackManager` (`open-start`, `close-start`,
  * `close-prevented`, `close-end`) with any pluggable `ModalAnimationDriver`.
@@ -75,10 +80,11 @@ export declare class ModalAnimationController<TModalKind extends string = string
   private readonly unsubscribers;
   constructor(config: ModalAnimationControllerConfig<TModalKind, TMeta>);
   /**
-   * Registers the rendered DOM elements for a modal instance. If the modal is currently
-   * in its `'opening'` phase, immediately triggers the entrance animation.
+   * Registers the rendered DOM elements for a modal instance (optionally applying
+   * child-component declarative `motion` or `patch` overrides). If the modal is
+   * currently in its `'opening'` phase, immediately triggers the entrance animation.
    */
-  bindSurface(modalUid: string, elements: ModalSurfaceElements): () => void;
+  bindSurface(modalUid: string, elements: ModalSurfaceElements, options?: ModalBindSurfaceOptions<TModalKind, TMeta>): () => void;
   dispose(): void;
   private runOpenIfBound;
   private cleanupModal;

@@ -20,17 +20,20 @@ import type {
   ModalCloseReason,
   ModalCloseResult,
   ModalDismissMode,
+  ModalEntryPatch,
   ModalLifecycleEvent,
   ModalLifecycleEventType,
   ModalLifecycleListener,
   ModalLookupOptions,
   ModalOpenOptions,
+  ModalOpenResult,
   ModalPhase,
   ModalSingletonPolicy,
   ModalSnapshotListener,
   ModalStackConfig,
   ModalStackEntry,
-  ModalStackSnapshot
+  ModalStackSnapshot,
+  ModalTimerDriver
 } from './modalStackTypes.ts';
 import { CANONICAL_Z_LAYERS, resolveModalZLayers, type ModalZLayerScale } from './modalZLayers.ts';
 
@@ -53,25 +56,35 @@ interface MutableModalRecord<TModalKind extends string, TMeta> {
   readonly kind: TModalKind;
   phase: ModalPhase;
   slot: number;
-  readonly customZIndex: number | undefined;
-  readonly zIndexOffset: number;
+  allocatedBaseZIndex: number;
+  customZIndex: number | undefined;
+  zIndexOffset: number;
   zIndex: number;
   backdropZIndex: number;
   contentZIndex: number;
-  readonly dismissMode: ModalDismissMode;
-  readonly obscuresBackground: boolean;
-  readonly motionInput: ModalMotionInput | undefined;
+  dismissMode: ModalDismissMode;
+  obscuresBackground: boolean;
+  motionInput: ModalMotionInput | undefined;
   readonly animatedClose: boolean;
   readonly holdClosingUntilFinalized: boolean;
   readonly openTimeoutMs: number;
   readonly closeTimeoutMs: number;
   meta: TMeta;
-  readonly canClose: ModalOpenOptions<TModalKind, TMeta>['canClose'];
+  canClose: ModalOpenOptions<TModalKind, TMeta>['canClose'];
   readonly onCloseAnimation: ModalOpenOptions<TModalKind, TMeta>['onCloseAnimation'];
   closingReason: ModalCloseReason;
-  openTimer: ReturnType<typeof globalThis.setTimeout> | null;
-  closeTimer: ReturnType<typeof globalThis.setTimeout> | null;
+  cancelOpenTimer: (() => void) | null;
+  cancelCloseTimer: (() => void) | null;
 }
+
+const DEFAULT_MODAL_TIMER_DRIVER: ModalTimerDriver = {
+  schedule(delayMs: number, callback: () => void): () => void {
+    const handle = globalThis.setTimeout(callback, delayMs);
+    return (): void => {
+      globalThis.clearTimeout(handle);
+    };
+  }
+};
 
 function defaultUidFactory(): string {
   return globalThis.crypto.randomUUID();
@@ -120,6 +133,7 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
   private readonly closeTimeoutMs: number;
   private isReducedMotionFn: (() => boolean) | undefined;
   private readonly uidFactory: () => string;
+  private readonly timerDriver: ModalTimerDriver;
   private readonly onCeilingExceeded:
     | ((diagnostic: ModalCeilingDiagnostic<TModalKind>) => void)
     | undefined;
@@ -167,6 +181,7 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
     this.closeTimeoutMs = config.closeTimeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS;
     this.isReducedMotionFn = config.isReducedMotion;
     this.uidFactory = config.uidFactory ?? defaultUidFactory;
+    this.timerDriver = config.timerDriver ?? DEFAULT_MODAL_TIMER_DRIVER;
     this.onCeilingExceeded = config.onCeilingExceeded;
     this.cachedSnapshot = this.computeSnapshot();
   }
@@ -213,6 +228,23 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
     return false;
   }
 
+  public getLatestByKind(
+    kind: TModalKind,
+    options: ModalLookupOptions = {}
+  ): ModalStackEntry<TModalKind, TMeta> | undefined {
+    const bucket = this.uidsByKind.get(kind);
+    if (!bucket || bucket.size === 0) return undefined;
+    for (let i = this.orderedUids.length - 1; i >= 0; i--) {
+      const uid = this.orderedUids[i]!;
+      if (!bucket.has(uid)) continue;
+      const rec = this.recordsByUid.get(uid);
+      if (!rec) continue;
+      if (!options.includeClosing && rec.phase === 'closing') continue;
+      return this.cachedEntriesByUid.get(uid);
+    }
+    return undefined;
+  }
+
   public isActiveTop(modalUid: string): boolean {
     return this.cachedSnapshot.activeTop?.modalUid === modalUid;
   }
@@ -234,10 +266,10 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
     };
   }
 
-  public open(options: ModalOpenOptions<TModalKind, TMeta>): ModalStackEntry<TModalKind, TMeta> {
+  public tryOpen(options: ModalOpenOptions<TModalKind, TMeta>): ModalOpenResult<TModalKind, TMeta> {
     const singletonResult = this.resolveSingletonOnOpen(options);
     if (singletonResult) {
-      return singletonResult;
+      return { entry: singletonResult, created: false };
     }
 
     const modalUid = options.modalUid !== undefined ? options.modalUid : this.uidFactory();
@@ -257,17 +289,62 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
       (record.openTimeoutMs === 0 && entry.motion.enter.durationSec === 0)
     ) {
       this.completeOpen(modalUid);
-      return this.cachedEntriesByUid.get(modalUid) ?? entry;
+      return { entry: this.cachedEntriesByUid.get(modalUid) ?? entry, created: true };
     }
 
     if (record.openTimeoutMs > 0) {
-      record.openTimer = globalThis.setTimeout(() => {
-        record.openTimer = null;
+      record.cancelOpenTimer = this.timerDriver.schedule(record.openTimeoutMs, () => {
+        record.cancelOpenTimer = null;
         this.completeOpen(modalUid);
-      }, record.openTimeoutMs);
+      });
     }
 
-    return this.cachedEntriesByUid.get(modalUid) ?? entry;
+    return { entry: this.cachedEntriesByUid.get(modalUid) ?? entry, created: true };
+  }
+
+  public open(options: ModalOpenOptions<TModalKind, TMeta>): ModalStackEntry<TModalKind, TMeta> {
+    return this.tryOpen(options).entry;
+  }
+
+  public updateEntry(
+    modalUid: string,
+    patch: ModalEntryPatch<TModalKind, TMeta>
+  ): ModalStackEntry<TModalKind, TMeta> | undefined {
+    const record = this.recordsByUid.get(modalUid);
+    if (!record || record.phase === 'closing') {
+      return undefined;
+    }
+
+    if ('meta' in patch) {
+      record.meta = patch.meta as TMeta;
+    }
+    if (patch.dismissMode !== undefined) {
+      record.dismissMode = patch.dismissMode;
+    }
+    if (patch.obscuresBackground !== undefined) {
+      record.obscuresBackground = patch.obscuresBackground;
+    }
+    if (patch.motion !== undefined) {
+      record.motionInput = patch.motion;
+    }
+    if ('canClose' in patch) {
+      record.canClose = patch.canClose;
+    }
+    if ('customZIndex' in patch || patch.zIndexOffset !== undefined) {
+      if ('customZIndex' in patch) {
+        record.customZIndex = patch.customZIndex;
+      }
+      if (patch.zIndexOffset !== undefined) {
+        record.zIndexOffset = patch.zIndexOffset;
+      }
+      const baseCalculatedZ = record.customZIndex ?? record.allocatedBaseZIndex;
+      this.applyComputedZIndex(record, baseCalculatedZ + record.zIndexOffset);
+    }
+
+    this.commitSnapshot();
+    const updated = this.cachedEntriesByUid.get(modalUid);
+    this.emitLifecycleEvent('updated', updated ?? null);
+    return updated;
   }
 
   public completeOpen(modalUid: string): boolean {
@@ -344,6 +421,12 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
       }
     }
     return closedCount;
+  }
+
+  public closeLatestByKind(kind: TModalKind, reason: ModalCloseReason = 'programmatic'): boolean {
+    const latest = this.getLatestByKind(kind);
+    if (!latest) return false;
+    return this.requestClose(latest.modalUid, reason);
   }
 
   public finalizeClose(modalUid: string): boolean {
@@ -461,8 +544,8 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
   ): MutableModalRecord<TModalKind, TMeta> {
     const slot = this.nextSlot++;
     const zIndexOffset = options.zIndexOffset ?? DEFAULT_Z_INDEX_OFFSET;
-    const autoBaseZ = this.computeNextMonotonicBaseZ(slot);
-    const baseCalculatedZ = options.customZIndex ?? autoBaseZ;
+    const allocatedBaseZIndex = this.computeNextMonotonicBaseZ(slot);
+    const baseCalculatedZ = options.customZIndex ?? allocatedBaseZIndex;
     const zIndex = baseCalculatedZ + zIndexOffset;
     this.notifyCeilingIfNeeded(modalUid, options.kind, slot, zIndex);
 
@@ -471,6 +554,7 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
       kind: options.kind,
       phase: 'opening',
       slot,
+      allocatedBaseZIndex,
       customZIndex: options.customZIndex,
       zIndexOffset,
       zIndex,
@@ -488,22 +572,28 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
       canClose: options.canClose,
       onCloseAnimation: options.onCloseAnimation,
       closingReason: 'programmatic',
-      openTimer: null,
-      closeTimer: null
+      cancelOpenTimer: null,
+      cancelCloseTimer: null
     };
   }
 
   private assignNextSlot(record: MutableModalRecord<TModalKind, TMeta>): void {
     const slot = this.nextSlot++;
     const monotonicZ = this.computeNextMonotonicBaseZ(slot, record.modalUid);
-    const elevatedBase =
-      record.customZIndex !== undefined ? Math.max(record.customZIndex, monotonicZ) : monotonicZ;
-    const zIndex = elevatedBase + record.zIndexOffset;
+    if (record.customZIndex !== undefined && record.customZIndex < monotonicZ) {
+      record.customZIndex = monotonicZ;
+    }
     record.slot = slot;
+    record.allocatedBaseZIndex = monotonicZ;
+    const elevatedBase = record.customZIndex ?? monotonicZ;
+    this.applyComputedZIndex(record, elevatedBase + record.zIndexOffset);
+  }
+
+  private applyComputedZIndex(record: MutableModalRecord<TModalKind, TMeta>, zIndex: number): void {
     record.zIndex = zIndex;
     record.backdropZIndex = zIndex + this.backdropOffset;
     record.contentZIndex = zIndex + this.contentOffset;
-    this.notifyCeilingIfNeeded(record.modalUid, record.kind, slot, zIndex);
+    this.notifyCeilingIfNeeded(record.modalUid, record.kind, record.slot, zIndex);
   }
 
   private computeNextMonotonicBaseZ(slot: number, excludeUid?: string): number {
@@ -641,10 +731,10 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
     }
 
     if (record.closeTimeoutMs > 0) {
-      record.closeTimer = globalThis.setTimeout(() => {
-        record.closeTimer = null;
+      record.cancelCloseTimer = this.timerDriver.schedule(record.closeTimeoutMs, () => {
+        record.cancelCloseTimer = null;
         done();
-      }, record.closeTimeoutMs);
+      });
     }
   }
 
@@ -693,16 +783,18 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
   }
 
   private clearOpenTimer(record: MutableModalRecord<TModalKind, TMeta>): void {
-    if (record.openTimer !== null) {
-      globalThis.clearTimeout(record.openTimer);
-      record.openTimer = null;
+    if (record.cancelOpenTimer !== null) {
+      const cancel = record.cancelOpenTimer;
+      record.cancelOpenTimer = null;
+      cancel();
     }
   }
 
   private clearCloseTimer(record: MutableModalRecord<TModalKind, TMeta>): void {
-    if (record.closeTimer !== null) {
-      globalThis.clearTimeout(record.closeTimer);
-      record.closeTimer = null;
+    if (record.cancelCloseTimer !== null) {
+      const cancel = record.cancelCloseTimer;
+      record.cancelCloseTimer = null;
+      cancel();
     }
   }
 

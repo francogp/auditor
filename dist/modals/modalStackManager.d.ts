@@ -1,5 +1,5 @@
 import { ModalMotionPreset } from "./modalMotionPresets.js";
-import { ModalClearAllOptions, ModalCloseReason, ModalCloseResult, ModalLifecycleEventType, ModalLifecycleListener, ModalLookupOptions, ModalOpenOptions, ModalSnapshotListener, ModalStackConfig, ModalStackEntry, ModalStackSnapshot } from "./modalStackTypes.js";
+import { ModalClearAllOptions, ModalCloseReason, ModalCloseResult, ModalEntryPatch, ModalLifecycleEventType, ModalLifecycleListener, ModalLookupOptions, ModalOpenOptions, ModalOpenResult, ModalSnapshotListener, ModalStackConfig, ModalStackEntry, ModalStackSnapshot } from "./modalStackTypes.js";
 import { ModalZLayerScale } from "./modalZLayers.js";
 export declare class ModalStackManager<TModalKind extends string = string, TMeta = undefined> {
   private readonly zLayers;
@@ -20,6 +20,7 @@ export declare class ModalStackManager<TModalKind extends string = string, TMeta
   private readonly closeTimeoutMs;
   private isReducedMotionFn;
   private readonly uidFactory;
+  private readonly timerDriver;
   private readonly onCeilingExceeded;
   private nextSlot;
   private readonly orderedUids;
@@ -39,10 +40,13 @@ export declare class ModalStackManager<TModalKind extends string = string, TMeta
   getByUid(modalUid: string): ModalStackEntry<TModalKind, TMeta> | undefined;
   hasUid(modalUid: string, options?: ModalLookupOptions): boolean;
   hasKind(kind: TModalKind, options?: ModalLookupOptions): boolean;
+  getLatestByKind(kind: TModalKind, options?: ModalLookupOptions): ModalStackEntry<TModalKind, TMeta> | undefined;
   isActiveTop(modalUid: string): boolean;
   subscribe(listener: ModalSnapshotListener<TModalKind, TMeta>): () => void;
   on(eventType: ModalLifecycleEventType, listener: ModalLifecycleListener<TModalKind, TMeta>): () => void;
+  tryOpen(options: ModalOpenOptions<TModalKind, TMeta>): ModalOpenResult<TModalKind, TMeta>;
   open(options: ModalOpenOptions<TModalKind, TMeta>): ModalStackEntry<TModalKind, TMeta>;
+  updateEntry(modalUid: string, patch: ModalEntryPatch<TModalKind, TMeta>): ModalStackEntry<TModalKind, TMeta> | undefined;
   completeOpen(modalUid: string): boolean;
   bringToFront(modalUid: string): ModalStackEntry<TModalKind, TMeta> | undefined;
   requestClose(modalUid: string, reason?: ModalCloseReason): boolean;
@@ -50,6 +54,7 @@ export declare class ModalStackManager<TModalKind extends string = string, TMeta
   closeTop(reason?: ModalCloseReason): boolean;
   closeTopAsync(reason?: ModalCloseReason): Promise<boolean>;
   closeByKind(kind: TModalKind, reason?: ModalCloseReason): number;
+  closeLatestByKind(kind: TModalKind, reason?: ModalCloseReason): boolean;
   finalizeClose(modalUid: string): boolean;
   forceClose(modalUid: string, reason?: ModalCloseReason): boolean;
   clearAll(options?: ModalClearAllOptions): void;
@@ -58,6 +63,7 @@ export declare class ModalStackManager<TModalKind extends string = string, TMeta
   private resolveSingletonOnOpen;
   private createModalRecord;
   private assignNextSlot;
+  private applyComputedZIndex;
   private computeNextMonotonicBaseZ;
   private notifyCeilingIfNeeded;
   private evaluateCloseAttempt;

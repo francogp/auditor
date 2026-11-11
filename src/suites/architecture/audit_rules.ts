@@ -28,7 +28,7 @@ import { type RuleDescriptor, type AuditRule } from '../../analyzers/auditRuleTy
 
 export {
   Z_INDEX_CONSISTENCY_DESCRIPTOR,
-  CANONICAL_DEFAULT_Z_LAYERS,
+  CANONICAL_Z_LAYERS,
   Z_LAYERS,
   Z_VALUE_MAP,
   Z_SORTED_ENTRIES,

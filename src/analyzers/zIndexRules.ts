@@ -4,13 +4,16 @@
  * Z-Index Design System Parity and isolated constant rules.
  */
 
-import path from 'node:path';
-
-import { getAuditConfig, isExemptFile, Z_LAYERS } from '../core/auditConfig.ts';
-import { safeReadFileSync } from '../core/safeUtils.ts';
+import {
+  getAuditConfig,
+  getEffectiveZLayers,
+  isExemptFile,
+  Z_LAYERS
+} from '../core/auditConfig.ts';
+import { CANONICAL_Z_LAYERS } from '../modals/modalZLayers.ts';
 import { type RuleDescriptor, type AuditRule, normalizeFilePath } from './auditRuleTypes.ts';
 
-export { Z_LAYERS };
+export { Z_LAYERS, CANONICAL_Z_LAYERS };
 
 export const Z_INDEX_CONSISTENCY_DESCRIPTOR: RuleDescriptor = {
   id: 'z-index-parity',
@@ -19,58 +22,7 @@ export const Z_INDEX_CONSISTENCY_DESCRIPTOR: RuleDescriptor = {
   aliases: ['z-index', 'zindex', 'visuals', 'parity', 'z-index-parity']
 };
 
-export const CANONICAL_DEFAULT_Z_LAYERS: Record<string, number> = {
-  BASE: 0,
-  LOW: 50,
-  CONTENT: 100,
-  HEADER: 500,
-  SIDEBAR: 800,
-  HUD: 1000,
-  NAVIGATION: 5000,
-  DROPDOWN: 7000,
-  OVERLAY: 10000,
-  MODAL: 11000,
-  MODAL_STEP: 10,
-  TOOLTIP: 15000,
-  TOAST: 20000,
-  MAX: 100000,
-  CRITICAL: 999999
-};
-
-function parseZLayersFromContent(content: string): Record<string, number> | null {
-  const match = content.match(/export\s+const\s+Z_LAYERS\s*=\s*\{([\s\S]*?)\}\s*(?:as\s+const)?;/);
-  if (!match?.[1]) return null;
-
-  const result: Record<string, number> = {};
-  for (const line of match[1].split('\n')) {
-    const m = line.match(/([A-Z_]\w*)\s*:\s*(-?\d+)/i);
-    if (m?.[1] && m?.[2]) {
-      result[m[1]] = parseInt(m[2], 10);
-    }
-  }
-  return result;
-}
-
-function tryReadZLayersFile(relFile: string): Record<string, number> | null {
-  const absPath = path.resolve(process.cwd(), relFile);
-  const content = safeReadFileSync(absPath);
-  return content ? parseZLayersFromContent(content) : null;
-}
-
-function loadZLayers(): Record<string, number> {
-  const config = getAuditConfig();
-  if (config.styles?.zLayers && Object.keys(config.styles.zLayers).length > 0) {
-    return { ...config.styles.zLayers };
-  }
-  const relFile = config.styles?.zLayersTsFile ?? config.domain?.zLayersFile;
-  if (relFile) {
-    const parsed = tryReadZLayersFile(relFile);
-    if (parsed) return parsed;
-  }
-  return CANONICAL_DEFAULT_Z_LAYERS;
-}
-
-export const ACTIVE_Z_LAYERS: Record<string, number> = loadZLayers();
+export const ACTIVE_Z_LAYERS: Record<string, number> = getEffectiveZLayers();
 
 // Invert ACTIVE_Z_LAYERS for lookup
 export const Z_VALUE_MAP = Object.fromEntries(
@@ -79,8 +31,6 @@ export const Z_VALUE_MAP = Object.fromEntries(
 
 // Sorted values for nearest search
 export const Z_SORTED_ENTRIES = Object.entries(ACTIVE_Z_LAYERS).sort((a, b) => a[1] - b[1]);
-/** Sentinel: initial minDiff larger than any possible difference between Z layer values. */
-const Z_LAYERS_DIFF_SENTINEL = Z_SORTED_ENTRIES.length + 1;
 
 export interface ZLayerResolution {
   exactKey?: string;
@@ -89,17 +39,49 @@ export interface ZLayerResolution {
   cssVarExpr?: string;
 }
 
-export function resolveZLayer(val: number): ZLayerResolution {
-  const entry = Z_VALUE_MAP[val];
-  if (entry) {
-    const key = entry.toLowerCase().replace(/_/g, '-');
-    return { exactKey: entry, cssVarExpr: `var(--z-${key})` };
+interface PrecomputedZLayerIndex {
+  readonly exactByValue: ReadonlyMap<number, string>;
+  readonly sortedLayers: readonly (readonly [string, number])[];
+}
+
+const zLayerIndexCache = new WeakMap<object, PrecomputedZLayerIndex>();
+
+function getZLayerIndex(layers: Readonly<Record<string, number>>): PrecomputedZLayerIndex {
+  const cached = zLayerIndexCache.get(layers);
+  if (cached) {
+    return cached;
+  }
+
+  const allEntries = Object.entries(layers);
+  const layerEntries = allEntries.filter(([key]) => key !== 'MODAL_STEP');
+  const effectiveEntries = layerEntries.length > 0 ? layerEntries : allEntries;
+
+  // Forward insertion so consumer overrides (e.g. MAP_FLOOR: 10, MAP_SPAWNS: 50) win over earlier keys
+  const exactByValue = new Map<number, string>();
+  for (const [key, value] of effectiveEntries) {
+    exactByValue.set(value, key);
+  }
+  const sortedLayers = [...effectiveEntries].sort((a, b) => a[1] - b[1]);
+  const built: PrecomputedZLayerIndex = { exactByValue, sortedLayers };
+  zLayerIndexCache.set(layers, built);
+  return built;
+}
+
+export function resolveZLayer(
+  val: number,
+  layers: Readonly<Record<string, number>> = getEffectiveZLayers()
+): ZLayerResolution {
+  const index = getZLayerIndex(layers);
+  const exactEntry = index.exactByValue.get(val);
+  if (exactEntry) {
+    const key = exactEntry.toLowerCase().replace(/_/g, '-');
+    return { exactKey: exactEntry, cssVarExpr: `var(--z-${key})` };
   }
 
   let nearestKey = '';
   let nearestVal = 0;
-  let minDiff = Z_LAYERS_DIFF_SENTINEL;
-  for (const [key, zVal] of Z_SORTED_ENTRIES) {
+  let minDiff = Number.POSITIVE_INFINITY;
+  for (const [key, zVal] of index.sortedLayers) {
     const diff = Math.abs(val - zVal);
     if (diff < minDiff) {
       minDiff = diff;
@@ -122,11 +104,14 @@ export function resolveZLayer(val: number): ZLayerResolution {
   return {};
 }
 
-export function fixZIndexLiteral(match: string): string {
+export function fixZIndexLiteral(
+  match: string,
+  layers: Readonly<Record<string, number>> = getEffectiveZLayers()
+): string {
   const valMatch = match.match(/-?\d+/);
   if (!valMatch || !valMatch[0]) return match;
   const val = parseInt(valMatch[0], 10);
-  const { cssVarExpr } = resolveZLayer(val);
+  const { cssVarExpr } = resolveZLayer(val, layers);
   if (!cssVarExpr) return match;
 
   const isJsProp = match.startsWith('zIndex');

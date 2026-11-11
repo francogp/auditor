@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import { initProject } from '../src/cli/init_project.ts';
 import { ValidatePackageScriptsAuditor } from '../src/suites/architecture/validate_package_scripts.ts';

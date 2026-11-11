@@ -28,15 +28,13 @@ const CANONICAL_Z_LAYERS = Object.freeze({
 	MAX: 1e5,
 	CRITICAL: 999999
 });
-/**
-* Merges consumer-provided Z-Layer overrides onto `CANONICAL_Z_LAYERS`
-* without mutating the canonical defaults.
-*/
 function resolveModalZLayers(overrides) {
 	if (!overrides) return CANONICAL_Z_LAYERS;
+	const definedEntries = Object.entries(overrides).filter((entry) => typeof entry[1] === "number" && Number.isFinite(entry[1]));
+	if (definedEntries.length === 0) return CANONICAL_Z_LAYERS;
 	return Object.freeze({
 		...CANONICAL_Z_LAYERS,
-		...overrides
+		...Object.fromEntries(definedEntries)
 	});
 }
 const MODAL_CSS_VAR_NAMES = [

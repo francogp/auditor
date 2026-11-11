@@ -21,6 +21,19 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const EDITABLE_TAG_NAMES = createDomainSet(['input', 'textarea', 'select'] as const);
 const BROWSER_HISTORY_KEYS = createDomainSet(['BrowserBack', 'BrowserForward'] as const);
 const ALT_HISTORY_ARROW_KEYS = createDomainSet(['ArrowLeft', 'ArrowRight'] as const);
+const MOUSE_SIDE_BUTTON_EVENTS = [
+  'mousedown',
+  'mouseup',
+  'auxclick',
+  'pointerdown',
+  'pointerup'
+] as const;
+
+export interface ModalEventListenerOptions {
+  readonly capture?: boolean;
+}
+
+const CAPTURE_LISTENER_OPTIONS: ModalEventListenerOptions = Object.freeze({ capture: true });
 
 export interface ModalPointerLikeEvent {
   readonly button: number;
@@ -51,12 +64,22 @@ export interface ModalBackNavigationConfig {
   readonly blockBrowserShortcuts?: boolean;
   readonly blockBackspaceOutsideInputs?: boolean;
   readonly onBeforePopStateDismiss?: () => boolean;
+  readonly onUnhandledPopState?: () => boolean | void;
 }
 
 export interface ModalDomTargetLike {
-  addEventListener(type: string, listener: (event: Event) => void, options?: boolean): void;
-  removeEventListener(type: string, listener: (event: Event) => void, options?: boolean): void;
+  addEventListener(
+    type: string,
+    listener: (event: Event) => void,
+    options?: boolean | ModalEventListenerOptions
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: (event: Event) => void,
+    options?: boolean | ModalEventListenerOptions
+  ): void;
   readonly history?: {
+    readonly state?: unknown;
     pushState(data: unknown, unused: string, url?: string): void;
   };
   readonly location?: {
@@ -183,7 +206,8 @@ export class ModalDomController<TModalKind extends string = string, TMeta = unde
   private readonly backNavigation: ModalBackNavigationConfig | undefined;
   private disposed = false;
 
-  private readonly boundKeydown: (event: Event) => void;
+  private readonly boundEscapeKeydown: (event: Event) => void;
+  private readonly boundBackNavKeydown: (event: Event) => void;
   private readonly boundPopState: (event: Event) => void;
   private readonly boundMouseSideButton: (event: Event) => void;
 
@@ -193,8 +217,11 @@ export class ModalDomController<TModalKind extends string = string, TMeta = unde
     this.preventDefaultOnEscape = config.preventDefaultOnEscape ?? true;
     this.backNavigation = config.backNavigation?.enabled ? config.backNavigation : undefined;
 
-    this.boundKeydown = (event: Event): void => {
-      this.handleKeydown(event as KeyboardEvent);
+    this.boundEscapeKeydown = (event: Event): void => {
+      this.handleEscapeKeydown(event as KeyboardEvent);
+    };
+    this.boundBackNavKeydown = (event: Event): void => {
+      this.handleBackNavKeydown(event as KeyboardEvent);
     };
     this.boundPopState = (): void => {
       this.handlePopState();
@@ -218,12 +245,22 @@ export class ModalDomController<TModalKind extends string = string, TMeta = unde
     this.disposed = true;
     if (!this.target) return;
 
-    this.target.removeEventListener('keydown', this.boundKeydown);
+    this.target.removeEventListener('keydown', this.boundEscapeKeydown);
     if (this.backNavigation) {
+      this.target.removeEventListener(
+        'keydown',
+        this.boundBackNavKeydown,
+        CAPTURE_LISTENER_OPTIONS
+      );
       this.target.removeEventListener('popstate', this.boundPopState);
       if (this.backNavigation.blockMouseSideButtons !== false) {
-        this.target.removeEventListener('mouseup', this.boundMouseSideButton);
-        this.target.removeEventListener('auxclick', this.boundMouseSideButton);
+        for (const eventName of MOUSE_SIDE_BUTTON_EVENTS) {
+          this.target.removeEventListener(
+            eventName,
+            this.boundMouseSideButton,
+            CAPTURE_LISTENER_OPTIONS
+          );
+        }
       }
     }
   }
@@ -231,14 +268,20 @@ export class ModalDomController<TModalKind extends string = string, TMeta = unde
   private attachListeners(): void {
     if (!this.target) return;
 
-    this.target.addEventListener('keydown', this.boundKeydown);
+    this.target.addEventListener('keydown', this.boundEscapeKeydown);
     if (!this.backNavigation) return;
 
     this.pushHistoryTrap();
+    this.target.addEventListener('keydown', this.boundBackNavKeydown, CAPTURE_LISTENER_OPTIONS);
     this.target.addEventListener('popstate', this.boundPopState);
     if (this.backNavigation.blockMouseSideButtons !== false) {
-      this.target.addEventListener('mouseup', this.boundMouseSideButton);
-      this.target.addEventListener('auxclick', this.boundMouseSideButton);
+      for (const eventName of MOUSE_SIDE_BUTTON_EVENTS) {
+        this.target.addEventListener(
+          eventName,
+          this.boundMouseSideButton,
+          CAPTURE_LISTENER_OPTIONS
+        );
+      }
     }
   }
 
@@ -246,26 +289,40 @@ export class ModalDomController<TModalKind extends string = string, TMeta = unde
     if (!this.target?.history || !this.backNavigation) return;
     const guardKey = this.backNavigation.guardStateKey ?? DEFAULT_HISTORY_GUARD_KEY;
     const currentHref = this.target.location?.href ?? '';
-    this.target.history.pushState({ [guardKey]: true }, '', currentHref);
+    const prevState = this.target.history.state;
+    const nextState =
+      typeof prevState === 'object' && prevState !== null && !Array.isArray(prevState)
+        ? { ...prevState, [guardKey]: true }
+        : { [guardKey]: true };
+    try {
+      this.target.history.pushState(nextState, '', currentHref);
+    } catch {
+      // Ignore restricted history mutations (sandboxed iframes or browser pushState throttling)
+    }
   }
 
-  private handleKeydown(event: KeyboardEvent): void {
-    if (event.defaultPrevented || event.isComposing) {
+  private handleEscapeKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.isComposing || event.key !== 'Escape') {
       return;
     }
 
-    if (event.key === 'Escape') {
-      if (this.stack.getSnapshot().activeTop !== null) {
-        if (this.preventDefaultOnEscape) {
-          event.preventDefault();
-        }
-        this.stack.closeTop('escape');
+    if (this.stack.getSnapshot().activeTop !== null) {
+      if (this.preventDefaultOnEscape) {
+        event.preventDefault();
       }
+      this.stack.closeTop('escape');
+    }
+  }
+
+  private handleBackNavKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.isComposing || !this.backNavigation) {
       return;
     }
 
-    if (this.backNavigation && shouldBlockHistoryKeyboardShortcut(event, this.backNavigation)) {
+    if (shouldBlockHistoryKeyboardShortcut(event, this.backNavigation)) {
       event.preventDefault();
+      event.stopPropagation?.();
+      event.stopImmediatePropagation?.();
     }
   }
 
@@ -277,12 +334,16 @@ export class ModalDomController<TModalKind extends string = string, TMeta = unde
     }
     if (this.stack.getSnapshot().activeTop !== null) {
       this.stack.closeTop('back-navigation');
+      return;
     }
+    this.backNavigation.onUnhandledPopState?.();
   }
 
   private handleMouseSideButton(event: MouseEvent): void {
     if (event.button === MOUSE_BACK_BUTTON || event.button === MOUSE_FORWARD_BUTTON) {
       event.preventDefault();
+      event.stopPropagation?.();
+      event.stopImmediatePropagation?.();
     }
   }
 }

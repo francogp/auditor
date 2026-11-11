@@ -8,7 +8,7 @@ export declare const MODAL_CLOSE_REASONS: readonly ["escape", "backdrop", "close
 export type ModalCloseReason = (typeof MODAL_CLOSE_REASONS)[number];
 export declare const MODAL_SINGLETON_POLICIES: readonly ["allow-multiple", "focus-existing", "replace-existing", "ignore-new"];
 export type ModalSingletonPolicy = (typeof MODAL_SINGLETON_POLICIES)[number];
-export declare const MODAL_LIFECYCLE_EVENTS: readonly ["open-start", "open-end", "close-start", "close-end", "close-prevented", "reordered", "stack-empty"];
+export declare const MODAL_LIFECYCLE_EVENTS: readonly ["open-start", "open-end", "updated", "close-start", "close-end", "close-prevented", "reordered", "stack-empty"];
 export type ModalLifecycleEventType = (typeof MODAL_LIFECYCLE_EVENTS)[number];
 export type ModalGuardResult = boolean | Promise<boolean>;
 export interface ModalStackEntry<TModalKind extends string = string, TMeta = undefined> {
@@ -78,6 +78,22 @@ export interface ModalOpenOptions<TModalKind extends string = string, TMeta = un
   readonly canClose?: (context: ModalCloseAttemptContext<TModalKind, TMeta>) => ModalGuardResult;
   readonly onCloseAnimation?: (entry: ModalStackEntry<TModalKind, TMeta>, done: () => void) => void;
 }
+export interface ModalOpenResult<TModalKind extends string = string, TMeta = undefined> {
+  readonly entry: ModalStackEntry<TModalKind, TMeta>;
+  readonly created: boolean;
+}
+export interface ModalEntryPatch<TModalKind extends string = string, TMeta = undefined> {
+  readonly meta?: TMeta;
+  readonly customZIndex?: number;
+  readonly zIndexOffset?: number;
+  readonly dismissMode?: ModalDismissMode;
+  readonly obscuresBackground?: boolean;
+  readonly motion?: ModalMotionInput;
+  readonly canClose?: (context: ModalCloseAttemptContext<TModalKind, TMeta>) => ModalGuardResult;
+}
+export interface ModalTimerDriver {
+  schedule(delayMs: number, callback: () => void): () => void;
+}
 export interface ModalStackConfig<TModalKind extends string = string> {
   readonly zLayers?: CustomModalZLayers;
   readonly baseZIndex?: number;
@@ -97,6 +113,7 @@ export interface ModalStackConfig<TModalKind extends string = string> {
   readonly closeTimeoutMs?: number;
   readonly isReducedMotion?: () => boolean;
   readonly uidFactory?: () => string;
+  readonly timerDriver?: ModalTimerDriver;
   readonly onCeilingExceeded?: (diagnostic: ModalCeilingDiagnostic<TModalKind>) => void;
 }
 export interface ModalLookupOptions {

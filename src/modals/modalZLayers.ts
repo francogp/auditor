@@ -35,17 +35,33 @@ export type ModalZLayerScale = Readonly<Record<CanonicalZLayerKey, number>>;
 
 export type CustomModalZLayers = Readonly<Partial<Record<CanonicalZLayerKey, number>>>;
 
+export type ModalZLayerOverrides<TOverrides> = {
+  readonly [K in keyof TOverrides]: K extends CanonicalZLayerKey ? number | undefined : number;
+};
+
 /**
- * Merges consumer-provided Z-Layer overrides onto `CANONICAL_Z_LAYERS`
- * without mutating the canonical defaults.
+ * Merges consumer-provided Z-Layer overrides (including custom domain keys such
+ * as `MAP_FLOOR` or `MAP_SPAWNS`) onto `CANONICAL_Z_LAYERS` without mutating
+ * the canonical defaults.
  */
-export function resolveModalZLayers(overrides?: CustomModalZLayers): ModalZLayerScale {
+export function resolveModalZLayers(): ModalZLayerScale;
+export function resolveModalZLayers<const TOverrides extends ModalZLayerOverrides<TOverrides>>(
+  overrides: TOverrides
+): Readonly<ModalZLayerScale & { readonly [K in keyof TOverrides]: number }>;
+export function resolveModalZLayers(overrides?: CustomModalZLayers): ModalZLayerScale;
+export function resolveModalZLayers(overrides?: object): ModalZLayerScale {
   if (!overrides) {
+    return CANONICAL_Z_LAYERS;
+  }
+  const definedEntries = Object.entries(overrides).filter(
+    (entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1])
+  );
+  if (definedEntries.length === 0) {
     return CANONICAL_Z_LAYERS;
   }
   return Object.freeze({
     ...CANONICAL_Z_LAYERS,
-    ...overrides
+    ...Object.fromEntries(definedEntries)
   });
 }
 

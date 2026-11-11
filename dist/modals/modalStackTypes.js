@@ -27,6 +27,7 @@ const MODAL_SINGLETON_POLICIES = [
 const MODAL_LIFECYCLE_EVENTS = [
 	"open-start",
 	"open-end",
+	"updated",
 	"close-start",
 	"close-end",
 	"close-prevented",

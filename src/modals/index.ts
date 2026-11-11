@@ -20,6 +20,7 @@ export {
   type ModalCssVarsOptions,
   type ModalDomIds,
   type ModalLayerValues,
+  type ModalZLayerOverrides,
   type ModalZLayerScale
 } from './modalZLayers.ts';
 
@@ -73,6 +74,7 @@ export {
   type ModalAnimatePreventedParams,
   type ModalAnimationControllerConfig,
   type ModalAnimationDriver,
+  type ModalBindSurfaceOptions,
   type ModalSurfaceElements,
   type ModalWaapiFillMode,
   type ModalWaapiKeyframe
@@ -90,18 +92,21 @@ export {
   type ModalCloseReason,
   type ModalCloseResult,
   type ModalDismissMode,
+  type ModalEntryPatch,
   type ModalGuardResult,
   type ModalLifecycleEvent,
   type ModalLifecycleEventType,
   type ModalLifecycleListener,
   type ModalLookupOptions,
   type ModalOpenOptions,
+  type ModalOpenResult,
   type ModalPhase,
   type ModalSingletonPolicy,
   type ModalSnapshotListener,
   type ModalStackConfig,
   type ModalStackEntry,
-  type ModalStackSnapshot
+  type ModalStackSnapshot,
+  type ModalTimerDriver
 } from './modalStackTypes.ts';
 
 export { createModalStack, ModalStackManager } from './modalStackManager.ts';
@@ -115,6 +120,7 @@ export {
   type ModalBackNavigationConfig,
   type ModalDomControllerConfig,
   type ModalDomTargetLike,
+  type ModalEventListenerOptions,
   type ModalPointerLikeEvent
 } from './modalDomController.ts';
 
