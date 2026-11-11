@@ -32,7 +32,7 @@ When interacting with hygiene rules, AI agents and developers must strictly dist
 
 ### A. Explicit Member Accessibility (`explicit-member-accessibility`)
 
-- **Linter Rule**: `@typescript-eslint/explicit-member-accessibility`
+- **Linter Rule**: `typescript/explicit-member-accessibility`
 - **Root Cause**: Class properties, methods, getters, setters, or constructors declared without an explicit accessibility modifier (`public`, `protected`, `private`).
 - **Diagnosis**: Missing visibility keywords make API surface boundaries ambiguous and permit accidental external access.
 - **Canonical AST Solution**:
@@ -105,7 +105,7 @@ if (typeof globalThis.window !== 'undefined') {
 
 ### C. No `void` Expressions (`no-void`)
 
-- **Linter Rule**: `eslint/no-void`
+- **Linter Rule**: `no-void`
 - **Root Cause**: Use of the `void` operator as an expression, especially in arrow functions returning void calls (e.g. `() => void doWork()`).
 - **Diagnosis**: The `void` keyword discards return values obfuscating call sites and violating clean functional style.
 - **Canonical AST Solution**:
@@ -115,7 +115,7 @@ if (typeof globalThis.window !== 'undefined') {
 #### Before vs. After Example
 
 ```ts
-// ❌ Before (Linter violation: eslint/no-void)
+// ❌ Before (Linter violation: no-void)
 const handler = () => void dispatchAction();
 void executeBackgroundTask();
 

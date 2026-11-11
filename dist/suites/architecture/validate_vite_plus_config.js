@@ -6,7 +6,7 @@ import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { isPathContained, stripGlobSuffix, toPosixRelative } from "../../core/safePath.js";
 import { isPatternContainedInGlobs } from "../../core/globContainment.js";
 import "../../core/satelliteGlobMatcher.js";
-import { buildAllowedCoverageExcludes, detectInlineVitePlugins, extractParsedConfigSummary, findConfigRootObject, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseTsSourceFile, resolveVitestRoots, toCanonicalLintRuleName } from "../../core/viteConfigAst.js";
+import { buildAllowedCoverageExcludes, detectInlineVitePlugins, extractParsedConfigSummary, findConfigRootObject, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseTsSourceFile, resolveEffectiveLintOverrides, resolveVitestRoots, toCanonicalLintRuleName } from "../../core/viteConfigAst.js";
 import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, findHomebrewCompressionFiles, isVueProject, migrateHomebrewCompressionInViteConfig, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -25,14 +25,14 @@ const VITE_PLUS_CONFIG_RULES = [
 ];
 const ANTI_CASTRATION_SPECS = [
 	{
-		oxlintRule: "@typescript-eslint/no-explicit-any",
-		message: `The '@typescript-eslint/no-explicit-any' rule must be configured as 'error' in vite.config.ts to comply with /domain-type-first.`
+		oxlintRule: "typescript/no-explicit-any",
+		message: `The 'typescript/no-explicit-any' rule must be configured as 'error' in vite.config.ts to comply with /domain-type-first.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/ban-ts-comment",
+		oxlintRule: "typescript/ban-ts-comment",
 		ruleId: "vite-plus-config-ts-ignore-allowed",
 		description: "Rule ban-ts-comment is not error",
-		message: `The '@typescript-eslint/ban-ts-comment' rule must be configured as 'error' in vite.config.ts to prohibit (@ts-ignore) suppressions in domain types.`
+		message: `The 'typescript/ban-ts-comment' rule must be configured as 'error' in vite.config.ts to prohibit (@ts-ignore) suppressions in domain types.`
 	},
 	{
 		oxlintRule: "@francogp/domain-type/no-double-cast-unknown",
@@ -59,10 +59,10 @@ const ANTI_CASTRATION_SPECS = [
 		message: `The 'unicorn/prefer-node-protocol' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/no-floating-promises",
+		oxlintRule: "typescript/no-floating-promises",
 		ruleId: "vite-plus-config-floating-promises-allowed",
 		description: "Missing no-floating-promises",
-		message: `The '@typescript-eslint/no-floating-promises' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/no-floating-promises' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
 		oxlintRule: "max-depth",
@@ -221,58 +221,58 @@ const ANTI_CASTRATION_SPECS = [
 		message: `The 'unicorn/no-useless-spread' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/no-unnecessary-type-assertion",
+		oxlintRule: "typescript/no-unnecessary-type-assertion",
 		ruleId: "vite-plus-config-no-unnecessary-type-assertion-missing",
 		description: "Missing no-unnecessary-type-assertion",
-		message: `The '@typescript-eslint/no-unnecessary-type-assertion' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/no-unnecessary-type-assertion' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/consistent-indexed-object-style",
+		oxlintRule: "typescript/consistent-indexed-object-style",
 		ruleId: "vite-plus-config-consistent-indexed-object-style-missing",
 		description: "Missing consistent-indexed-object-style",
-		message: `The '@typescript-eslint/consistent-indexed-object-style' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/consistent-indexed-object-style' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/no-empty-object-type",
+		oxlintRule: "typescript/no-empty-object-type",
 		ruleId: "vite-plus-config-no-empty-object-type-missing",
 		description: "Missing no-empty-object-type",
-		message: `The '@typescript-eslint/no-empty-object-type' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/no-empty-object-type' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/no-unnecessary-template-expression",
+		oxlintRule: "typescript/no-unnecessary-template-expression",
 		ruleId: "vite-plus-config-no-unnecessary-template-missing",
 		description: "Missing no-unnecessary-template",
-		message: `The '@typescript-eslint/no-unnecessary-template-expression' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/no-unnecessary-template-expression' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/no-unnecessary-type-arguments",
+		oxlintRule: "typescript/no-unnecessary-type-arguments",
 		ruleId: "vite-plus-config-no-unnecessary-type-arguments-missing",
 		description: "Missing no-unnecessary-type-arguments",
-		message: `The '@typescript-eslint/no-unnecessary-type-arguments' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/no-unnecessary-type-arguments' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/no-unnecessary-type-constraint",
+		oxlintRule: "typescript/no-unnecessary-type-constraint",
 		ruleId: "vite-plus-config-no-unnecessary-type-constraint-missing",
 		description: "Missing no-unnecessary-type-constraint",
-		message: `The '@typescript-eslint/no-unnecessary-type-constraint' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/no-unnecessary-type-constraint' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/prefer-function-type",
+		oxlintRule: "typescript/prefer-function-type",
 		ruleId: "vite-plus-config-prefer-function-type-missing",
 		description: "Missing prefer-function-type",
-		message: `The '@typescript-eslint/prefer-function-type' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/prefer-function-type' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/prefer-return-this-type",
+		oxlintRule: "typescript/prefer-return-this-type",
 		ruleId: "vite-plus-config-prefer-return-this-type-missing",
 		description: "Missing prefer-return-this-type",
-		message: `The '@typescript-eslint/prefer-return-this-type' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/prefer-return-this-type' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/ban-tslint-comment",
+		oxlintRule: "typescript/ban-tslint-comment",
 		ruleId: "vite-plus-config-ban-tslint-comment-missing",
 		description: "Missing ban-tslint-comment",
-		message: `The '@typescript-eslint/ban-tslint-comment' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/ban-tslint-comment' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
 		oxlintRule: "import/no-mutable-exports",
@@ -755,22 +755,22 @@ const ANTI_CASTRATION_SPECS = [
 		message: `The 'vue/require-typed-ref' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/explicit-member-accessibility",
+		oxlintRule: "typescript/explicit-member-accessibility",
 		ruleId: "vite-plus-config-explicit-member-accessibility-missing",
 		description: "Missing explicit accessibility",
-		message: `The '@typescript-eslint/explicit-member-accessibility' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/explicit-member-accessibility' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/explicit-function-return-type",
+		oxlintRule: "typescript/explicit-function-return-type",
 		ruleId: "vite-plus-config-explicit-function-return-type-missing",
 		description: "Missing explicit return type",
-		message: `The '@typescript-eslint/explicit-function-return-type' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'typescript/explicit-function-return-type' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
-		oxlintRule: "@typescript-eslint/no-unused-vars",
+		oxlintRule: "no-unused-vars",
 		ruleId: "vite-plus-config-no-unused-vars-missing",
 		description: "Missing calibrated no-unused-vars",
-		message: `The '@typescript-eslint/no-unused-vars' rule must be configured as 'error' in vite.config.ts.`
+		message: `The 'no-unused-vars' rule must be configured as 'error' in vite.config.ts.`
 	},
 	{
 		oxlintRule: "vue/no-required-prop-with-default",
@@ -1224,6 +1224,63 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 			message: `Unsynchronized exclusion pattern '${pattern}' detected in test.coverage.exclude of vite.config.ts. .auditor/audit.config.ts is the Single Source of Truth (SSoT). To legitimize this exclusion, declare it in .auditor/audit.config.ts under 'testCoverage.exclude' or 'paths.ignoreGlobs', or remove it from vite.config.ts.`
 		});
 	}
+	findings.push(...validateLintOverridesParity(summary, fileName, auditConfig));
+	return findings;
+}
+function validateLintOverridesParity(summary, fileName, auditConfig) {
+	const findings = [];
+	const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig);
+	if (effectiveOverrides.length > 0) {
+		if (!summary.lintOverrides || summary.lintOverrides.length === 0) findings.push({
+			suiteId: "validate_vite_plus_config",
+			suiteName: "Vite+ Unified Configuration Validator",
+			ruleId: "vite-plus-config-ts",
+			ruleDescription: "Vite+: TypeScript and test synchronization",
+			severity: "error",
+			file: fileName,
+			line: 1,
+			col: 1,
+			context: "lint.overrides",
+			message: `Missing 'lint.overrides' section in vite.config.ts required by audit.config.ts. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+		});
+		else {
+			const customOverrides = auditConfig.vitePlusConfig?.lint?.overrides ?? [];
+			for (const cov of customOverrides) {
+				const canonicalCovFiles = [...cov.files].sort().join(",");
+				if (!summary.lintOverrides.some((sov) => {
+					return [...sov.files].sort().join(",") === canonicalCovFiles;
+				})) findings.push({
+					suiteId: "validate_vite_plus_config",
+					suiteName: "Vite+ Unified Configuration Validator",
+					ruleId: "vite-plus-config-ts",
+					ruleDescription: "Vite+: TypeScript and test synchronization",
+					severity: "error",
+					file: fileName,
+					line: 1,
+					col: 1,
+					context: "lint.overrides",
+					message: `Missing custom linter override for [${cov.files.join(", ")}] in 'lint.overrides' of vite.config.ts. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+				});
+			}
+		}
+	}
+	if (summary.lintOverrides && summary.lintOverrides.length > 0) for (const sov of summary.lintOverrides) {
+		const sovFiles = [...sov.files].sort().join(",");
+		if (!effectiveOverrides.some((eov) => {
+			return [...eov.files].sort().join(",") === sovFiles;
+		})) findings.push({
+			suiteId: "validate_vite_plus_config",
+			suiteName: "Vite+ Unified Configuration Validator",
+			ruleId: "vite-plus-undeclared-config-entry",
+			ruleDescription: "Vite+: Undeclared entry in config",
+			severity: "error",
+			file: fileName,
+			line: 1,
+			col: 1,
+			context: "lint.overrides",
+			message: `Unsynchronized linter override for [${sov.files.join(", ")}] detected in 'lint.overrides' of vite.config.ts. .auditor/audit.config.ts is the Single Source of Truth (SSoT). To legitimize this override, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.overrides', or remove it from vite.config.ts.`
+		});
+	}
 	return findings;
 }
 function isRootMatch(expectedRoot, assignedRoot, baseDir) {
@@ -1408,7 +1465,7 @@ const RULE_DESCRIPTIONS = {
 };
 const RULE_REMEDIATIONS = {
 	"vite-plus-config-core": "Root Cause:\nThe vite.config.ts file does not exist in project root, misses core Vite+ blocks (such as test or staged), coexists with obsolete legacy configs (.eslintrc.*, vitest.config.*, .prettierrc.*) breaking unified toolchains, or contains homebrew static precompress plugins or obsolete 3rd party plugins (vite-plugin-compression).\n\nDiagnosis:\nCheck if isolated legacy configs exist, homebrew compression plugins exist under scripts/, or the \"test\" / \"staged\" section is absent in vite.config.ts.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor generates canonical configuration, purges redundant legacy files, and migrates compression to official \"vitePrecompressPlugin\" from @francogp/auditor.\n2. Ensure build and test commands invoke the \"vp\" binary (\"vp test\", \"vp build\", \"vp dev\").",
-	"vite-plus-config-lint": "Root Cause:\nThe \"lint\" section in vite.config.ts violates the mandatory Anti-Castration Mandate baseline, has disabled rules (\"off\" or null), or lacks required domain plugins.\nUnder strict architecture governance, strict TypeScript, immutability, and control-flow rules cannot be degraded to hide code defects.\n\nDiagnosis:\nThe violation message specifies which Oxlint or @typescript-eslint rule is missing or downgraded below \"error\".\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor injects and re-synchronizes the full canonical rule catalog in vite.config.ts.\n2. Fix genuine code defects flagged by the linter in source code.",
+	"vite-plus-config-lint": "Root Cause:\nThe \"lint\" section in vite.config.ts violates the mandatory Anti-Castration Mandate baseline, has disabled rules (\"off\" or null), or lacks required domain plugins.\nUnder strict architecture governance, strict TypeScript, immutability, and control-flow rules cannot be degraded to hide code defects.\n\nDiagnosis:\nThe violation message specifies which Oxlint rule (typescript/*, unicorn/*, vue/*, etc.) is missing or downgraded below \"error\". ESLint is NOT used; all linting is 100% Vite+ / Oxlint.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor injects and re-synchronizes the full canonical rule catalog in vite.config.ts.\n2. Fix genuine code defects flagged by the linter in source code.",
 	"vite-plus-config-fmt": "Root Cause:\nThe \"fmt\" section is missing from vite.config.ts or does not declare mandatory \"sortImports: true\" and \"sortPackageJson: true\".\nOxfmt requires deterministic sorting of imports and package.json keys to eliminate git diff merge conflicts.\n\nDiagnosis:\nInspect the \"fmt\" object in vite.config.ts.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" to repair configuration automatically.\n2. Or add to vite.config.ts:\n   fmt: { sortImports: true, sortPackageJson: true }",
 	"vite-plus-config-pack": "Root Cause:\nThe package is configured as a public library or shareable package but lacks the \"pack\" section in vite.config.ts with publint and Are The Types Wrong (attw) validators.\nWithout this verification, packages may publish broken exports or .d.ts types incompatible with ESM/CJS.\n\nDiagnosis:\nCheck if the package defines exports or binaries and lacks the pack block in vite.config.ts.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" to inject canonical pack section.\n2. Configure: pack: { publint: true, attw: { profile: \"esm-only\" } }.",
 	"vite-plus-config-ts": "Root Cause:\nDiscrepancy detected between paths governed in .auditor/audit.config.ts (paths.testRoots, paths.ignoreGlobs, vitePlusConfig.test.projects) and \"test.include\" / \"test.projects\" / \"ignorePatterns\" in vite.config.ts, or root \"test.include\" detected alongside \"test.projects\" causing runner cross-contamination.\naudit.config.ts acts as the Single Source of Truth (SSoT) and must be faithfully reflected in test runners and linters.\n\nDiagnosis:\n1. Check if new test directories were added to audit.config.ts without synchronizing vite.config.ts.\n2. Check if a project uses Vitest Workspace projects (\"projects: [...]\") while retaining a root \"test.include\", which contaminates isolated runners.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor automatically synchronizes test projects, purges root includes in multi-project configs, and aligns ignore patterns.\n2. If using multiple test runners (e.g. unit and node), declare \"vitePlusConfig.test.projects\" in .auditor/audit.config.ts.",

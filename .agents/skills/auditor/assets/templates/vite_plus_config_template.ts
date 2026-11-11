@@ -45,10 +45,10 @@ export default defineConfig({
       'tests/**'
     ],
     rules: {
-      '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/ban-ts-comment': 'error',
-      '@typescript-eslint/no-unused-vars': 'error',
-      '@typescript-eslint/consistent-type-assertions': [
+      'typescript/no-explicit-any': 'error',
+      'typescript/ban-ts-comment': 'error',
+      'no-unused-vars': 'error',
+      'typescript/consistent-type-assertions': [
         'error',
         { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }
       ]

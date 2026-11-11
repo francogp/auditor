@@ -776,21 +776,20 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
         findings.some(
           (f) =>
             f.ruleId === 'vite-plus-config-lint' &&
-            f.context === '@typescript-eslint/no-unnecessary-type-assertion'
+            f.context === 'typescript/no-unnecessary-type-assertion'
         )
       ).toBe(true);
       expect(
         findings.some(
           (f) =>
             f.ruleId === 'vite-plus-config-lint' &&
-            f.context === '@typescript-eslint/consistent-indexed-object-style'
+            f.context === 'typescript/consistent-indexed-object-style'
         )
       ).toBe(true);
       expect(
         findings.some(
           (f) =>
-            f.ruleId === 'vite-plus-config-lint' &&
-            f.context === '@typescript-eslint/no-empty-object-type'
+            f.ruleId === 'vite-plus-config-lint' && f.context === 'typescript/no-empty-object-type'
         )
       ).toBe(true);
     });
@@ -2163,6 +2162,82 @@ export default defineConfig({
       expect(undeclaredFindings.some((f) => f.ruleId === 'vite-plus-undeclared-config-entry')).toBe(
         true
       );
+    });
+
+    it('C-CFG-81: validates lint.overrides parity and enforces SSoT declared overrides', () => {
+      const customAuditConfig = defineAuditConfig({
+        name: 'Overrides Parity Test',
+        paths: {
+          srcRoots: ['src'],
+          testRoots: ['tests']
+        },
+        vitePlusConfig: {
+          enabled: true,
+          lint: {
+            enabled: true,
+            overrides: [
+              {
+                files: ['src/logic/db/proxyQuery.ts'],
+                rules: { 'unicorn/no-thenable': 'off' }
+              }
+            ]
+          }
+        }
+      });
+
+      const compliantContent = `
+        import { defineConfig } from 'vite-plus';
+        import { plugins } from './vite.plugins.ts';
+
+        export default defineConfig({
+          plugins,
+          lint: {
+            options: { typeAware: true, typeCheck: true },
+            plugins: ['vitest', 'node', 'promise', 'unicorn', 'typescript', 'vue', 'import', 'jsx-a11y'],
+            jsPlugins: ['@francogp/auditor/domain-type-plugin'],
+            rules: {},
+            ignorePatterns: [],
+            overrides: [
+              {
+                files: ['src/logic/db/proxyQuery.ts'],
+                rules: { 'unicorn/no-thenable': 'off' }
+              }
+            ]
+          },
+          fmt: { sortPackageJson: true, sortImports: true, ignorePatterns: [] }
+        });
+      `;
+
+      const findings = auditVitePlusConfigContent(
+        compliantContent,
+        'vite.config.ts',
+        customAuditConfig
+      );
+      // lint.overrides should NOT emit any missing or undeclared override error
+      expect(findings.some((f) => f.context === 'lint.overrides')).toBe(false);
+
+      // Missing custom override in vite.config.ts must emit vite-plus-config-ts
+      const missingOverrideContent = compliantContent.replace(
+        /'src\/logic\/db\/proxyQuery\.ts'/,
+        "'src/other/file.ts'"
+      );
+      const missingFindings = auditVitePlusConfigContent(
+        missingOverrideContent,
+        'vite.config.ts',
+        customAuditConfig
+      );
+      expect(
+        missingFindings.some(
+          (f) => f.ruleId === 'vite-plus-config-ts' && f.context === 'lint.overrides'
+        )
+      ).toBe(true);
+
+      // Undeclared override in vite.config.ts must emit vite-plus-undeclared-config-entry
+      expect(
+        missingFindings.some(
+          (f) => f.ruleId === 'vite-plus-undeclared-config-entry' && f.context === 'lint.overrides'
+        )
+      ).toBe(true);
     });
   });
 });

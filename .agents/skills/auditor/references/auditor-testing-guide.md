@@ -99,9 +99,9 @@ All static analysis rules enforce the Zero-Ignore Mandate: comment escape hatche
 Every rule injected or mandated by the framework MUST be verified through automated canary tests asserting positive detection, negative compliance, and auto-fix behavior:
 
 1. **Mandatory Injected Linter Rules**:
-   - `@typescript-eslint/no-explicit-any`: Verified by canary asserting failure on `: any` or `as any`.
-   - `@typescript-eslint/ban-ts-comment`: Verified by canary asserting failure on `@ts-ignore` and auto-repair to `@ts-expect-error`.
-   - `@typescript-eslint/consistent-type-assertions`: Verified by canary asserting failure on `<T>value` and auto-repair to `value as T`.
+   - `typescript/no-explicit-any`: Verified by canary asserting failure on `: any` or `as any`.
+   - `typescript/ban-ts-comment`: Verified by canary asserting failure on `@ts-ignore` and auto-repair to `@ts-expect-error`.
+   - `typescript/consistent-type-assertions`: Verified by canary asserting failure on `<T>value` and auto-repair to `value as T`.
    - `@francogp/domain-type(no-double-cast-unknown)`: Verified by canary asserting failure on `as unknown as T`.
    - `@francogp/domain-type(no-legacy-date)`: Verified by canary asserting failure on `new Date()` and `Date.now()` without Temporal API.
 2. **Stylelint Strict Properties Minimum Baseline**:

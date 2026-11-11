@@ -256,6 +256,10 @@ export interface ParsedVitePlusConfigSummary {
   readonly lintPlugins: readonly string[];
   readonly lintJsPlugins: readonly string[];
   readonly lintIgnorePatterns: readonly string[];
+  readonly lintOverrides: readonly {
+    readonly files: readonly string[];
+    readonly rules?: Readonly<Record<string, unknown>>;
+  }[];
   readonly fmtConfig: Readonly<Record<string, unknown>>;
   readonly fmtIgnorePatterns: readonly string[];
   readonly packConfig: Readonly<Record<string, unknown>>;
@@ -348,12 +352,14 @@ function extractLintSummaryFromAst(
   lintPlugins: string[];
   lintJsPlugins: string[];
   lintIgnorePatterns: string[];
+  lintOverrides: { files: readonly string[]; rules?: Readonly<Record<string, unknown>> }[];
 } {
   const lintRules = new Map<string, unknown>();
   let lintOptions: Record<string, unknown> = {};
   let lintPlugins: string[] = []; // no-domain: Dynamic AST string list
   let lintJsPlugins: string[] = []; // no-domain: Dynamic AST string list
   let lintIgnorePatterns: string[] = []; // no-domain: Dynamic AST string list
+  let lintOverrides: { files: readonly string[]; rules?: Readonly<Record<string, unknown>> }[] = [];
 
   if (lintExpr && ts.isObjectLiteralExpression(lintExpr)) {
     const rulesProp = findPropertyAssignment(lintExpr, 'rules', sf);
@@ -374,9 +380,20 @@ function extractLintSummaryFromAst(
     lintPlugins = extractStringArrayProp(lintExpr, 'plugins', sf);
     lintJsPlugins = extractStringArrayProp(lintExpr, 'jsPlugins', sf);
     lintIgnorePatterns = extractStringArrayProp(lintExpr, 'ignorePatterns', sf);
+
+    const ovProp = findPropertyAssignment(lintExpr, 'overrides', sf);
+    if (ovProp && ts.isArrayLiteralExpression(ovProp.initializer)) {
+      const rawOv = astExpressionToValue(ovProp.initializer, sf);
+      if (Array.isArray(rawOv)) {
+        lintOverrides = rawOv as {
+          files: readonly string[];
+          rules?: Readonly<Record<string, unknown>>;
+        }[];
+      }
+    }
   }
 
-  return { lintRules, lintOptions, lintPlugins, lintJsPlugins, lintIgnorePatterns };
+  return { lintRules, lintOptions, lintPlugins, lintJsPlugins, lintIgnorePatterns, lintOverrides };
 }
 
 function collectConfigSections(sf: ts.SourceFile): Map<string, ts.Expression> {
@@ -528,7 +545,7 @@ export function extractParsedConfigSummary(fileContent: string): ParsedVitePlusC
   );
 
   const sections = collectConfigSections(sf);
-  const { lintRules, lintOptions, lintPlugins, lintJsPlugins, lintIgnorePatterns } =
+  const { lintRules, lintOptions, lintPlugins, lintJsPlugins, lintIgnorePatterns, lintOverrides } =
     extractLintSummaryFromAst(sections.get('lint'), sf);
   const { fmtConfig, fmtIgnorePatterns } = extractFmtSummaryFromAst(sections.get('fmt'), sf);
   const { packConfig, hasPackAttw } = extractPackSummaryFromAst(sections.get('pack'), sf);
@@ -549,6 +566,7 @@ export function extractParsedConfigSummary(fileContent: string): ParsedVitePlusC
     lintPlugins,
     lintJsPlugins,
     lintIgnorePatterns,
+    lintOverrides,
     fmtConfig,
     fmtIgnorePatterns,
     packConfig,
@@ -768,7 +786,16 @@ export function resolveEffectiveLintOverrides(auditConfig: AuditConfig): readonl
   readonly files: readonly string[];
   readonly rules?: Readonly<Record<string, unknown>>;
 }[] {
-  const effective = [...(auditConfig.vitePlusConfig?.lint?.overrides ?? [])];
+  const rawOverrides = auditConfig.vitePlusConfig?.lint?.overrides ?? [];
+  const effective: { files: readonly string[]; rules?: Readonly<Record<string, unknown>> }[] =
+    rawOverrides.map((ov) => {
+      if (!ov.rules) return { files: ov.files };
+      const canonicalRules: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(ov.rules)) {
+        canonicalRules[toCanonicalLintRuleName(k)] = v;
+      }
+      return { files: ov.files, rules: canonicalRules };
+    });
 
   mergeDynamicOverride(
     effective,

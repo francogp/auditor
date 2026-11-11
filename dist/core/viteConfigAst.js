@@ -185,6 +185,7 @@ function extractLintSummaryFromAst(lintExpr, sf) {
 	let lintPlugins = [];
 	let lintJsPlugins = [];
 	let lintIgnorePatterns = [];
+	let lintOverrides = [];
 	if (lintExpr && ts.isObjectLiteralExpression(lintExpr)) {
 		const rulesProp = findPropertyAssignment(lintExpr, "rules", sf);
 		if (rulesProp && ts.isObjectLiteralExpression(rulesProp.initializer)) {
@@ -195,13 +196,19 @@ function extractLintSummaryFromAst(lintExpr, sf) {
 		lintPlugins = extractStringArrayProp(lintExpr, "plugins", sf);
 		lintJsPlugins = extractStringArrayProp(lintExpr, "jsPlugins", sf);
 		lintIgnorePatterns = extractStringArrayProp(lintExpr, "ignorePatterns", sf);
+		const ovProp = findPropertyAssignment(lintExpr, "overrides", sf);
+		if (ovProp && ts.isArrayLiteralExpression(ovProp.initializer)) {
+			const rawOv = astExpressionToValue(ovProp.initializer, sf);
+			if (Array.isArray(rawOv)) lintOverrides = rawOv;
+		}
 	}
 	return {
 		lintRules,
 		lintOptions,
 		lintPlugins,
 		lintJsPlugins,
-		lintIgnorePatterns
+		lintIgnorePatterns,
+		lintOverrides
 	};
 }
 function collectConfigSections(sf) {
@@ -300,7 +307,7 @@ function extractParsedConfigSummary(fileContent) {
 	const sf = parseTsSourceFile(fileContent);
 	const definesFromVitePlus = sf.statements.some((stmt) => ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && stmt.moduleSpecifier.text === "vite-plus");
 	const sections = collectConfigSections(sf);
-	const { lintRules, lintOptions, lintPlugins, lintJsPlugins, lintIgnorePatterns } = extractLintSummaryFromAst(sections.get("lint"), sf);
+	const { lintRules, lintOptions, lintPlugins, lintJsPlugins, lintIgnorePatterns, lintOverrides } = extractLintSummaryFromAst(sections.get("lint"), sf);
 	const { fmtConfig, fmtIgnorePatterns } = extractFmtSummaryFromAst(sections.get("fmt"), sf);
 	const { packConfig, hasPackAttw } = extractPackSummaryFromAst(sections.get("pack"), sf);
 	const { hasRootTestInclude, rootTestInclude, testProjects, hasTestProjects, testInclude, testCoverageExclude } = extractTestSummaryFromAst(sections.get("test"), sf);
@@ -312,6 +319,7 @@ function extractParsedConfigSummary(fileContent) {
 		lintPlugins,
 		lintJsPlugins,
 		lintIgnorePatterns,
+		lintOverrides,
 		fmtConfig,
 		fmtIgnorePatterns,
 		packConfig,
@@ -435,7 +443,15 @@ function mergeDynamicOverride(effective, globs, canonicalRules, discriminatorRul
 	});
 }
 function resolveEffectiveLintOverrides(auditConfig) {
-	const effective = [...auditConfig.vitePlusConfig?.lint?.overrides ?? []];
+	const effective = (auditConfig.vitePlusConfig?.lint?.overrides ?? []).map((ov) => {
+		if (!ov.rules) return { files: ov.files };
+		const canonicalRules = {};
+		for (const [k, v] of Object.entries(ov.rules)) canonicalRules[toCanonicalLintRuleName(k)] = v;
+		return {
+			files: ov.files,
+			rules: canonicalRules
+		};
+	});
 	mergeDynamicOverride(effective, resolveDynamicTestExemptGlobs(auditConfig), CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, "vitest/prefer-to-be-truthy");
 	mergeDynamicOverride(effective, resolveDynamicScriptExemptGlobs(auditConfig), CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, "no-console");
 	mergeDynamicOverride(effective, resolveDynamicDemoExemptGlobs(auditConfig), CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, "no-console");

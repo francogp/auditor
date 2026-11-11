@@ -146,7 +146,7 @@ npm run auditor:types apply scratch/types-plan.json --worktree
 
 ### Scenario A: CI Quality Gate Error (`validate_oxlint`)
 
-- **Trigger**: `npm run auditor` reports `@typescript-eslint/no-explicit-any` or TypeScript compiler error.
+- **Trigger**: `npm run auditor` reports `typescript/no-explicit-any` or TypeScript compiler error.
 - **Strategic Phase**: Phase 4 (`contracts`).
 - **Action**: Formulate a **Correction Plan**. Replace `as any` with `as unknown` or introduce a proper type guard/schema. Never use comment escape hatches (`// type-ok:`) or cast to `as unknown as any`.
 - **Verification**: `npm run auditor:type-check` -> Green.

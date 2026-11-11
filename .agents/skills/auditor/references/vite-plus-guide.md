@@ -164,7 +164,7 @@ flowchart TD
     end
 
     subgraph S2 ["Phase 2: Atomic Synthesis"]
-        C1["Inject mandatory baseline (@typescript-eslint rules)"]
+        C1["Inject mandatory baseline (Oxlint typescript/* rules)"]
         C2["Merge extracted custom rules into vite.config.ts"]
         C3["Update package.json: lint -> 'vp check', pack -> 'vp pack'"]
         C4["Verify vite.config.ts syntax & compile validity"]
@@ -203,9 +203,9 @@ export default defineConfig({
       typeCheck: true
     },
     rules: {
-      '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/ban-ts-comment': 'error',
-      '@typescript-eslint/consistent-type-assertions': [
+      'typescript/no-explicit-any': 'error',
+      'typescript/ban-ts-comment': 'error',
+      'typescript/consistent-type-assertions': [
         'error',
         { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }
       ]

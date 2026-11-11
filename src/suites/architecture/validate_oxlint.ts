@@ -654,9 +654,9 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
         'oxlint-violation':
           '1. Root Cause:\n' +
           "A linter rule violation, syntax error, or code anti-pattern was detected by Vite+'s high-speed static Oxlint engine.\n" +
-          'Oxlint validates strict TypeScript standards (@typescript-eslint), modern code hygiene (unicorn), testing best practices (vitest), component structure (vue), and general JavaScript standards.\n\n' +
+          'Oxlint validates strict TypeScript standards (typescript/*), modern code hygiene (unicorn), testing best practices (vitest), component structure (vue), and general JavaScript standards. ESLint is NOT installed; all linting is 100% Vite+ / Oxlint.\n\n' +
           '2. Diagnosis:\n' +
-          'The violation message indicates the exact rule code (e.g. @typescript-eslint/no-unused-vars, unicorn/prefer-string-starts-ends-with, unicorn/no-thenable) and the line of the offending file.\n\n' +
+          'The violation message indicates the exact rule code (e.g. no-unused-vars, typescript/no-explicit-any, unicorn/prefer-string-starts-ends-with, unicorn/no-thenable) and the line of the offending file.\n\n' +
           '3. Canonical Solution:\n' +
           '1. If the rule is auto-fixable, run "npm run auditor:fix" to apply fixes supported by Oxlint.\n' +
           '2. If the finding involves return contracts (explicit-function-return-type) or type assertions (as any), run the official refactoring tool "npm run auditor:types".\n' +

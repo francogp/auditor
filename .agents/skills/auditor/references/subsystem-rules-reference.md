@@ -180,9 +180,9 @@ Governed by `validate_script_extensions` when `scriptExtensions.enabled !== fals
   - Tested comprehensively against cross-contamination via `tests/auditor_subsystem_ignore_isolation.test.ts`.
 - **Mandatory Oxlint Injected Rules & Anti-Castration**:
   `validate_vite_plus_config` enforces that `vite.config.ts` declares:
-  - `@typescript-eslint/no-explicit-any: 'error'`
-  - `@typescript-eslint/ban-ts-comment: 'error'`
-  - `@typescript-eslint/consistent-type-assertions: ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]`
+  - `typescript/no-explicit-any: 'error'`
+  - `typescript/ban-ts-comment: 'error'`
+  - `typescript/consistent-type-assertions: ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]`
   - Casting rules banning double unknown casts (`as unknown as`) and legacy `new Date()` / `Date.now()`.
     Silencing or setting any rule to `'off'`, `0`, or `'warn'` is strictly prohibited and fails under canonical thematic rules (`vite-plus-config-lint`, `vite-plus-config-core`). In `--fix` mode, the orchestrator automatically re-injects the mandatory baseline. Developers and AI agents must elevate source code to satisfy all strict rules rather than relaxing configurations.
 - **Source Code Formatting Hygiene (`validate_oxfmt`)**:

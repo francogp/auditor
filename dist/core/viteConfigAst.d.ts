@@ -22,6 +22,10 @@ export interface ParsedVitePlusConfigSummary {
   readonly lintPlugins: readonly string[];
   readonly lintJsPlugins: readonly string[];
   readonly lintIgnorePatterns: readonly string[];
+  readonly lintOverrides: readonly {
+    readonly files: readonly string[];
+    readonly rules?: Readonly<Record<string, unknown>>;
+  }[];
   readonly fmtConfig: Readonly<Record<string, unknown>>;
   readonly fmtIgnorePatterns: readonly string[];
   readonly packConfig: Readonly<Record<string, unknown>>;
