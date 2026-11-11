@@ -14,6 +14,7 @@ export interface ModalSequenceQueueConfig<TTaskKind extends string = string, TCo
   readonly onTaskError?: (error: Error, task: ModalSequenceTask<TTaskKind, TContext>) => void;
 }
 export declare class ModalSequenceQueue<TTaskKind extends string = string, TContext = undefined> {
+  readonly __v_skip?: boolean;
   private readonly onTaskError;
   private queued;
   private nextInsertionOrder;

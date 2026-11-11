@@ -7,6 +7,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 
 import ts from 'typescript';
 
@@ -878,6 +879,23 @@ export function buildLockedSkillsVariableStatement(
   );
 }
 
+export function collectCanonicalConfiguredRules(
+  auditConfig: AuditConfig
+): ReadonlyMap<string, unknown> {
+  const configured = new Map<string, unknown>();
+  if (auditConfig.vitePlusConfig?.extraLintRules) {
+    for (const [k, v] of Object.entries(auditConfig.vitePlusConfig.extraLintRules)) {
+      configured.set(toCanonicalLintRuleName(k), v);
+    }
+  }
+  if (auditConfig.vitePlusConfig?.lint?.rules) {
+    for (const [k, v] of Object.entries(auditConfig.vitePlusConfig.lint.rules)) {
+      configured.set(toCanonicalLintRuleName(k), v);
+    }
+  }
+  return configured;
+}
+
 export function buildLintAstObject(
   auditConfig: AuditConfig,
   lintIgnores: readonly string[],
@@ -888,15 +906,8 @@ export function buildLintAstObject(
   const typeCheck = lintCfg?.typeCheck ?? true;
 
   const mergedRules: Record<string, unknown> = { ...DEFAULT_CANONICAL_LINT_RULES };
-  if (auditConfig.vitePlusConfig?.extraLintRules) {
-    for (const [k, v] of Object.entries(auditConfig.vitePlusConfig.extraLintRules)) {
-      mergedRules[k] = v;
-    }
-  }
-  if (lintCfg?.rules) {
-    for (const [k, v] of Object.entries(lintCfg.rules)) {
-      mergedRules[k] = v;
-    }
+  for (const [canonicalKey, ruleVal] of collectCanonicalConfiguredRules(auditConfig)) {
+    mergedRules[canonicalKey] = ruleVal;
   }
 
   const props: ts.ObjectLiteralElementLike[] = [
@@ -1453,42 +1464,24 @@ function syncLintRulesAst(
     }
   }
 
-  if (auditConfig.vitePlusConfig?.extraLintRules) {
-    for (const [ruleName, ruleLevel] of Object.entries(auditConfig.vitePlusConfig.extraLintRules)) {
-      if (currentRuleMap.get(ruleName) !== ruleLevel) {
-        rulesProps = updateObjectProperty(
-          rulesProps,
-          ruleName,
-          valueToAstExpression(ruleLevel),
-          sf,
-          true
-        );
-        currentRuleMap.set(ruleName, ruleLevel);
-        rulesModified = true;
-      }
-    }
-  }
-
-  if (auditConfig.vitePlusConfig?.lint?.rules) {
-    for (const [ruleName, ruleVal] of Object.entries(auditConfig.vitePlusConfig.lint.rules)) {
-      if (JSON.stringify(currentRuleMap.get(ruleName)) !== JSON.stringify(ruleVal)) {
-        rulesProps = updateObjectProperty(
-          rulesProps,
-          ruleName,
-          valueToAstExpression(ruleVal),
-          sf,
-          true
-        );
-        currentRuleMap.set(ruleName, ruleVal);
-        rulesModified = true;
-      }
+  const configuredRules = collectCanonicalConfiguredRules(auditConfig);
+  for (const [ruleName, ruleVal] of configuredRules) {
+    if (!isDeepStrictEqual(currentRuleMap.get(ruleName), ruleVal)) {
+      rulesProps = updateObjectProperty(
+        rulesProps,
+        ruleName,
+        valueToAstExpression(ruleVal),
+        sf,
+        true
+      );
+      currentRuleMap.set(ruleName, ruleVal);
+      rulesModified = true;
     }
   }
 
   const allowedRuleKeys = new Set<string>([
     ...Object.keys(DEFAULT_CANONICAL_LINT_RULES),
-    ...Object.keys(auditConfig.vitePlusConfig?.extraLintRules ?? {}),
-    ...Object.keys(auditConfig.vitePlusConfig?.lint?.rules ?? {})
+    ...configuredRules.keys()
   ]);
 
   const purge = purgeOrphanLintRulesAst(rulesProps, currentRuleMap, allowedRuleKeys, sf);

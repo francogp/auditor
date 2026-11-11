@@ -129,7 +129,7 @@ modalStack.open({
 `@francogp/auditor/modals` provides default motion presets (`'scale-fade'`, `'fade'`, `'slide-up'`, `'slide-down'`, `'slide-left'`, `'slide-right'`, `'none'`), directional placement mapping (`resolveModalPlacementMotionPreset`), and structural layout helpers (`resolveModalStructuralStyles`), all 100% overridable globally or per modal:
 
 ```typescript
-import gsap from 'gsap';
+import { gsap } from 'gsap';
 import {
   ModalAnimationController,
   createGsapModalDriver,
@@ -175,10 +175,12 @@ const surfaceStyles = resolveModalStructuralStyles(drawerEntry, {
 
 ## 5. Vue 3 + Pinia + SCSS Integration Blueprint
 
-### Reactive Store Bridge (`shallowRef` + `ModalDomController`)
+### Reactive Store Bridge (`shallowRef` + Built-In `__v_skip` + `ModalStackController`)
+
+All runtime instances (`ModalStackManager`, `ModalDomController`, `ModalAnimationController`, and `ModalSequenceQueue`) automatically define a non-enumerable `__v_skip: true` flag (`markModalNonReactive`) so Vue 3 / Pinia `reactive()` never proxies their internal `Map`/`Set` structures, and all `stack` configuration options accept the structural `ModalStackController<TModalKind, TMeta>` interface so Pinia `store.manager` (`UnwrapRef<ModalStackManager>`) compiles cleanly under `strictFunctionTypes: true` (you may also optionally wrap with `markRaw(...)` for explicit Pinia clarity):
 
 ```typescript
-import { computed, shallowRef } from 'vue';
+import { computed, markRaw, shallowRef } from 'vue';
 import { defineStore } from 'pinia';
 import {
   ModalDomController,
@@ -195,7 +197,7 @@ export interface AppModalMeta {
 }
 
 export const useModalStackStore = defineStore('modalStack', () => {
-  const manager = createModalStack<AppModalKind, AppModalMeta>();
+  const manager = markRaw(createModalStack<AppModalKind, AppModalMeta>());
   const snapshot = shallowRef<ModalStackSnapshot<AppModalKind, AppModalMeta>>(
     manager.getSnapshot()
   );
@@ -251,7 +253,7 @@ export const useModalStackStore = defineStore('modalStack', () => {
 ```vue
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
-import gsap from 'gsap';
+import { gsap } from 'gsap';
 import {
   ModalAnimationController,
   createBackdropPointerGuard,
@@ -373,14 +375,31 @@ Bind `resolveModalCssVars(entry)` to the modal root element and reference CSS cu
 
 ## 6. Priority-Ordered Modal Sequences (`ModalSequenceQueue`)
 
-When domain workflows (such as post-battle rewards, onboarding steps, or multi-stage wizards) must display several modals strictly one after another ordered by priority without `setInterval` polling:
+When domain workflows (such as post-battle rewards, onboarding steps, or multi-stage wizards) must display several modals strictly one after another ordered by priority without `setInterval` polling—and when instantiating `createModalStack` inside UI/store modules governed by `@francogp/domain-type/no-raw-timers-in-ui`, inject a GSAP `delayedCall` `timerDriver` on `ModalStackConfig` so exit-animation safety timeouts use GSAP's animation ticker with zero raw `setTimeout`:
 
 ```typescript
-import { createModalSequenceQueue, createModalStack } from '@francogp/auditor/modals';
+import { gsap } from 'gsap';
+import {
+  createModalSequenceQueue,
+  createModalStack,
+  type ModalTimerDriver
+} from '@francogp/auditor/modals';
 
 type RewardStepKind = 'move_learning' | 'evolution' | 'event_auto_enroll';
 
-const stack = createModalStack<RewardStepKind>({ animatedClose: false });
+const gsapTimerDriver: ModalTimerDriver = {
+  schedule(delayMs: number, callback: () => void): () => void {
+    const call = gsap.delayedCall(delayMs / 1000, callback);
+    return (): void => {
+      call.kill();
+    };
+  }
+};
+
+const stack = createModalStack<RewardStepKind>({
+  animatedClose: true,
+  timerDriver: gsapTimerDriver
+});
 const rewardQueue = createModalSequenceQueue<RewardStepKind, { readonly stack: typeof stack }>();
 
 rewardQueue.enqueue({

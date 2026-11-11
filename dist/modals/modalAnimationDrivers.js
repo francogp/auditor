@@ -1,4 +1,4 @@
-import { addToSetMap } from "./modalInternalUtils.js";
+import { addToSetMap, markModalNonReactive } from "./modalInternalUtils.js";
 import { DEFAULT_MODAL_ENTER_CSS_EASING, DEFAULT_MODAL_ENTER_EASE } from "./modalMotionPresets.js";
 // src/modals/modalAnimationDrivers.ts
 /**
@@ -113,6 +113,12 @@ function createWaapiModalDriver() {
 		}
 	};
 }
+function isGsapTarget(value) {
+	return typeof value === "object" && value !== null || typeof value === "string";
+}
+function resolveGsapScope(value) {
+	return isGsapTarget(value) ? value : void 0;
+}
 /**
 * Dependency-injected GSAP animation driver adhering to `/gsap-frameworks`:
 * scopes all tweens per modal via `gsap.context()` and calls `ctx.revert()` on `close-end`.
@@ -143,18 +149,19 @@ function createGsapModalDriver(gsapEngine) {
 	};
 	return {
 		animateOpen({ modalUid, elements, preset, onComplete }) {
-			if (preset.enter.durationSec <= 0 || !elements.panel) {
+			if (preset.enter.durationSec <= 0 || !isGsapTarget(elements.panel)) {
 				onComplete();
 				return;
 			}
-			replaceScoped(modalUid, elements.container ?? elements.panel, () => {
-				if (elements.backdrop) gsapEngine.fromTo(elements.backdrop, preset.backdropFrom, {
+			const panelTarget = elements.panel;
+			replaceScoped(modalUid, resolveGsapScope(elements.container ?? panelTarget), () => {
+				if (isGsapTarget(elements.backdrop)) gsapEngine.fromTo(elements.backdrop, preset.backdropFrom, {
 					...preset.backdropTo,
 					duration: preset.enter.durationSec,
 					ease: preset.enter.ease,
 					overwrite: "auto"
 				});
-				gsapEngine.fromTo(elements.panel, preset.panelFrom, {
+				gsapEngine.fromTo(panelTarget, preset.panelFrom, {
 					...preset.panelTo,
 					duration: preset.enter.durationSec,
 					ease: preset.enter.ease,
@@ -164,18 +171,19 @@ function createGsapModalDriver(gsapEngine) {
 			});
 		},
 		animateClose({ modalUid, elements, preset, onComplete }) {
-			if (preset.exit.durationSec <= 0 || !elements.panel) {
+			if (preset.exit.durationSec <= 0 || !isGsapTarget(elements.panel)) {
 				onComplete();
 				return;
 			}
-			appendScoped(modalUid, elements.container ?? elements.panel, () => {
-				if (elements.backdrop) gsapEngine.to(elements.backdrop, {
+			const panelTarget = elements.panel;
+			appendScoped(modalUid, resolveGsapScope(elements.container ?? panelTarget), () => {
+				if (isGsapTarget(elements.backdrop)) gsapEngine.to(elements.backdrop, {
 					...preset.backdropExitTo,
 					duration: preset.exit.durationSec,
 					ease: preset.exit.ease,
 					overwrite: "auto"
 				});
-				gsapEngine.to(elements.panel, {
+				gsapEngine.to(panelTarget, {
 					...preset.panelExitTo,
 					duration: preset.exit.durationSec,
 					ease: preset.exit.ease,
@@ -185,11 +193,12 @@ function createGsapModalDriver(gsapEngine) {
 			});
 		},
 		animatePrevented({ modalUid, elements, preset }) {
-			if (!preset.prevented.enabled || !elements.panel || preset.prevented.durationSec <= 0 || preset.prevented.cycles <= 0) return;
+			if (!preset.prevented.enabled || !isGsapTarget(elements.panel) || preset.prevented.durationSec <= 0 || preset.prevented.cycles <= 0) return;
+			const panelTarget = elements.panel;
 			const halfOscillations = preset.prevented.cycles * 2;
 			const legDuration = preset.prevented.durationSec / (halfOscillations + 1);
-			appendScoped(modalUid, elements.container ?? elements.panel, () => {
-				gsapEngine.fromTo(elements.panel, { x: -preset.prevented.offsetPx }, {
+			appendScoped(modalUid, resolveGsapScope(elements.container ?? panelTarget), () => {
+				gsapEngine.fromTo(panelTarget, { x: -preset.prevented.offsetPx }, {
 					x: preset.prevented.offsetPx,
 					duration: legDuration,
 					repeat: halfOscillations - 1,
@@ -197,7 +206,7 @@ function createGsapModalDriver(gsapEngine) {
 					ease: DEFAULT_MODAL_ENTER_EASE,
 					overwrite: "auto",
 					onComplete: () => {
-						gsapEngine.to(elements.panel, {
+						gsapEngine.to(panelTarget, {
 							x: 0,
 							duration: legDuration,
 							ease: DEFAULT_MODAL_ENTER_EASE,
@@ -228,6 +237,7 @@ var ModalAnimationController = class {
 	constructor(config) {
 		this.stack = config.stack;
 		this.driver = config.driver ?? createWaapiModalDriver();
+		markModalNonReactive(this);
 		this.unsubscribers.push(this.stack.on("open-start", (event) => {
 			if (!event.entry) return;
 			this.runOpenIfBound(event.entry);

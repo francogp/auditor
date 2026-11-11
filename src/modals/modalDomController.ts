@@ -10,7 +10,8 @@
  */
 
 import { createDomainSet } from '../core/domainCollections.ts';
-import type { ModalStackManager } from './modalStackManager.ts';
+import { markModalNonReactive } from './modalInternalUtils.ts';
+import type { ModalStackController } from './modalStackTypes.ts';
 
 const PRIMARY_POINTER_BUTTON = 0;
 const MOUSE_BACK_BUTTON = 3;
@@ -45,7 +46,7 @@ export interface BackdropPointerGuardOptions<
   TModalKind extends string = string,
   TMeta = undefined
 > {
-  readonly stack: ModalStackManager<TModalKind, TMeta>;
+  readonly stack: ModalStackController<TModalKind, TMeta>;
   readonly getModalUid: () => string;
   readonly isBackdropTarget?: (event: ModalPointerLikeEvent) => boolean;
 }
@@ -91,7 +92,7 @@ export interface ModalDomTargetLike {
 }
 
 export interface ModalDomControllerConfig<TModalKind extends string = string, TMeta = undefined> {
-  readonly stack: ModalStackManager<TModalKind, TMeta>;
+  readonly stack: ModalStackController<TModalKind, TMeta>;
   readonly target?: ModalDomTargetLike;
   readonly preventDefaultOnEscape?: boolean;
   readonly syncReducedMotion?: boolean;
@@ -200,7 +201,8 @@ function shouldBlockHistoryKeyboardShortcut(
 }
 
 export class ModalDomController<TModalKind extends string = string, TMeta = undefined> {
-  private readonly stack: ModalStackManager<TModalKind, TMeta>;
+  declare public readonly __v_skip?: boolean;
+  private readonly stack: ModalStackController<TModalKind, TMeta>;
   private readonly target: ModalDomTargetLike | undefined;
   private readonly preventDefaultOnEscape: boolean;
   private readonly backNavigation: ModalBackNavigationConfig | undefined;
@@ -216,6 +218,7 @@ export class ModalDomController<TModalKind extends string = string, TMeta = unde
     this.target = config.target ?? resolveDefaultDomTarget();
     this.preventDefaultOnEscape = config.preventDefaultOnEscape ?? true;
     this.backNavigation = config.backNavigation?.enabled ? config.backNavigation : undefined;
+    markModalNonReactive(this);
 
     this.boundEscapeKeydown = (event: Event): void => {
       this.handleEscapeKeydown(event as KeyboardEvent);

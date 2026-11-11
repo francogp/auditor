@@ -1,4 +1,4 @@
-import { ModalStackManager } from "./modalStackManager.js";
+import { ModalStackController } from "./modalStackTypes.js";
 export interface ModalEventListenerOptions {
   readonly capture?: boolean;
 }
@@ -8,7 +8,7 @@ export interface ModalPointerLikeEvent {
   readonly currentTarget: unknown;
 }
 export interface BackdropPointerGuardOptions<TModalKind extends string = string, TMeta = undefined> {
-  readonly stack: ModalStackManager<TModalKind, TMeta>;
+  readonly stack: ModalStackController<TModalKind, TMeta>;
   readonly getModalUid: () => string;
   readonly isBackdropTarget?: (event: ModalPointerLikeEvent) => boolean;
 }
@@ -42,7 +42,7 @@ export interface ModalDomTargetLike {
   };
 }
 export interface ModalDomControllerConfig<TModalKind extends string = string, TMeta = undefined> {
-  readonly stack: ModalStackManager<TModalKind, TMeta>;
+  readonly stack: ModalStackController<TModalKind, TMeta>;
   readonly target?: ModalDomTargetLike;
   readonly preventDefaultOnEscape?: boolean;
   readonly syncReducedMotion?: boolean;
@@ -55,6 +55,7 @@ export declare function isEditableEventTarget(target: unknown): boolean;
  */
 export declare function createBackdropPointerGuard<TModalKind extends string = string, TMeta = undefined>(options: BackdropPointerGuardOptions<TModalKind, TMeta>): BackdropPointerGuard;
 export declare class ModalDomController<TModalKind extends string = string, TMeta = undefined> {
+  readonly __v_skip?: boolean;
   private readonly stack;
   private readonly target;
   private readonly preventDefaultOnEscape;

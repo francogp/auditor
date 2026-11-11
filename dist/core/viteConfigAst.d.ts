@@ -45,6 +45,7 @@ export declare function resolveEffectiveLintOverrides(auditConfig: AuditConfig):
 }[];
 export declare function buildIgnorePatternsAst(ignores: readonly string[], lockedSkillsIgnores?: readonly string[]): ts.ArrayLiteralExpression;
 export declare function buildLockedSkillsVariableStatement(lockedSkillsIgnores: readonly string[]): ts.VariableStatement;
+export declare function collectCanonicalConfiguredRules(auditConfig: AuditConfig): ReadonlyMap<string, unknown>;
 export declare function buildLintAstObject(auditConfig: AuditConfig, lintIgnores: readonly string[], lockedSkillsIgnores?: readonly string[]): ts.ObjectLiteralExpression;
 export declare function buildFmtAstObject(auditConfig: AuditConfig, fmtIgnores: readonly string[], lockedSkillsIgnores?: readonly string[]): ts.ObjectLiteralExpression;
 export declare function resolveVitestRoots(auditConfig: AuditConfig): readonly string[];

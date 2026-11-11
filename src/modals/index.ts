@@ -67,8 +67,10 @@ export {
   createGsapModalDriver,
   createWaapiModalDriver,
   type GsapContextLike,
+  type GsapContextScope,
   type GsapEngineLike,
   type GsapOverwriteMode,
+  type GsapTweenTarget,
   type GsapTweenVars,
   type ModalAnimatePhaseParams,
   type ModalAnimatePreventedParams,
@@ -104,6 +106,7 @@ export {
   type ModalSingletonPolicy,
   type ModalSnapshotListener,
   type ModalStackConfig,
+  type ModalStackController,
   type ModalStackEntry,
   type ModalStackSnapshot,
   type ModalTimerDriver

@@ -1113,6 +1113,31 @@ function validateLintOptionsAndPlugins(summary, fileName, auditConfig) {
 	});
 	return findings;
 }
+function validateCustomLintRulesParity(summary, fileName, auditConfig) {
+	const findings = [];
+	const authorizedCustomRules = /* @__PURE__ */ new Set();
+	for (const rawKey of Object.keys(auditConfig.vitePlusConfig?.extraLintRules ?? {})) {
+		authorizedCustomRules.add(rawKey);
+		authorizedCustomRules.add(toCanonicalLintRuleName(rawKey));
+	}
+	for (const rawKey of Object.keys(auditConfig.vitePlusConfig?.lint?.rules ?? {})) {
+		authorizedCustomRules.add(rawKey);
+		authorizedCustomRules.add(toCanonicalLintRuleName(rawKey));
+	}
+	for (const [ruleName] of summary.lintRules.entries()) if (!(ruleName in DEFAULT_CANONICAL_LINT_RULES) && !authorizedCustomRules.has(ruleName)) findings.push({
+		suiteId: "validate_vite_plus_config",
+		suiteName: "Vite+ Unified Configuration Validator",
+		ruleId: "vite-plus-undeclared-config-entry",
+		ruleDescription: "Vite+: Undeclared entry in config",
+		severity: "error",
+		file: fileName,
+		line: 1,
+		col: 1,
+		context: ruleName,
+		message: `Undeclared linter rule '${ruleName}' in vite.config.ts. To legitimize this rule, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.rules', or remove it from vite.config.ts.`
+	});
+	return findings;
+}
 function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectRoot) {
 	const findings = [];
 	const lintIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "lint", projectRoot);
@@ -1169,19 +1194,7 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 		context: "lint.ignorePatterns",
 		message: `Unsynchronized exclusion patterns detected in lint of vite.config.ts: [${extraLint.join(", ")}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). To legitimize these exclusions, declare them in .auditor/audit.config.ts under 'paths.ignoreGlobs' or 'oxlint.ignoreGlobs', or remove them from vite.config.ts.`
 	});
-	const authorizedCustomRules = new Set(Object.keys(auditConfig.vitePlusConfig?.lint?.rules ?? {}));
-	for (const [ruleName] of summary.lintRules.entries()) if (!(ruleName in DEFAULT_CANONICAL_LINT_RULES) && !authorizedCustomRules.has(ruleName)) findings.push({
-		suiteId: "validate_vite_plus_config",
-		suiteName: "Vite+ Unified Configuration Validator",
-		ruleId: "vite-plus-undeclared-config-entry",
-		ruleDescription: "Vite+: Undeclared entry in config",
-		severity: "error",
-		file: fileName,
-		line: 1,
-		col: 1,
-		context: ruleName,
-		message: `Undeclared linter rule '${ruleName}' in vite.config.ts. To legitimize this rule, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.rules', or remove it from vite.config.ts.`
-	});
+	findings.push(...validateCustomLintRulesParity(summary, fileName, auditConfig));
 	const authorizedPlugins = new Set(auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_VITE_PLUS_AUDIT_CONFIG.lint?.plugins ?? []);
 	for (const plugin of summary.lintPlugins) if (!authorizedPlugins.has(plugin)) findings.push({
 		suiteId: "validate_vite_plus_config",
@@ -1382,7 +1395,7 @@ const VITE_PLUS_CONFIG_REQUIREMENT = {
 	candidateFiles: ["vite.config.ts"],
 	description: "Unified Vite+ configuration (vite.config.ts)",
 	ruleId: "vite-plus-config-core",
-	generateDefaultContent: (ctx) => buildCanonicalVitePlusConfig(getAuditConfig(ctx.projectRoot))
+	generateDefaultContent: (ctx) => syncViteConfigWithAuditConfig(ctx.projectRoot, getAuditConfig(ctx.projectRoot)).content
 };
 const RULE_DESCRIPTIONS = {
 	"vite-plus-config-core": "Root structure and core Vite+ sections",
@@ -1409,7 +1422,7 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 			...VITE_PLUS_CONFIG_REQUIREMENT,
 			file: options.configFile,
 			candidateFiles: [options.configFile],
-			generateDefaultContent: () => buildCanonicalVitePlusConfig(getAuditConfig(effectiveRoot))
+			generateDefaultContent: () => buildCanonicalVitePlusConfig(getAuditConfig(effectiveRoot), effectiveRoot)
 		} : VITE_PLUS_CONFIG_REQUIREMENT;
 		const syncFixer = (ctx) => {
 			syncViteConfigWithAuditConfig(ctx.projectRoot);
@@ -1421,7 +1434,7 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 			ruleFixers,
 			fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
 			usesThirdPartyTool: false,
-			requiredPermissions: [],
+			requiredPermissions: ["--allow-child-process"],
 			ruleCapabilities: createRuleCapabilities(VITE_PLUS_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",

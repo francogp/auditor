@@ -1242,6 +1242,42 @@ function validateLintOptionsAndPlugins(
   return findings;
 }
 
+function validateCustomLintRulesParity(
+  summary: ParsedVitePlusConfigSummary,
+  fileName: string,
+  auditConfig: AuditConfig
+): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+  const authorizedCustomRules = new Set<string>();
+  for (const rawKey of Object.keys(auditConfig.vitePlusConfig?.extraLintRules ?? {})) {
+    authorizedCustomRules.add(rawKey);
+    authorizedCustomRules.add(toCanonicalLintRuleName(rawKey));
+  }
+  for (const rawKey of Object.keys(auditConfig.vitePlusConfig?.lint?.rules ?? {})) {
+    authorizedCustomRules.add(rawKey);
+    authorizedCustomRules.add(toCanonicalLintRuleName(rawKey));
+  }
+
+  for (const [ruleName] of summary.lintRules.entries()) {
+    if (!(ruleName in CANONICAL_LINT_RULES_MAP) && !authorizedCustomRules.has(ruleName)) {
+      findings.push({
+        suiteId: 'validate_vite_plus_config',
+        suiteName: 'Vite+ Unified Configuration Validator',
+        ruleId: 'vite-plus-undeclared-config-entry',
+        ruleDescription: 'Vite+: Undeclared entry in config',
+        severity: 'error',
+        file: fileName,
+        line: 1,
+        col: 1,
+        context: ruleName,
+        message: `Undeclared linter rule '${ruleName}' in vite.config.ts. To legitimize this rule, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.rules', or remove it from vite.config.ts.`
+      });
+    }
+  }
+
+  return findings;
+}
+
 function validateSynchronizedLintAndFmt(
   summary: ParsedVitePlusConfigSummary,
   fileName: string,
@@ -1326,25 +1362,7 @@ function validateSynchronizedLintAndFmt(
     });
   }
 
-  const authorizedCustomRules = new Set<string>(
-    Object.keys(auditConfig.vitePlusConfig?.lint?.rules ?? {})
-  );
-  for (const [ruleName] of summary.lintRules.entries()) {
-    if (!(ruleName in CANONICAL_LINT_RULES_MAP) && !authorizedCustomRules.has(ruleName)) {
-      findings.push({
-        suiteId: 'validate_vite_plus_config',
-        suiteName: 'Vite+ Unified Configuration Validator',
-        ruleId: 'vite-plus-undeclared-config-entry',
-        ruleDescription: 'Vite+: Undeclared entry in config',
-        severity: 'error',
-        file: fileName,
-        line: 1,
-        col: 1,
-        context: ruleName,
-        message: `Undeclared linter rule '${ruleName}' in vite.config.ts. To legitimize this rule, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.rules', or remove it from vite.config.ts.`
-      });
-    }
-  }
+  findings.push(...validateCustomLintRulesParity(summary, fileName, auditConfig));
 
   const authorizedPlugins = new Set<string>(
     auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_VITE_PLUS_AUDIT_CONFIG.lint?.plugins ?? []
@@ -1664,7 +1682,8 @@ export const VITE_PLUS_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<VitePlus
   candidateFiles: ['vite.config.ts'],
   description: 'Unified Vite+ configuration (vite.config.ts)',
   ruleId: 'vite-plus-config-core',
-  generateDefaultContent: (ctx) => buildCanonicalVitePlusConfig(getAuditConfig(ctx.projectRoot))
+  generateDefaultContent: (ctx) =>
+    syncViteConfigWithAuditConfig(ctx.projectRoot, getAuditConfig(ctx.projectRoot)).content
 };
 
 const RULE_DESCRIPTIONS: Readonly<Record<VitePlusConfigRuleId, string>> = {
@@ -1748,7 +1767,8 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
           ...VITE_PLUS_CONFIG_REQUIREMENT,
           file: options.configFile,
           candidateFiles: [options.configFile],
-          generateDefaultContent: () => buildCanonicalVitePlusConfig(getAuditConfig(effectiveRoot))
+          generateDefaultContent: () =>
+            buildCanonicalVitePlusConfig(getAuditConfig(effectiveRoot), effectiveRoot)
         }
       : VITE_PLUS_CONFIG_REQUIREMENT;
 
@@ -1766,7 +1786,7 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
       ruleFixers,
       fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
       usesThirdPartyTool: false,
-      requiredPermissions: [],
+      requiredPermissions: ['--allow-child-process'],
       ruleCapabilities: createRuleCapabilities(VITE_PLUS_CONFIG_RULES, {
         speed: 'light',
         phase: 'setup',

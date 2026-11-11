@@ -6,7 +6,7 @@
  * `ModalAnimationController` lifecycle bridge.
  */
 
-import { addToSetMap } from './modalInternalUtils.ts';
+import { addToSetMap, markModalNonReactive } from './modalInternalUtils.ts';
 import {
   DEFAULT_MODAL_ENTER_CSS_EASING,
   DEFAULT_MODAL_ENTER_EASE,
@@ -14,8 +14,7 @@ import {
   type ModalMotionInput,
   type ModalMotionPreset
 } from './modalMotionPresets.ts';
-import type { ModalStackManager } from './modalStackManager.ts';
-import type { ModalEntryPatch, ModalStackEntry } from './modalStackTypes.ts';
+import type { ModalEntryPatch, ModalStackController, ModalStackEntry } from './modalStackTypes.ts';
 
 const MS_PER_SECOND = 1000;
 
@@ -224,10 +223,21 @@ export interface GsapTweenVars {
   readonly onComplete?: () => void;
 }
 
+export type GsapTweenTarget = object | string | null;
+export type GsapContextScope = Element | object | string;
+
 export interface GsapEngineLike {
-  fromTo(target: unknown, fromVars: GsapTweenVars, toVars: GsapTweenVars): unknown;
-  to(target: unknown, toVars: GsapTweenVars): unknown;
-  context?: (setup: () => void, scope?: unknown) => GsapContextLike;
+  fromTo(target: GsapTweenTarget, fromVars: GsapTweenVars, toVars: GsapTweenVars): unknown;
+  to(target: GsapTweenTarget, toVars: GsapTweenVars): unknown;
+  context?(setup: () => void, scope?: GsapContextScope): GsapContextLike;
+}
+
+function isGsapTarget(value: unknown): value is object | string {
+  return (typeof value === 'object' && value !== null) || typeof value === 'string';
+}
+
+function resolveGsapScope(value: unknown): GsapContextScope | undefined {
+  return isGsapTarget(value) ? value : undefined;
 }
 
 /**
@@ -237,7 +247,11 @@ export interface GsapEngineLike {
 export function createGsapModalDriver(gsapEngine: GsapEngineLike): ModalAnimationDriver {
   const contextsByUid = new Map<string, GsapContextLike>();
 
-  const replaceScoped = (modalUid: string, scope: unknown, fn: () => void): void => {
+  const replaceScoped = (
+    modalUid: string,
+    scope: GsapContextScope | undefined,
+    fn: () => void
+  ): void => {
     if (!gsapEngine.context) {
       fn();
       return;
@@ -250,7 +264,11 @@ export function createGsapModalDriver(gsapEngine: GsapEngineLike): ModalAnimatio
     contextsByUid.set(modalUid, ctx);
   };
 
-  const appendScoped = (modalUid: string, scope: unknown, fn: () => void): void => {
+  const appendScoped = (
+    modalUid: string,
+    scope: GsapContextScope | undefined,
+    fn: () => void
+  ): void => {
     if (!gsapEngine.context) {
       fn();
       return;
@@ -272,12 +290,13 @@ export function createGsapModalDriver(gsapEngine: GsapEngineLike): ModalAnimatio
 
   return {
     animateOpen({ modalUid, elements, preset, onComplete }): void {
-      if (preset.enter.durationSec <= 0 || !elements.panel) {
+      if (preset.enter.durationSec <= 0 || !isGsapTarget(elements.panel)) {
         onComplete();
         return;
       }
-      replaceScoped(modalUid, elements.container ?? elements.panel, () => {
-        if (elements.backdrop) {
+      const panelTarget = elements.panel;
+      replaceScoped(modalUid, resolveGsapScope(elements.container ?? panelTarget), () => {
+        if (isGsapTarget(elements.backdrop)) {
           gsapEngine.fromTo(elements.backdrop, preset.backdropFrom, {
             ...preset.backdropTo,
             duration: preset.enter.durationSec,
@@ -285,7 +304,7 @@ export function createGsapModalDriver(gsapEngine: GsapEngineLike): ModalAnimatio
             overwrite: 'auto'
           });
         }
-        gsapEngine.fromTo(elements.panel, preset.panelFrom, {
+        gsapEngine.fromTo(panelTarget, preset.panelFrom, {
           ...preset.panelTo,
           duration: preset.enter.durationSec,
           ease: preset.enter.ease,
@@ -295,12 +314,13 @@ export function createGsapModalDriver(gsapEngine: GsapEngineLike): ModalAnimatio
       });
     },
     animateClose({ modalUid, elements, preset, onComplete }): void {
-      if (preset.exit.durationSec <= 0 || !elements.panel) {
+      if (preset.exit.durationSec <= 0 || !isGsapTarget(elements.panel)) {
         onComplete();
         return;
       }
-      appendScoped(modalUid, elements.container ?? elements.panel, () => {
-        if (elements.backdrop) {
+      const panelTarget = elements.panel;
+      appendScoped(modalUid, resolveGsapScope(elements.container ?? panelTarget), () => {
+        if (isGsapTarget(elements.backdrop)) {
           gsapEngine.to(elements.backdrop, {
             ...preset.backdropExitTo,
             duration: preset.exit.durationSec,
@@ -308,7 +328,7 @@ export function createGsapModalDriver(gsapEngine: GsapEngineLike): ModalAnimatio
             overwrite: 'auto'
           });
         }
-        gsapEngine.to(elements.panel, {
+        gsapEngine.to(panelTarget, {
           ...preset.panelExitTo,
           duration: preset.exit.durationSec,
           ease: preset.exit.ease,
@@ -320,18 +340,19 @@ export function createGsapModalDriver(gsapEngine: GsapEngineLike): ModalAnimatio
     animatePrevented({ modalUid, elements, preset }): void {
       if (
         !preset.prevented.enabled ||
-        !elements.panel ||
+        !isGsapTarget(elements.panel) ||
         preset.prevented.durationSec <= 0 ||
         preset.prevented.cycles <= 0
       ) {
         return;
       }
+      const panelTarget = elements.panel;
       const halfOscillations = preset.prevented.cycles * 2;
       const legDuration = preset.prevented.durationSec / (halfOscillations + 1);
 
-      appendScoped(modalUid, elements.container ?? elements.panel, () => {
+      appendScoped(modalUid, resolveGsapScope(elements.container ?? panelTarget), () => {
         gsapEngine.fromTo(
-          elements.panel,
+          panelTarget,
           { x: -preset.prevented.offsetPx },
           {
             x: preset.prevented.offsetPx,
@@ -341,7 +362,7 @@ export function createGsapModalDriver(gsapEngine: GsapEngineLike): ModalAnimatio
             ease: DEFAULT_MODAL_ENTER_EASE,
             overwrite: 'auto',
             onComplete: (): void => {
-              gsapEngine.to(elements.panel, {
+              gsapEngine.to(panelTarget, {
                 x: 0,
                 duration: legDuration,
                 ease: DEFAULT_MODAL_ENTER_EASE,
@@ -366,7 +387,7 @@ export interface ModalAnimationControllerConfig<
   TModalKind extends string = string,
   TMeta = undefined
 > {
-  readonly stack: ModalStackManager<TModalKind, TMeta>;
+  readonly stack: ModalStackController<TModalKind, TMeta>;
   readonly driver?: ModalAnimationDriver;
 }
 
@@ -380,7 +401,8 @@ export interface ModalBindSurfaceOptions<TModalKind extends string = string, TMe
  * `close-prevented`, `close-end`) with any pluggable `ModalAnimationDriver`.
  */
 export class ModalAnimationController<TModalKind extends string = string, TMeta = undefined> {
-  private readonly stack: ModalStackManager<TModalKind, TMeta>;
+  declare public readonly __v_skip?: boolean;
+  private readonly stack: ModalStackController<TModalKind, TMeta>;
   private readonly driver: ModalAnimationDriver;
   private readonly surfacesByUid = new Map<string, ModalSurfaceElements>();
   private readonly unsubscribers: (() => void)[] = [];
@@ -388,6 +410,7 @@ export class ModalAnimationController<TModalKind extends string = string, TMeta 
   public constructor(config: ModalAnimationControllerConfig<TModalKind, TMeta>) {
     this.stack = config.stack;
     this.driver = config.driver ?? createWaapiModalDriver();
+    markModalNonReactive(this);
 
     this.unsubscribers.push(
       this.stack.on('open-start', (event) => {

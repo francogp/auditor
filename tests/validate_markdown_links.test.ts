@@ -15,11 +15,13 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
+import { collectDocumentationFiles } from '../src/core/auditorBase.ts';
 import {
   MarkdownLinkAuditor,
   MARKDOWN_LINK_RULES,
   checkMarkdownLinksInContent,
-  clearGitIgnoredPathsCache
+  clearGitIgnoredPathsCache,
+  collectMarkdownFiles
 } from '../src/suites/documentation/validate_markdown_links.ts';
 
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -260,6 +262,71 @@ describe('MarkdownLinkAuditor', () => {
           'utf-8'
         );
         const auditor = new MarkdownLinkAuditor({ roots: [], projectRoot: sandbox });
+        const result = await auditor.audit();
+
+        expect(result.summary.errors).toBe(0);
+        expect(result.status).toBe('passed');
+      } finally {
+        await fs.rm(sandbox, { recursive: true, force: true });
+      }
+    });
+
+    it('skips gitignored markdown files inside scanned codeRoots and root files (e.g. supabase/docker/README.md)', async () => {
+      const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), 'md-links-gitignore-'));
+      try {
+        await fs.writeFile(
+          path.join(sandbox, '.gitignore'),
+          ['supabase/docker/', 'supabase/generated/', 'ignored-root.md', '.agents/', 'docs/'].join(
+            '\n'
+          ),
+          'utf-8'
+        );
+        await fs.mkdir(path.join(sandbox, 'supabase/docker'), { recursive: true });
+        await fs.mkdir(path.join(sandbox, '.agents/skills/local'), { recursive: true });
+        await fs.mkdir(path.join(sandbox, 'docs/public'), { recursive: true });
+        await fs.mkdir(path.join(sandbox, 'docs/secret'), { recursive: true });
+        await fs.writeFile(
+          path.join(sandbox, 'supabase/docker/README.md'),
+          '# Cloned Stack\nBroken link [Missing](./does_not_exist.md) and packages/missing_pkg.\n',
+          'utf-8'
+        );
+        await fs.writeFile(
+          path.join(sandbox, 'ignored-root.md'),
+          '# Local Scratch Doc\nBroken link [Missing](./does_not_exist.md).\n',
+          'utf-8'
+        );
+        await fs.writeFile(
+          path.join(sandbox, '.agents/skills/local/SKILL.md'),
+          '# Local Skill\nSee [Guide](../../../guide.md).\n',
+          'utf-8'
+        );
+        await fs.writeFile(path.join(sandbox, 'docs/public/spec.md'), '# Public Spec\n', 'utf-8');
+        await fs.writeFile(path.join(sandbox, 'docs/secret/draft.md'), '# Secret Draft\n', 'utf-8');
+        await fs.writeFile(path.join(sandbox, 'guide.md'), '# Guide\n', 'utf-8');
+        await fs.writeFile(
+          path.join(sandbox, 'supabase/README.md'),
+          '# Supabase\nSee [Guide](../guide.md).\n',
+          'utf-8'
+        );
+
+        expect(collectMarkdownFiles('ignored-root.md', sandbox)).toEqual([]);
+        expect(collectMarkdownFiles('guide.md', sandbox)).toEqual([path.join(sandbox, 'guide.md')]);
+        // Single-segment unignore (`.agents` default) rescues `.agents/skills/local/SKILL.md`
+        expect(collectMarkdownFiles('.agents', sandbox)).toEqual([
+          path.join(sandbox, '.agents/skills/local/SKILL.md')
+        ]);
+        // Multi-segment unignore (`docs/public`) rescues `docs/public/spec.md` while keeping `docs/secret/draft.md` pruned
+        expect(
+          collectDocumentationFiles(sandbox, sandbox, [], new Set(['.md']), ['docs/public'])
+        ).toContain(path.join(sandbox, 'docs/public/spec.md'));
+        expect(
+          collectDocumentationFiles(sandbox, sandbox, [], new Set(['.md']), ['docs/public'])
+        ).not.toContain(path.join(sandbox, 'docs/secret/draft.md'));
+
+        const auditor = new MarkdownLinkAuditor({
+          roots: ['.', 'ignored-root.md', 'supabase'],
+          projectRoot: sandbox
+        });
         const result = await auditor.audit();
 
         expect(result.summary.errors).toBe(0);

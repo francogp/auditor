@@ -1,4 +1,11 @@
+import { markModalNonReactive } from "./modalInternalUtils.js";
 // src/modals/modalSequenceQueue.ts
+/**
+* src/modals/modalSequenceQueue.ts
+*
+* Priority-ordered sequential modal/task coordinator with deterministic,
+* event-driven idle resolution (zero polling timers).
+*/
 function compareQueuedTasks(left, right) {
 	if (right.task.priority !== left.task.priority) return right.task.priority - left.task.priority;
 	return left.insertionOrder - right.insertionOrder;
@@ -13,6 +20,7 @@ var ModalSequenceQueue = class {
 	idleWaiters = /* @__PURE__ */ new Set();
 	constructor(config = {}) {
 		this.onTaskError = config.onTaskError;
+		markModalNonReactive(this);
 	}
 	isRunning() {
 		return this.running;

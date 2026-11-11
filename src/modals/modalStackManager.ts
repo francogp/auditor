@@ -8,7 +8,7 @@
  */
 
 import { createDomainSet } from '../core/domainCollections.ts';
-import { addToSetMap } from './modalInternalUtils.ts';
+import { addToSetMap, markModalNonReactive } from './modalInternalUtils.ts';
 import {
   resolveModalMotionPreset,
   type ModalMotionInput,
@@ -31,6 +31,7 @@ import type {
   ModalSingletonPolicy,
   ModalSnapshotListener,
   ModalStackConfig,
+  ModalStackController,
   ModalStackEntry,
   ModalStackSnapshot,
   ModalTimerDriver
@@ -114,7 +115,11 @@ function isPromiseLikeBoolean(value: boolean | Promise<boolean>): value is Promi
   return typeof value === 'object' && value !== null && 'then' in value;
 }
 
-export class ModalStackManager<TModalKind extends string = string, TMeta = undefined> {
+export class ModalStackManager<
+  TModalKind extends string = string,
+  TMeta = undefined
+> implements ModalStackController<TModalKind, TMeta> {
+  declare public readonly __v_skip?: boolean;
   private readonly zLayers: ModalZLayerScale;
   private readonly baseZIndex: number;
   private readonly stepZIndex: number;
@@ -184,6 +189,7 @@ export class ModalStackManager<TModalKind extends string = string, TMeta = undef
     this.timerDriver = config.timerDriver ?? DEFAULT_MODAL_TIMER_DRIVER;
     this.onCeilingExceeded = config.onCeilingExceeded;
     this.cachedSnapshot = this.computeSnapshot();
+    markModalNonReactive(this);
   }
 
   public getZLayers(): ModalZLayerScale {

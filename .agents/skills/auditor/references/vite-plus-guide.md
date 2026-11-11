@@ -500,3 +500,11 @@ export default defineAuditConfig({
 
 1. **Anti-Contamination Enforcement**: `validate_vite_plus_config` (`vite-plus-config-ts`) flags any root `test.include` coexisting with `test.projects` as a blocking error.
 2. **Deterministic Auto-Fix (`auditor fix`)**: Purgers the root `test.include` from `vite.config.ts`, maps each declared root to its corresponding project's `include`, and leaves custom project properties (`setupFiles`, `globals`, `environmentOptions`) completely intact.
+
+---
+
+### 8.10 Modular `vite.plugins.ts` Typing (`PluginOption[]`) & Granular File-Scoped `lint.overrides`
+
+1. **Preventing `TS2321` in `vite.plugins.ts`**: Always type the exported array explicitly with `import type { PluginOption } from 'vite-plus'` (`export const plugins: PluginOption[] = [...]`). Never edit `vite.config.ts` manually or cast plugins to `any` / `unknown`.
+2. **Canonical `@typescript-eslint/*` Rule Names**: If custom rules are declared under `vitePlusConfig.lint.rules` in `.auditor/audit.config.ts` using either `@typescript-eslint/<rule>` or `typescript/<rule>`, the AST engine (`viteConfigAst.ts`) automatically canonicalizes them to Oxlint's native key (`typescript/<rule>` or `no-unused-vars`) and formats `vite.config.ts` to 2-space Oxfmt standards with zero rewrite drift.
+3. **Single-File Protocol Overrides (`vitePlusConfig.lint.overrides`)**: When a specific adapter file intentionally implements a `PromiseLike<T>` contract (such as a fluent SQL/Supabase query builder `.then()` method triggering `unicorn/no-thenable`), consult the human programmer via `ask_question`, declare a narrow single-file override under `vitePlusConfig.lint.overrides` in `.auditor/audit.config.ts`, and run `npm run auditor:fix` instead of adding forbidden `eslint-disable` comments.

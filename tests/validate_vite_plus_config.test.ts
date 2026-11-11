@@ -2072,5 +2072,97 @@ export default defineConfig({
       );
       expect(postFixFinding).toBeUndefined();
     });
+
+    it('C-CFG-80: canonicalizes @typescript-eslint/* custom rules in SSoT without infinite AST rewrite loops or 4-space oxfmt drift', async () => {
+      const customAuditConfig = defineAuditConfig({
+        name: 'Legacy Prefix Custom Rule App',
+        paths: {
+          srcRoots: ['src'],
+          testRoots: ['tests']
+        },
+        vitePlusConfig: {
+          enabled: true,
+          lint: {
+            enabled: true,
+            rules: {
+              '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }]
+            }
+          }
+        }
+      });
+
+      const repoNodeModules = path.resolve(import.meta.dirname, '../node_modules');
+      const hoistedNodeModules = path.join(tempDir, 'node_modules');
+      if (!fs.existsSync(hoistedNodeModules) && fs.existsSync(repoNodeModules)) {
+        fs.symlinkSync(repoNodeModules, hoistedNodeModules, 'dir');
+      }
+
+      const appDir = path.join(tempDir, 'packages/sub-app');
+      fs.mkdirSync(appDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(appDir, 'package.json'),
+        JSON.stringify({ name: 'sub-app', type: 'module' }, null, 2),
+        'utf-8'
+      );
+      setAuditConfig(customAuditConfig, appDir);
+
+      // Initial scaffolding via ValidateVitePlusConfigAuditor.fix() when vite.config.ts is absent must also emit 2-space Oxfmt output
+      const viteConfigPath = path.join(appDir, 'vite.config.ts');
+      const suiteAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: appDir });
+      await suiteAuditor.fix();
+
+      const firstDiskContent = fs.readFileSync(viteConfigPath, 'utf-8');
+      expect(firstDiskContent).toContain("'typescript/consistent-type-imports'");
+      expect(firstDiskContent).not.toContain("'@typescript-eslint/consistent-type-imports'");
+      // Oxfmt canonical 2-space indentation (not 4-space ts.createPrinter output)
+      expect(firstDiskContent).toMatch(/\n {2}lint:\s*\{/);
+      expect(firstDiskContent).not.toMatch(/\n {4}lint:\s*\{/);
+
+      // Second sync MUST be strictly idempotent (modified: false) and leave disk bytes untouched
+      const secondSync = syncViteConfigWithAuditConfig(appDir, customAuditConfig);
+      expect(secondSync.modified).toBe(false);
+      expect(fs.readFileSync(viteConfigPath, 'utf-8')).toBe(firstDiskContent);
+
+      // Validator must accept canonicalized rule without flagging vite-plus-undeclared-config-entry
+      const findings = auditVitePlusConfigContent(
+        firstDiskContent,
+        'vite.config.ts',
+        customAuditConfig,
+        appDir
+      );
+      expect(findings).toHaveLength(0);
+
+      // Uncanonicalized @typescript-eslint/* key declared in audit.config.ts must NOT emit false-positive vite-plus-undeclared-config-entry
+      const preMigrationContent = firstDiskContent.replace(
+        "'typescript/consistent-type-imports'",
+        "'@typescript-eslint/consistent-type-imports'"
+      );
+      expect(preMigrationContent).not.toBe(firstDiskContent);
+      const preMigrationFindings = auditVitePlusConfigContent(
+        preMigrationContent,
+        'vite.config.ts',
+        customAuditConfig,
+        appDir
+      );
+      expect(
+        preMigrationFindings.some((f) => f.ruleId === 'vite-plus-undeclared-config-entry')
+      ).toBe(false);
+
+      // Genuinely undeclared custom rule in vite.config.ts must still trigger vite-plus-undeclared-config-entry
+      const undeclaredContent = firstDiskContent.replace(
+        /(['"])typescript\/consistent-type-imports\1:\s*\[[\s\S]*?\]/,
+        "'unicorn/no-null': 'off'"
+      );
+      expect(undeclaredContent).not.toBe(firstDiskContent);
+      const undeclaredFindings = auditVitePlusConfigContent(
+        undeclaredContent,
+        'vite.config.ts',
+        customAuditConfig,
+        appDir
+      );
+      expect(undeclaredFindings.some((f) => f.ruleId === 'vite-plus-undeclared-config-entry')).toBe(
+        true
+      );
+    });
   });
 });

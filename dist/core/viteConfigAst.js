@@ -6,6 +6,7 @@ import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import { getAllowedSatellitePathExcludes } from "./satelliteGlobMatcher.js";
 import path from "node:path";
 import fs from "node:fs";
+import { isDeepStrictEqual } from "node:util";
 import ts from "typescript";
 // src/core/viteConfigAst.ts
 /**
@@ -471,13 +472,18 @@ function buildIgnorePatternsAst(ignores, lockedSkillsIgnores = []) {
 function buildLockedSkillsVariableStatement(lockedSkillsIgnores) {
 	return ts.factory.createVariableStatement(void 0, ts.factory.createVariableDeclarationList([ts.factory.createVariableDeclaration("LOCKED_SKILLS_IGNORE_PATTERNS", void 0, void 0, ts.factory.createAsExpression(ts.factory.createArrayLiteralExpression(lockedSkillsIgnores.map((s) => ts.factory.createStringLiteral(s, true)), true), ts.factory.createTypeReferenceNode("const", void 0)))], ts.NodeFlags.Const));
 }
+function collectCanonicalConfiguredRules(auditConfig) {
+	const configured = /* @__PURE__ */ new Map();
+	if (auditConfig.vitePlusConfig?.extraLintRules) for (const [k, v] of Object.entries(auditConfig.vitePlusConfig.extraLintRules)) configured.set(toCanonicalLintRuleName(k), v);
+	if (auditConfig.vitePlusConfig?.lint?.rules) for (const [k, v] of Object.entries(auditConfig.vitePlusConfig.lint.rules)) configured.set(toCanonicalLintRuleName(k), v);
+	return configured;
+}
 function buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores = []) {
 	const lintCfg = auditConfig.vitePlusConfig?.lint;
 	const typeAware = lintCfg?.typeAware ?? true;
 	const typeCheck = lintCfg?.typeCheck ?? true;
 	const mergedRules = { ...DEFAULT_CANONICAL_LINT_RULES };
-	if (auditConfig.vitePlusConfig?.extraLintRules) for (const [k, v] of Object.entries(auditConfig.vitePlusConfig.extraLintRules)) mergedRules[k] = v;
-	if (lintCfg?.rules) for (const [k, v] of Object.entries(lintCfg.rules)) mergedRules[k] = v;
+	for (const [canonicalKey, ruleVal] of collectCanonicalConfiguredRules(auditConfig)) mergedRules[canonicalKey] = ruleVal;
 	const props = [ts.factory.createPropertyAssignment("options", valueToAstExpression({
 		typeAware,
 		typeCheck
@@ -774,25 +780,13 @@ function syncLintRulesAst(rulesProp, auditConfig, sf) {
 		currentRuleMap.set(ruleName, canonicalVal);
 		rulesModified = true;
 	}
-	if (auditConfig.vitePlusConfig?.extraLintRules) {
-		for (const [ruleName, ruleLevel] of Object.entries(auditConfig.vitePlusConfig.extraLintRules)) if (currentRuleMap.get(ruleName) !== ruleLevel) {
-			rulesProps = updateObjectProperty(rulesProps, ruleName, valueToAstExpression(ruleLevel), sf, true);
-			currentRuleMap.set(ruleName, ruleLevel);
-			rulesModified = true;
-		}
+	const configuredRules = collectCanonicalConfiguredRules(auditConfig);
+	for (const [ruleName, ruleVal] of configuredRules) if (!isDeepStrictEqual(currentRuleMap.get(ruleName), ruleVal)) {
+		rulesProps = updateObjectProperty(rulesProps, ruleName, valueToAstExpression(ruleVal), sf, true);
+		currentRuleMap.set(ruleName, ruleVal);
+		rulesModified = true;
 	}
-	if (auditConfig.vitePlusConfig?.lint?.rules) {
-		for (const [ruleName, ruleVal] of Object.entries(auditConfig.vitePlusConfig.lint.rules)) if (JSON.stringify(currentRuleMap.get(ruleName)) !== JSON.stringify(ruleVal)) {
-			rulesProps = updateObjectProperty(rulesProps, ruleName, valueToAstExpression(ruleVal), sf, true);
-			currentRuleMap.set(ruleName, ruleVal);
-			rulesModified = true;
-		}
-	}
-	const allowedRuleKeys = /* @__PURE__ */ new Set([
-		...Object.keys(DEFAULT_CANONICAL_LINT_RULES),
-		...Object.keys(auditConfig.vitePlusConfig?.extraLintRules ?? {}),
-		...Object.keys(auditConfig.vitePlusConfig?.lint?.rules ?? {})
-	]);
+	const allowedRuleKeys = /* @__PURE__ */ new Set([...Object.keys(DEFAULT_CANONICAL_LINT_RULES), ...configuredRules.keys()]);
 	const purge = purgeOrphanLintRulesAst(rulesProps, currentRuleMap, allowedRuleKeys, sf);
 	if (purge.modified) {
 		rulesProps = purge.rulesProps;
@@ -2083,4 +2077,4 @@ function sanitizeEmptyCatchClausesInViteConfig(content) {
 		modified: true
 	};
 }
-export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, createVitePluginsImportDeclaration, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveDynamicDemoExemptGlobs, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, toCanonicalLintRuleName, valueToAstExpression };
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, collectCanonicalConfiguredRules, createPropertyNameNode, createVitePluginsImportDeclaration, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveDynamicDemoExemptGlobs, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, toCanonicalLintRuleName, valueToAstExpression };

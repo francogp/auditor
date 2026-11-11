@@ -13,6 +13,7 @@ import path from 'node:path';
 import semver from 'semver';
 import { Project, SyntaxKind, QuoteKind, type SourceFile } from 'ts-morph';
 
+import { executeNodeCli, resolvePackageBin } from '../cli/cliUtils.ts';
 import { getAuditConfig, type AuditConfig } from './auditConfig.ts';
 import {
   getAuditorCanonicalOverrides,
@@ -227,12 +228,30 @@ function findLegacyTestBlock(projectRoot: string): string | null {
   return null;
 }
 
+function formatWrittenViteFilesWithOxfmt(
+  projectRoot: string,
+  writtenFilePaths: readonly string[]
+): void {
+  if (writtenFilePaths.length === 0) return;
+  const vpBin = resolvePackageBin('vite-plus', {
+    projectRoot,
+    fallbackRelativeBin: 'bin/vp'
+  });
+  if (!vpBin || !fs.existsSync(vpBin)) return;
+
+  const relFilePaths = writtenFilePaths.map((filePath) => path.relative(projectRoot, filePath));
+  executeNodeCli(vpBin, ['fmt', ...relFilePaths], {
+    cwd: projectRoot
+  });
+}
+
 export function syncViteConfigWithAuditConfig(
   projectRoot: string,
   auditConfig?: AuditConfig
 ): { modified: boolean; content: string } {
   const config = auditConfig ?? getAuditConfig(projectRoot);
   const viteConfigPath = path.resolve(projectRoot, 'vite.config.ts');
+  const vitePluginsPath = path.resolve(projectRoot, 'vite.plugins.ts');
   const legacyTestBlock = findLegacyTestBlock(projectRoot);
   const legacyTestProp = legacyTestBlock ? parseLegacyTestPropertyNode(legacyTestBlock) : null;
 
@@ -240,6 +259,10 @@ export function syncViteConfigWithAuditConfig(
   const fmtIgnores = resolveAuditConfigIgnoreGlobs(config, 'fmt', projectRoot);
 
   const pluginsScaffolded = ensureVitePluginsScaffolded(projectRoot);
+  const writtenFiles = new Set<string>();
+  if (pluginsScaffolded) {
+    writtenFiles.add(vitePluginsPath);
+  }
 
   if (!fs.existsSync(viteConfigPath)) {
     const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot);
@@ -252,33 +275,35 @@ export function syncViteConfigWithAuditConfig(
       projectRoot
     );
     fs.writeFileSync(viteConfigPath, content, 'utf-8');
-    return { modified: true, content };
+    writtenFiles.add(viteConfigPath);
+    formatWrittenViteFilesWithOxfmt(projectRoot, [...writtenFiles]);
+    return { modified: true, content: fs.readFileSync(viteConfigPath, 'utf-8') };
   }
 
   const rawContent = fs.readFileSync(viteConfigPath, 'utf-8');
   let currentContent = rawContent;
-  let pluginsExtracted = pluginsScaffolded;
+  let requiresConfigWrite = pluginsScaffolded;
 
   const homebrewMigration = migrateHomebrewCompressionInViteConfig(currentContent);
   if (homebrewMigration.modified) {
     currentContent = homebrewMigration.content;
-    pluginsExtracted = true;
+    requiresConfigWrite = true;
   }
 
   const catchSanitized = sanitizeEmptyCatchClausesInViteConfig(currentContent);
   if (catchSanitized.modified) {
     currentContent = catchSanitized.content;
-    pluginsExtracted = true;
+    requiresConfigWrite = true;
   }
 
   const pluginExtraction = extractVitePluginsToModule(currentContent, projectRoot);
   if (pluginExtraction.modified) {
     if (pluginExtraction.vitePluginsContent) {
-      const vitePluginsPath = path.resolve(projectRoot, 'vite.plugins.ts');
       fs.writeFileSync(vitePluginsPath, pluginExtraction.vitePluginsContent, 'utf-8');
+      writtenFiles.add(vitePluginsPath);
     }
     currentContent = pluginExtraction.viteConfigContent;
-    pluginsExtracted = true;
+    requiresConfigWrite = true;
   }
 
   const synced = synchronizeViteConfigAst(
@@ -290,9 +315,11 @@ export function syncViteConfigWithAuditConfig(
     projectRoot
   );
 
-  if (synced.modified || pluginsExtracted) {
+  if (synced.modified || requiresConfigWrite) {
     fs.writeFileSync(viteConfigPath, synced.content, 'utf-8');
-    return { modified: true, content: synced.content };
+    writtenFiles.add(viteConfigPath);
+    formatWrittenViteFilesWithOxfmt(projectRoot, [...writtenFiles]);
+    return { modified: true, content: fs.readFileSync(viteConfigPath, 'utf-8') };
   }
 
   return synced;

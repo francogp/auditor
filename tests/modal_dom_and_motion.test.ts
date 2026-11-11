@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { JSDOM } from 'jsdom';
+import { createPinia, defineStore, setActivePinia } from 'pinia';
 import { describe, expect, it, vi } from 'vite-plus/test';
 
 import {
@@ -10,6 +11,7 @@ import {
   ModalDomController,
   createBackdropPointerGuard,
   createGsapModalDriver,
+  createModalSequenceQueue,
   createModalStack,
   createWaapiModalDriver,
   isEditableEventTarget,
@@ -756,6 +758,96 @@ describe('ModalDomController, Light-Dismiss Pointer Guard, Motion Presets & Isom
           expect(importPattern.test(source)).toBe(false);
         }
       }
+    });
+
+    it('accepts strict GSAP 3 TweenTarget/context signatures directly and protects modal controllers inside Pinia setup stores (__v_skip + structural stack contract)', () => {
+      interface StrictGsapCore {
+        fromTo(
+          targets: string | object | null,
+          fromVars: GsapTweenVars,
+          toVars: GsapTweenVars
+        ): object;
+        to(targets: string | object | null, vars: GsapTweenVars): object;
+        context(func?: () => void, scope?: Element | string | object): { revert(): void };
+      }
+
+      const tweenTargets: Array<string | object | null> = [];
+      const capturedFromVars: GsapTweenVars[] = [];
+      const strictGsap: StrictGsapCore = {
+        fromTo(targets, fromVars, toVars) {
+          tweenTargets.push(targets);
+          capturedFromVars.push(fromVars);
+          toVars.onComplete?.();
+          return {};
+        },
+        to(targets, vars) {
+          tweenTargets.push(targets);
+          vars.onComplete?.();
+          return {};
+        },
+        context(func) {
+          func?.();
+          return {
+            revert(): void {}
+          };
+        }
+      };
+
+      const driver = createGsapModalDriver(strictGsap);
+      setActivePinia(createPinia());
+
+      const rawStack = createModalStack<UiModalKind>();
+      const rawAnimations = new ModalAnimationController({ stack: rawStack, driver });
+      const rawDomController = new ModalDomController({ stack: rawStack });
+      const rawQueue = createModalSequenceQueue<'step'>();
+
+      for (const instance of [rawStack, rawAnimations, rawDomController, rawQueue]) {
+        const publicSkipFlag: boolean | undefined = instance.__v_skip;
+        expect(publicSkipFlag).toBe(true);
+        expect(Object.keys(instance)).not.toContain('__v_skip');
+      }
+
+      const useHostModalsStore = defineStore('hostModals', () => ({
+        stackManager: rawStack,
+        animations: rawAnimations,
+        domController: rawDomController,
+        queue: rawQueue
+      }));
+
+      const store = useHostModalsStore();
+      // Pinia reactive() must skip wrapping raw modal engine instances thanks to __v_skip
+      expect(store.stackManager).toBe(rawStack);
+      expect(store.animations).toBe(rawAnimations);
+      expect(store.domController).toBe(rawDomController);
+      expect(store.queue).toBe(rawQueue);
+
+      // Structural ModalStackController contract must accept UnwrapRef<ModalStackManager> from Pinia without TS2740
+      const guard = createBackdropPointerGuard({
+        stack: store.stackManager,
+        getModalUid: () => 'pinia-modal-1'
+      });
+      const secondaryAnim = new ModalAnimationController({
+        stack: store.stackManager,
+        driver
+      });
+      const secondaryDom = new ModalDomController({
+        stack: store.stackManager
+      });
+
+      const panelNode = { id: 'pinia-panel' };
+      store.stackManager.open({ kind: 'ModalA', modalUid: 'pinia-modal-1' });
+      const unbind = secondaryAnim.bindSurface('pinia-modal-1', { panel: panelNode });
+      expect(tweenTargets).toContain(panelNode);
+      expect(capturedFromVars.length).toBeGreaterThan(0);
+      expect(store.stackManager.getByUid('pinia-modal-1')?.phase).toBe('open');
+
+      guard.reset();
+      unbind();
+      secondaryDom.dispose();
+      secondaryAnim.dispose();
+      rawDomController.dispose();
+      rawAnimations.dispose();
+      rawStack.dispose();
     });
   });
 });

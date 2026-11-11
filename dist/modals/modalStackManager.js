@@ -1,5 +1,5 @@
 import { createDomainSet } from "../core/domainCollections.js";
-import { addToSetMap } from "./modalInternalUtils.js";
+import { addToSetMap, markModalNonReactive } from "./modalInternalUtils.js";
 import { resolveModalMotionPreset } from "./modalMotionPresets.js";
 import { CANONICAL_Z_LAYERS, resolveModalZLayers } from "./modalZLayers.js";
 // src/modals/modalStackManager.ts
@@ -96,6 +96,7 @@ var ModalStackManager = class {
 		this.timerDriver = config.timerDriver ?? DEFAULT_MODAL_TIMER_DRIVER;
 		this.onCeilingExceeded = config.onCeilingExceeded;
 		this.cachedSnapshot = this.computeSnapshot();
+		markModalNonReactive(this);
 	}
 	getZLayers() {
 		return this.zLayers;

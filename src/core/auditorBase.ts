@@ -68,6 +68,7 @@ import {
 } from './cli/cittyHarness.ts';
 import './permissionGuard.ts';
 import { ConfigFileRegistry } from './configFileRegistry.ts';
+import { GitIgnoreMatcher } from './gitignoreMatcher.ts';
 import { GitIgnoreRegistry } from './gitIgnoreRegistry.ts';
 import { PackageScriptRegistry } from './packageScriptRegistry.ts';
 import {
@@ -121,6 +122,7 @@ import {
 import { isTestFileForCodeAudit } from './auditTestPredicates.ts';
 import { formatDurationMs } from './durationFormatter.ts';
 import { isPathExempt, normalizePosixPath } from './reportUtils.ts';
+import { isPathContained } from './safePath.ts';
 import { formatFindingCountBadge } from './streamingFormat.ts';
 import { evaluateSuiteStatus } from './suiteGating.ts';
 import {
@@ -402,77 +404,77 @@ export function isPathIgnored(
   return false;
 }
 
-function collectSingleFile(
-  filePath: string,
-  projectRoot: string,
-  extraIgnorePatterns: readonly string[],
-  allowedExtensions: ReadonlySet<string>,
-  unignoreDirs: ReadonlySet<string> | readonly string[]
-): string[] {
-  const relPath = normalizePosixPath(path.relative(projectRoot, filePath));
-  if (!isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs, projectRoot)) {
-    const ext = path.extname(filePath).toLowerCase();
-    if (allowedExtensions.size === 0 || allowedExtensions.has(ext)) {
-      return [filePath];
-    }
+interface RepositoryTraversalContext {
+  readonly projectRoot: string;
+  readonly extraIgnorePatterns: readonly string[];
+  readonly allowedExtensions: ReadonlySet<string>;
+  readonly unignoreSet: ReadonlySet<string>;
+  readonly resolvedUnignores: readonly string[];
+  readonly gitIgnoreMatcher: GitIgnoreMatcher | null;
+}
+
+function isGitIgnoredTraversalEntry(
+  fullPath: string,
+  relPath: string,
+  isDirectory: boolean,
+  ctx: RepositoryTraversalContext
+): boolean {
+  if (!ctx.gitIgnoreMatcher || !ctx.gitIgnoreMatcher.isIgnored(fullPath)) {
+    return false;
   }
-  return [];
+  const relSegments = relPath.toLowerCase().split('/');
+  if (relSegments.some((seg) => ctx.unignoreSet.has(seg))) {
+    return false;
+  }
+  const absTarget = path.resolve(fullPath);
+  return !ctx.resolvedUnignores.some(
+    (unignoreAbs) =>
+      isPathContained(unignoreAbs, absTarget) ||
+      (isDirectory && isPathContained(absTarget, unignoreAbs))
+  );
+}
+
+function isTraversalEntryExcluded(
+  fullPath: string,
+  isDirectory: boolean,
+  ctx: RepositoryTraversalContext
+): boolean {
+  const relPath = normalizePosixPath(path.relative(ctx.projectRoot, fullPath));
+  return (
+    isPathIgnored(relPath, ctx.extraIgnorePatterns, ctx.unignoreSet, ctx.projectRoot) ||
+    isGitIgnoredTraversalEntry(fullPath, relPath, isDirectory, ctx)
+  );
+}
+
+function collectAllowedSingleFile(filePath: string, ctx: RepositoryTraversalContext): string[] {
+  if (isTraversalEntryExcluded(filePath, false, ctx)) {
+    return [];
+  }
+  const ext = path.extname(filePath).toLowerCase();
+  return ctx.allowedExtensions.size === 0 || ctx.allowedExtensions.has(ext) ? [filePath] : [];
 }
 
 function processDirentEntry(
   entry: nodeFs.Dirent,
   dir: string,
-  projectRoot: string,
-  extraIgnorePatterns: readonly string[],
-  allowedExtensions: ReadonlySet<string>,
-  unignoreDirs: ReadonlySet<string> | readonly string[]
+  ctx: RepositoryTraversalContext
 ): string[] {
   const fullPath = path.resolve(dir, entry.name);
-  const relPath = normalizePosixPath(path.relative(projectRoot, fullPath));
-  if (isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs, projectRoot)) {
-    return [];
-  }
-
   if (entry.isDirectory()) {
-    return collectRepositoryFiles(
-      fullPath,
-      projectRoot,
-      extraIgnorePatterns,
-      allowedExtensions,
-      unignoreDirs
-    );
+    return isTraversalEntryExcluded(fullPath, true, ctx) ? [] : walkRepositoryFiles(fullPath, ctx);
   }
-
   if (entry.isFile()) {
-    const ext = path.extname(entry.name).toLowerCase();
-    if (allowedExtensions.size === 0 || allowedExtensions.has(ext)) {
-      return [fullPath];
-    }
+    return collectAllowedSingleFile(fullPath, ctx);
   }
   return [];
 }
 
-/**
- * Recursively collects scannable files from a directory, applying ignore filters.
- */
-export function collectRepositoryFiles(
-  dir: string,
-  projectRoot = process.cwd(),
-  extraIgnorePatterns: readonly string[] = [],
-  allowedExtensions: ReadonlySet<string> = SCANNABLE_EXTENSIONS,
-  unignoreDirs: ReadonlySet<string> | readonly string[] = []
-): string[] {
+function walkRepositoryFiles(dir: string, ctx: RepositoryTraversalContext): string[] {
   if (!nodeFs.existsSync(dir)) return [];
 
   const stat = nodeFs.statSync(dir);
   if (stat.isFile()) {
-    return collectSingleFile(
-      dir,
-      projectRoot,
-      extraIgnorePatterns,
-      allowedExtensions,
-      unignoreDirs
-    );
+    return collectAllowedSingleFile(dir, ctx);
   }
 
   let entries: nodeFs.Dirent[];
@@ -485,18 +487,60 @@ export function collectRepositoryFiles(
 
   const results: string[] = [];
   for (const entry of entries) {
-    results.push(
-      ...processDirentEntry(
-        entry,
-        dir,
-        projectRoot,
-        extraIgnorePatterns,
-        allowedExtensions,
-        unignoreDirs
-      )
-    );
+    results.push(...processDirentEntry(entry, dir, ctx));
   }
   return results;
+}
+
+function createTraversalContext(
+  projectRoot: string,
+  extraIgnorePatterns: readonly string[],
+  allowedExtensions: ReadonlySet<string>,
+  unignoreDirs: ReadonlySet<string> | readonly string[],
+  respectGitIgnore: boolean
+): RepositoryTraversalContext {
+  const unignoreList = Array.from(unignoreDirs);
+  return {
+    projectRoot,
+    extraIgnorePatterns,
+    allowedExtensions,
+    unignoreSet: new Set(unignoreList.map((d) => d.toLowerCase())),
+    resolvedUnignores: unignoreList.map((d) => path.resolve(projectRoot, d)),
+    gitIgnoreMatcher: respectGitIgnore ? new GitIgnoreMatcher(projectRoot) : null
+  };
+}
+
+/**
+ * Recursively collects scannable files from a directory, applying ignore filters.
+ */
+export function collectRepositoryFiles(
+  dir: string,
+  projectRoot = process.cwd(),
+  extraIgnorePatterns: readonly string[] = [],
+  allowedExtensions: ReadonlySet<string> = SCANNABLE_EXTENSIONS,
+  unignoreDirs: ReadonlySet<string> | readonly string[] = []
+): string[] {
+  return walkRepositoryFiles(
+    dir,
+    createTraversalContext(projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs, false)
+  );
+}
+
+/**
+ * Recursively collects documentation files, pruning `.gitignore` entries at the traversal level
+ * while honoring configured `unignoreDirs` (single-segment or multi-segment).
+ */
+export function collectDocumentationFiles(
+  dir: string,
+  projectRoot = process.cwd(),
+  extraIgnorePatterns: readonly string[] = [],
+  allowedExtensions: ReadonlySet<string> = new Set(['.md']),
+  unignoreDirs: ReadonlySet<string> | readonly string[] = getEffectiveUnignoreDirs(projectRoot)
+): string[] {
+  return walkRepositoryFiles(
+    dir,
+    createTraversalContext(projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs, true)
+  );
 }
 
 export interface AuditorConfig {
@@ -695,8 +739,13 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
       roots: readonly string[] = getEffectiveScannableRoots(),
       allowedExtensions = SCANNABLE_EXTENSIONS
     ) => {
+      const isDocMarkdownScan =
+        config.family === 'documentation' &&
+        allowedExtensions.size === 1 &&
+        allowedExtensions.has('.md');
       const cacheKey = [
         projectRoot,
+        isDocMarkdownScan ? 'doc-gitignore' : 'std',
         [...roots].sort().join('|'),
         Array.from(allowedExtensions).sort().join('|'),
         combinedIgnores.join('|'),
@@ -711,9 +760,10 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
 
       const seen = new Set<string>();
       const all: string[] = []; // no-domain: Non-domain utility collection or data structure
+      const collectFn = isDocMarkdownScan ? collectDocumentationFiles : collectRepositoryFiles;
       for (const root of roots) {
         const fullRoot = path.resolve(projectRoot, root);
-        for (const file of collectRepositoryFiles(
+        for (const file of collectFn(
           fullRoot,
           projectRoot,
           combinedIgnores,

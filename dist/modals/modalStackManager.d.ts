@@ -1,7 +1,8 @@
 import { ModalMotionPreset } from "./modalMotionPresets.js";
-import { ModalClearAllOptions, ModalCloseReason, ModalCloseResult, ModalEntryPatch, ModalLifecycleEventType, ModalLifecycleListener, ModalLookupOptions, ModalOpenOptions, ModalOpenResult, ModalSnapshotListener, ModalStackConfig, ModalStackEntry, ModalStackSnapshot } from "./modalStackTypes.js";
+import { ModalClearAllOptions, ModalCloseReason, ModalCloseResult, ModalEntryPatch, ModalLifecycleEventType, ModalLifecycleListener, ModalLookupOptions, ModalOpenOptions, ModalOpenResult, ModalSnapshotListener, ModalStackConfig, ModalStackController, ModalStackEntry, ModalStackSnapshot } from "./modalStackTypes.js";
 import { ModalZLayerScale } from "./modalZLayers.js";
-export declare class ModalStackManager<TModalKind extends string = string, TMeta = undefined> {
+export declare class ModalStackManager<TModalKind extends string = string, TMeta = undefined> implements ModalStackController<TModalKind, TMeta> {
+  readonly __v_skip?: boolean;
   private readonly zLayers;
   private readonly baseZIndex;
   private readonly stepZIndex;

@@ -5,6 +5,8 @@
  * event-driven idle resolution (zero polling timers).
  */
 
+import { markModalNonReactive } from './modalInternalUtils.ts';
+
 export interface ModalSequenceTask<TTaskKind extends string = string, TContext = undefined> {
   readonly taskUid: string;
   readonly kind: TTaskKind;
@@ -32,6 +34,7 @@ function compareQueuedTasks<TTaskKind extends string, TContext>(
 }
 
 export class ModalSequenceQueue<TTaskKind extends string = string, TContext = undefined> {
+  declare public readonly __v_skip?: boolean;
   private readonly onTaskError:
     | ((error: Error, task: ModalSequenceTask<TTaskKind, TContext>) => void)
     | undefined;
@@ -44,6 +47,7 @@ export class ModalSequenceQueue<TTaskKind extends string = string, TContext = un
 
   public constructor(config: ModalSequenceQueueConfig<TTaskKind, TContext> = {}) {
     this.onTaskError = config.onTaskError;
+    markModalNonReactive(this);
   }
 
   public isRunning(): boolean {

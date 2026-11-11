@@ -4,9 +4,9 @@ import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "./cli/cittyH
 import "./permissionGuard.js";
 import { getAuditConfig, loadAuditConfig } from "./auditConfigLoader.js";
 import { ConfigFileRegistry } from "./configFileRegistry.js";
+import { GitIgnoreMatcher } from "./gitignoreMatcher.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { PackageScriptRegistry } from "./packageScriptRegistry.js";
-import { toPosixRelative } from "./safePath.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
 import { isExemptFile } from "./auditPathPredicates.js";
 import { REMEDIATION_PHASE_IDS, isRemediationPhaseId } from "./remediationPhases.js";
@@ -19,6 +19,7 @@ import { AuditedDocument } from "./auditedDocument.js";
 import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
 import { formatDurationMs } from "./durationFormatter.js";
 import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
+import { isPathContained, toPosixRelative } from "./safePath.js";
 import { formatFindingCountBadge } from "./streamingFormat.js";
 import { evaluateSuiteStatus } from "./suiteGating.js";
 import { renderAuditTaskRow, renderBanner, renderSimilarCodeWarningBanner } from "./unifiedTheme.js";
@@ -158,29 +159,30 @@ function isPathIgnored(relPath, extraIgnorePatterns = [], unignoreDirs = [], pro
 	}
 	return false;
 }
-function collectSingleFile(filePath, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs) {
-	if (!isPathIgnored(normalizePosixPath(path.relative(projectRoot, filePath)), extraIgnorePatterns, unignoreDirs, projectRoot)) {
-		const ext = path.extname(filePath).toLowerCase();
-		if (allowedExtensions.size === 0 || allowedExtensions.has(ext)) return [filePath];
-	}
-	return [];
+function isGitIgnoredTraversalEntry(fullPath, relPath, isDirectory, ctx) {
+	if (!ctx.gitIgnoreMatcher || !ctx.gitIgnoreMatcher.isIgnored(fullPath)) return false;
+	if (relPath.toLowerCase().split("/").some((seg) => ctx.unignoreSet.has(seg))) return false;
+	const absTarget = path.resolve(fullPath);
+	return !ctx.resolvedUnignores.some((unignoreAbs) => isPathContained(unignoreAbs, absTarget) || isDirectory && isPathContained(absTarget, unignoreAbs));
 }
-function processDirentEntry(entry, dir, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs) {
+function isTraversalEntryExcluded(fullPath, isDirectory, ctx) {
+	const relPath = normalizePosixPath(path.relative(ctx.projectRoot, fullPath));
+	return isPathIgnored(relPath, ctx.extraIgnorePatterns, ctx.unignoreSet, ctx.projectRoot) || isGitIgnoredTraversalEntry(fullPath, relPath, isDirectory, ctx);
+}
+function collectAllowedSingleFile(filePath, ctx) {
+	if (isTraversalEntryExcluded(filePath, false, ctx)) return [];
+	const ext = path.extname(filePath).toLowerCase();
+	return ctx.allowedExtensions.size === 0 || ctx.allowedExtensions.has(ext) ? [filePath] : [];
+}
+function processDirentEntry(entry, dir, ctx) {
 	const fullPath = path.resolve(dir, entry.name);
-	if (isPathIgnored(normalizePosixPath(path.relative(projectRoot, fullPath)), extraIgnorePatterns, unignoreDirs, projectRoot)) return [];
-	if (entry.isDirectory()) return collectRepositoryFiles(fullPath, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs);
-	if (entry.isFile()) {
-		const ext = path.extname(entry.name).toLowerCase();
-		if (allowedExtensions.size === 0 || allowedExtensions.has(ext)) return [fullPath];
-	}
+	if (entry.isDirectory()) return isTraversalEntryExcluded(fullPath, true, ctx) ? [] : walkRepositoryFiles(fullPath, ctx);
+	if (entry.isFile()) return collectAllowedSingleFile(fullPath, ctx);
 	return [];
 }
-/**
-* Recursively collects scannable files from a directory, applying ignore filters.
-*/
-function collectRepositoryFiles(dir, projectRoot = process.cwd(), extraIgnorePatterns = [], allowedExtensions = SCANNABLE_EXTENSIONS, unignoreDirs = []) {
+function walkRepositoryFiles(dir, ctx) {
 	if (!fs.existsSync(dir)) return [];
-	if (fs.statSync(dir).isFile()) return collectSingleFile(dir, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs);
+	if (fs.statSync(dir).isFile()) return collectAllowedSingleFile(dir, ctx);
 	let entries;
 	try {
 		entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -188,8 +190,32 @@ function collectRepositoryFiles(dir, projectRoot = process.cwd(), extraIgnorePat
 		return [];
 	}
 	const results = [];
-	for (const entry of entries) results.push(...processDirentEntry(entry, dir, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs));
+	for (const entry of entries) results.push(...processDirentEntry(entry, dir, ctx));
 	return results;
+}
+function createTraversalContext(projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs, respectGitIgnore) {
+	const unignoreList = Array.from(unignoreDirs);
+	return {
+		projectRoot,
+		extraIgnorePatterns,
+		allowedExtensions,
+		unignoreSet: new Set(unignoreList.map((d) => d.toLowerCase())),
+		resolvedUnignores: unignoreList.map((d) => path.resolve(projectRoot, d)),
+		gitIgnoreMatcher: respectGitIgnore ? new GitIgnoreMatcher(projectRoot) : null
+	};
+}
+/**
+* Recursively collects scannable files from a directory, applying ignore filters.
+*/
+function collectRepositoryFiles(dir, projectRoot = process.cwd(), extraIgnorePatterns = [], allowedExtensions = SCANNABLE_EXTENSIONS, unignoreDirs = []) {
+	return walkRepositoryFiles(dir, createTraversalContext(projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs, false));
+}
+/**
+* Recursively collects documentation files, pruning `.gitignore` entries at the traversal level
+* while honoring configured `unignoreDirs` (single-segment or multi-segment).
+*/
+function collectDocumentationFiles(dir, projectRoot = process.cwd(), extraIgnorePatterns = [], allowedExtensions = /* @__PURE__ */ new Set([".md"]), unignoreDirs = getEffectiveUnignoreDirs(projectRoot)) {
+	return walkRepositoryFiles(dir, createTraversalContext(projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs, true));
 }
 async function persistAuditJsonReport(result, config, outputOption) {
 	const scratchFamilyDir = path.resolve(process.cwd(), "scratch/audits", config.family);
@@ -297,8 +323,10 @@ function setupAuditor(config) {
 		unignoreDirs,
 		isPathIgnored: (relPath) => isPathIgnored(relPath, combinedIgnores, unignoreDirs, projectRoot),
 		collectFiles: (roots = getEffectiveScannableRoots(), allowedExtensions = SCANNABLE_EXTENSIONS) => {
+			const isDocMarkdownScan = config.family === "documentation" && allowedExtensions.size === 1 && allowedExtensions.has(".md");
 			const cacheKey = [
 				projectRoot,
+				isDocMarkdownScan ? "doc-gitignore" : "std",
 				[...roots].sort().join("|"),
 				Array.from(allowedExtensions).sort().join("|"),
 				combinedIgnores.join("|"),
@@ -311,9 +339,10 @@ function setupAuditor(config) {
 			}
 			const seen = /* @__PURE__ */ new Set();
 			const all = [];
+			const collectFn = isDocMarkdownScan ? collectDocumentationFiles : collectRepositoryFiles;
 			for (const root of roots) {
 				const fullRoot = path.resolve(projectRoot, root);
-				for (const file of collectRepositoryFiles(fullRoot, projectRoot, combinedIgnores, allowedExtensions, unignoreDirs)) if (!seen.has(file)) {
+				for (const file of collectFn(fullRoot, projectRoot, combinedIgnores, allowedExtensions, unignoreDirs)) if (!seen.has(file)) {
 					seen.add(file);
 					all.push(file);
 				}
@@ -2028,4 +2057,4 @@ var FileScanAuditor = class extends BaseAuditor {
 		for (const file of files) await this.scanSingleDiscoveredFile(file, effectiveAst, catalog);
 	}
 };
-export { AST_RULE_CAPABILITIES, AUDITOR_DIR, AUDIT_CONFIG_FILE, AuditedDocument, BaseAuditor, CANONICAL_SCANNABLE_ROOTS, COMMON_CLI_ARGS, DEFAULT_AUDITOR_CAPABILITIES, DEFAULT_AUDIT_CONFIG, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, Z_LAYERS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveCoverageFromRoots, deriveSuiteCapabilities, getAuditConfig, getEffectiveScannableRoots, getEffectiveZLayers, getProcessCliArgs, isExemptFile, isLockedSkillPath, isPathIgnored, isTestPath, loadAuditConfig, loadLockedSkills, matchesSinglePattern, normalizePosixPath, normalizeSpeeds, parseCittyArgs, resolveEffectiveSpeed, resolveFileScanRoots, resolveSubsystemConfig, resolveZLayersScssPath, safeReadFileSync, setupAuditor, toPosixRelative, tryOrDefault, tryOrNull };
+export { AST_RULE_CAPABILITIES, AUDITOR_DIR, AUDIT_CONFIG_FILE, AuditedDocument, BaseAuditor, CANONICAL_SCANNABLE_ROOTS, COMMON_CLI_ARGS, DEFAULT_AUDITOR_CAPABILITIES, DEFAULT_AUDIT_CONFIG, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, Z_LAYERS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectDocumentationFiles, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveCoverageFromRoots, deriveSuiteCapabilities, getAuditConfig, getEffectiveScannableRoots, getEffectiveZLayers, getProcessCliArgs, isExemptFile, isLockedSkillPath, isPathIgnored, isTestPath, loadAuditConfig, loadLockedSkills, matchesSinglePattern, normalizePosixPath, normalizeSpeeds, parseCittyArgs, resolveEffectiveSpeed, resolveFileScanRoots, resolveSubsystemConfig, resolveZLayersScssPath, safeReadFileSync, setupAuditor, toPosixRelative, tryOrDefault, tryOrNull };

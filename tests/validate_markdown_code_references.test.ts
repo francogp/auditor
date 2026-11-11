@@ -437,4 +437,62 @@ Upgrade command example: \`npm run auditor:update -- v9.0.0\`
     expect(updated).toContain("auditorVersion: '8.7.1-build.20261016-103644'");
     expect(updated).toContain('Since version 7.1.6, this is automatic.');
   });
+
+  it('skips gitignored subdirectories inside codeRoots (e.g. supabase/docker/) while auditing tracked markdown files', async () => {
+    await fs.writeFile(
+      path.join(tempDir, '.gitignore'),
+      ['node_modules/', '.agents/', 'supabase/docker/', 'supabase/generated/'].join('\n'),
+      'utf-8'
+    );
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, 'src/valid.ts'), 'export const ok = 1;\n', 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'supabase/docker'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'packages/app/.agents'), { recursive: true });
+
+    // Third-party gitignored markdown full of non-existent internal references
+    await fs.writeFile(
+      path.join(tempDir, 'supabase/docker/README.md'),
+      '# Cloned Supabase Docker\nSee `src/nonexistent_vendor_file.ts` and `@/missing-vendor-skill`.\nNode >= 20.0\n',
+      'utf-8'
+    );
+    // Tracked project markdown inside supabase/
+    await fs.writeFile(
+      path.join(tempDir, 'supabase/README.md'),
+      '# Supabase Migrations\nUses `src/valid.ts`.\n',
+      'utf-8'
+    );
+    // Nested unignored .agents directory inside monorepo package must still be rescued and audited
+    await fs.writeFile(
+      path.join(tempDir, 'packages/app/.agents/guide.md'),
+      '# Nested Agent Guide\nNode >= 26.9\n',
+      'utf-8'
+    );
+
+    setAuditConfig(
+      defineAuditConfig({
+        name: 'supabase-docker-host',
+        paths: {
+          srcRoots: ['src'],
+          codeRoots: ['src', 'supabase', 'packages/app'],
+          testRoots: ['tests']
+        },
+        documentation: {
+          enabled: true,
+          unignoreDirs: ['.agents']
+        }
+      }),
+      tempDir
+    );
+
+    const scanDirs = resolveMarkdownScanDirectories(tempDir);
+    expect(scanDirs).toContain('supabase');
+
+    const auditor = new MarkdownCodeReferencesAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
+    expect(result.findings.some((f) => f.file?.includes('supabase/docker'))).toBe(false);
+    expect(result.findings.some((f) => f.file?.includes('packages/app/.agents/guide.md'))).toBe(
+      true
+    );
+    expect(result.summary.errors).toBe(1);
+  });
 });

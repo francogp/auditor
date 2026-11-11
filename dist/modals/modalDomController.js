@@ -1,4 +1,5 @@
 import { createDomainSet } from "../core/domainCollections.js";
+import { markModalNonReactive } from "./modalInternalUtils.js";
 // src/modals/modalDomController.ts
 /**
 * src/modals/modalDomController.ts
@@ -98,6 +99,7 @@ var ModalDomController = class {
 		this.target = config.target ?? resolveDefaultDomTarget();
 		this.preventDefaultOnEscape = config.preventDefaultOnEscape ?? true;
 		this.backNavigation = config.backNavigation?.enabled ? config.backNavigation : void 0;
+		markModalNonReactive(this);
 		this.boundEscapeKeydown = (event) => {
 			this.handleEscapeKeydown(event);
 		};

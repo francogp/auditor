@@ -1,4 +1,4 @@
-import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, collectDocumentationFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs } from "../../core/canonicalIgnoreRegistry.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { buildRepositoryFileIndex, toPosixRelative } from "../../core/safePath.js";
@@ -63,9 +63,7 @@ function getRepoFileIndex(rootDir, matcher) {
 */
 function collectMarkdownFiles(targetPath, rootDir, extraIgnorePatterns = DEFAULT_MARKDOWN_IGNORE_PATTERNS) {
 	const fullPath = path.isAbsolute(targetPath) ? targetPath : path.join(rootDir, targetPath);
-	if (!fs.existsSync(fullPath)) return [];
-	if (fs.statSync(fullPath).isFile()) return fullPath.endsWith(".md") ? [fullPath] : [];
-	return collectRepositoryFiles(fullPath, rootDir, extraIgnorePatterns, /* @__PURE__ */ new Set([".md"]), new Set(getEffectiveUnignoreDirs(rootDir)));
+	return collectDocumentationFiles(fullPath, rootDir, extraIgnorePatterns, /* @__PURE__ */ new Set([".md"]), getEffectiveUnignoreDirs(rootDir));
 }
 /** Regex detecting personal machine absolute paths (e.g. /home/user, /Users/user, C:\Users\user) */
 const STALE_ENV_PATH_REGEX = /file:\/\/\/(?:home|Users|[a-zA-Z]:)|(?:^|(?<![\w.]))\/(?:home|Users)\/[\w-]+|[a-zA-Z]:[\\/]Users[\\/][\w-]+/;

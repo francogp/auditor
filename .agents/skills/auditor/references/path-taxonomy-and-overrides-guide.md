@@ -63,3 +63,35 @@ Hardcoding folder names or path regexes inside linter rules (`domainTypeOxlintPl
 4. **Filename Inspection Restriction**:
    - `getRuleContextFilename` or `context.filename` is restricted strictly and exclusively to immutable file extensions (`.vue`, `.ts`, `.js`) or exact well-known root config filenames (`vite.config.ts`, `vitest.config.ts`).
    - Testing for path substrings or directory separators (`/`, `\\`) is strictly prohibited.
+
+---
+
+## 5. Granular File-Scoped Linter Overrides (`vitePlusConfig.lint.overrides`)
+
+Under the **Zero-Ignore Mandate**, inline suppression comments (`eslint-disable`, `oxlint-disable`, `@ts-ignore`) are categorically forbidden (`oxlint-forbidden-suppression`), and disabling rules globally in `vitePlusConfig.lint.rules` is forbidden by the Anti-Castration Mandate.
+
+However, a specific adapter module may legitimately implement a standard JavaScript/TypeScript protocol that collides with a heuristic linter rule—for example, a fluent database query builder (Supabase/PostgREST-compatible adapter) that intentionally implements `PromiseLike<T>` via a `then()` method, which triggers `unicorn/no-thenable`.
+
+### Canonical SSoT Resolution Protocol
+
+1. **Consult the Human Programmer (`ask_question`)**: Explain why the adapter requires the protocol (e.g., `PromiseLike<T>` compatibility so callers can `await db.from(...).select(...)` directly), why refactoring away `.then()` would break the SDK contract, and propose a narrow single-file override.
+2. **Declare Narrow File-Scoped Override in `.auditor/audit.config.ts`**:
+   ```typescript
+   export default defineAuditConfig({
+     // ...
+     vitePlusConfig: {
+       enabled: true,
+       lint: {
+         overrides: [
+           {
+             files: ['src/persistence/sqliteQueryBuilder.ts'],
+             rules: {
+               'unicorn/no-thenable': 'off'
+             }
+           }
+         ]
+       }
+     }
+   });
+   ```
+3. **Synchronize via `npm run auditor:fix`**: `resolveEffectiveLintOverrides` merges the SSoT override with the dynamic `testRoots`/`scriptsRoots`/`demoRoots` overrides and projects it deterministically into `vite.config.ts` while keeping `unicorn/no-thenable` strictly active across 99.9% of the codebase.

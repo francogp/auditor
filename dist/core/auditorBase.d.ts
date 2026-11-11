@@ -44,6 +44,11 @@ export declare function isPathIgnored(relPath: string, extraIgnorePatterns?: rea
  * Recursively collects scannable files from a directory, applying ignore filters.
  */
 export declare function collectRepositoryFiles(dir: string, projectRoot?: string, extraIgnorePatterns?: readonly string[], allowedExtensions?: ReadonlySet<string>, unignoreDirs?: ReadonlySet<string> | readonly string[]): string[];
+/**
+ * Recursively collects documentation files, pruning `.gitignore` entries at the traversal level
+ * while honoring configured `unignoreDirs` (single-segment or multi-segment).
+ */
+export declare function collectDocumentationFiles(dir: string, projectRoot?: string, extraIgnorePatterns?: readonly string[], allowedExtensions?: ReadonlySet<string>, unignoreDirs?: ReadonlySet<string> | readonly string[]): string[];
 export interface AuditorConfig {
   id: string;
   name: string;

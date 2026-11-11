@@ -23,8 +23,8 @@ import path from 'node:path';
 
 import {
   BaseAuditor,
+  collectDocumentationFiles,
   createUniformRemediationPhases,
-  collectRepositoryFiles,
   createRuleCapabilities,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
@@ -145,19 +145,12 @@ export function collectMarkdownFiles(
   extraIgnorePatterns: readonly string[] = DEFAULT_MARKDOWN_IGNORE_PATTERNS
 ): string[] {
   const fullPath = path.isAbsolute(targetPath) ? targetPath : path.join(rootDir, targetPath);
-  if (!fs.existsSync(fullPath)) return [];
-
-  const stat = fs.statSync(fullPath);
-  if (stat.isFile()) {
-    return fullPath.endsWith('.md') ? [fullPath] : [];
-  }
-
-  return collectRepositoryFiles(
+  return collectDocumentationFiles(
     fullPath,
     rootDir,
     extraIgnorePatterns,
     new Set(['.md']),
-    new Set(getEffectiveUnignoreDirs(rootDir))
+    getEffectiveUnignoreDirs(rootDir)
   );
 }
 

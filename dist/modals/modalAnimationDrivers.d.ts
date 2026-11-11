@@ -1,6 +1,5 @@
 import { ModalMotionInput, ModalMotionPreset } from "./modalMotionPresets.js";
-import { ModalStackManager } from "./modalStackManager.js";
-import { ModalEntryPatch } from "./modalStackTypes.js";
+import { ModalEntryPatch, ModalStackController } from "./modalStackTypes.js";
 export declare const MODAL_WAAPI_FILL_MODES: readonly ["forwards", "none"];
 export type ModalWaapiFillMode = (typeof MODAL_WAAPI_FILL_MODES)[number];
 export declare const GSAP_OVERWRITE_MODES: readonly ["auto"];
@@ -51,10 +50,12 @@ export interface GsapTweenVars {
   readonly overwrite?: GsapOverwriteMode | boolean;
   readonly onComplete?: () => void;
 }
+export type GsapTweenTarget = object | string | null;
+export type GsapContextScope = Element | object | string;
 export interface GsapEngineLike {
-  fromTo(target: unknown, fromVars: GsapTweenVars, toVars: GsapTweenVars): unknown;
-  to(target: unknown, toVars: GsapTweenVars): unknown;
-  context?: (setup: () => void, scope?: unknown) => GsapContextLike;
+  fromTo(target: GsapTweenTarget, fromVars: GsapTweenVars, toVars: GsapTweenVars): unknown;
+  to(target: GsapTweenTarget, toVars: GsapTweenVars): unknown;
+  context?(setup: () => void, scope?: GsapContextScope): GsapContextLike;
 }
 /**
  * Dependency-injected GSAP animation driver adhering to `/gsap-frameworks`:
@@ -62,7 +63,7 @@ export interface GsapEngineLike {
  */
 export declare function createGsapModalDriver(gsapEngine: GsapEngineLike): ModalAnimationDriver;
 export interface ModalAnimationControllerConfig<TModalKind extends string = string, TMeta = undefined> {
-  readonly stack: ModalStackManager<TModalKind, TMeta>;
+  readonly stack: ModalStackController<TModalKind, TMeta>;
   readonly driver?: ModalAnimationDriver;
 }
 export interface ModalBindSurfaceOptions<TModalKind extends string = string, TMeta = undefined> {
@@ -74,6 +75,7 @@ export interface ModalBindSurfaceOptions<TModalKind extends string = string, TMe
  * `close-prevented`, `close-end`) with any pluggable `ModalAnimationDriver`.
  */
 export declare class ModalAnimationController<TModalKind extends string = string, TMeta = undefined> {
+  readonly __v_skip?: boolean;
   private readonly stack;
   private readonly driver;
   private readonly surfacesByUid;

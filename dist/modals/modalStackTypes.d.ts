@@ -1,5 +1,5 @@
 import { ModalMotionInput, ModalMotionPreset } from "./modalMotionPresets.js";
-import { CustomModalZLayers } from "./modalZLayers.js";
+import { CustomModalZLayers, ModalZLayerScale } from "./modalZLayers.js";
 export declare const MODAL_PHASES: readonly ["opening", "open", "closing"];
 export type ModalPhase = (typeof MODAL_PHASES)[number];
 export declare const MODAL_DISMISS_MODES: readonly ["any", "closerequest", "none"];
@@ -125,3 +125,33 @@ export interface ModalClearAllOptions {
 }
 export type ModalSnapshotListener<TModalKind extends string = string, TMeta = undefined> = (snapshot: ModalStackSnapshot<TModalKind, TMeta>) => void;
 export type ModalLifecycleListener<TModalKind extends string = string, TMeta = undefined> = (event: ModalLifecycleEvent<TModalKind, TMeta>) => void;
+export interface ModalStackController<TModalKind extends string = string, TMeta = undefined> {
+  readonly __v_skip?: boolean;
+  getZLayers(): ModalZLayerScale;
+  getDefaultMotionPreset(): ModalMotionPreset;
+  setReducedMotionProvider(provider: (() => boolean) | undefined): void;
+  getSnapshot(): ModalStackSnapshot<TModalKind, TMeta>;
+  getByUid(modalUid: string): ModalStackEntry<TModalKind, TMeta> | undefined;
+  hasUid(modalUid: string, options?: ModalLookupOptions): boolean;
+  hasKind(kind: TModalKind, options?: ModalLookupOptions): boolean;
+  getLatestByKind(kind: TModalKind, options?: ModalLookupOptions): ModalStackEntry<TModalKind, TMeta> | undefined;
+  isActiveTop(modalUid: string): boolean;
+  subscribe(listener: ModalSnapshotListener<TModalKind, TMeta>): () => void;
+  on(eventType: ModalLifecycleEventType, listener: ModalLifecycleListener<TModalKind, TMeta>): () => void;
+  tryOpen(options: ModalOpenOptions<TModalKind, TMeta>): ModalOpenResult<TModalKind, TMeta>;
+  open(options: ModalOpenOptions<TModalKind, TMeta>): ModalStackEntry<TModalKind, TMeta>;
+  updateEntry(modalUid: string, patch: ModalEntryPatch<TModalKind, TMeta>): ModalStackEntry<TModalKind, TMeta> | undefined;
+  completeOpen(modalUid: string): boolean;
+  bringToFront(modalUid: string): ModalStackEntry<TModalKind, TMeta> | undefined;
+  requestClose(modalUid: string, reason?: ModalCloseReason): boolean;
+  requestCloseAsync(modalUid: string, reason?: ModalCloseReason): Promise<boolean>;
+  closeTop(reason?: ModalCloseReason): boolean;
+  closeTopAsync(reason?: ModalCloseReason): Promise<boolean>;
+  closeByKind(kind: TModalKind, reason?: ModalCloseReason): number;
+  closeLatestByKind(kind: TModalKind, reason?: ModalCloseReason): boolean;
+  finalizeClose(modalUid: string): boolean;
+  forceClose(modalUid: string, reason?: ModalCloseReason): boolean;
+  clearAll(options?: ModalClearAllOptions): void;
+  waitForClose(modalUid: string): Promise<ModalCloseResult<TModalKind, TMeta>>;
+  dispose(): void;
+}
