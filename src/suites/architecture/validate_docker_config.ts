@@ -25,6 +25,7 @@ import {
   createUniformRuleCapabilities,
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -55,6 +56,17 @@ export const CANONICAL_DOCKERIGNORE_LINES = [
 
 export const CANONICAL_DOCKERIGNORE_CONTENT = CANONICAL_DOCKERIGNORE_LINES.join('\n');
 
+export const DOCKER_TRIGGER_PATTERNS: readonly string[] = [
+  'Dockerfile',
+  'Dockerfile.*',
+  '**/Dockerfile',
+  '**/Dockerfile.*',
+  'docker-compose.yml',
+  'docker-compose.yaml',
+  'compose.yml',
+  'compose.yaml'
+] as const;
+
 export const DOCKER_FILE_CANDIDATES: readonly string[] = [
   'Dockerfile',
   'Dockerfile.dev',
@@ -65,8 +77,26 @@ export const DOCKER_FILE_CANDIDATES: readonly string[] = [
   'compose.yaml'
 ] as const;
 
+const DOCKER_SCAN_EXCLUDE_PATTERNS: readonly string[] = [
+  'node_modules/**',
+  '.git/**',
+  'dist/**',
+  'scratch/**'
+];
+
+export function discoverDockerTriggerFiles(projectRoot: string): string[] {
+  if (!fs.existsSync(projectRoot)) {
+    return [];
+  }
+  const matches = fs.globSync([...DOCKER_TRIGGER_PATTERNS], {
+    cwd: projectRoot,
+    exclude: [...DOCKER_SCAN_EXCLUDE_PATTERNS]
+  });
+  return [...new Set(matches.map((entry) => normalizePosixPath(entry)))].sort();
+}
+
 export function isDockerProjectContext(projectRoot: string): boolean {
-  return DOCKER_FILE_CANDIDATES.some((f) => fs.existsSync(path.join(projectRoot, f)));
+  return discoverDockerTriggerFiles(projectRoot).length > 0;
 }
 
 export const DOCKER_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<DockerConfigRuleId> = {
@@ -143,27 +173,20 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
           '   `npm run auditor:fix`'
       },
       coverage: {
-        include: [
-          '.dockerignore',
-          'Dockerfile',
-          'Dockerfile.*',
-          '**/Dockerfile',
-          '**/Dockerfile.*',
-          'docker-compose.yml',
-          'docker-compose.yaml',
-          'compose.yml',
-          'compose.yaml'
-        ]
+        include: ['.dockerignore', ...DOCKER_TRIGGER_PATTERNS]
       },
       projectRoot
     });
   }
 
   public override async runAudit(): Promise<void> {
-    if (!isDockerProjectContext(this.projectRoot)) {
+    const triggerFiles = discoverDockerTriggerFiles(this.projectRoot);
+    if (triggerFiles.length === 0) {
       this.markSkipped('No Dockerfile or Docker configuration detected in project');
       return;
     }
+
+    this.recordScannedMany(triggerFiles);
 
     const isFix = this.isFixActive();
     let configFile: string | null = null;

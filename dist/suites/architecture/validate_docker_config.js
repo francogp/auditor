@@ -1,4 +1,6 @@
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
+import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -38,6 +40,16 @@ const CANONICAL_DOCKERIGNORE_LINES = [
 	""
 ];
 const CANONICAL_DOCKERIGNORE_CONTENT = CANONICAL_DOCKERIGNORE_LINES.join("\n");
+const DOCKER_TRIGGER_PATTERNS = [
+	"Dockerfile",
+	"Dockerfile.*",
+	"**/Dockerfile",
+	"**/Dockerfile.*",
+	"docker-compose.yml",
+	"docker-compose.yaml",
+	"compose.yml",
+	"compose.yaml"
+];
 const DOCKER_FILE_CANDIDATES = [
 	"Dockerfile",
 	"Dockerfile.dev",
@@ -47,8 +59,22 @@ const DOCKER_FILE_CANDIDATES = [
 	"compose.yml",
 	"compose.yaml"
 ];
+const DOCKER_SCAN_EXCLUDE_PATTERNS = [
+	"node_modules/**",
+	".git/**",
+	"dist/**",
+	"scratch/**"
+];
+function discoverDockerTriggerFiles(projectRoot) {
+	if (!fs.existsSync(projectRoot)) return [];
+	const matches = fs.globSync([...DOCKER_TRIGGER_PATTERNS], {
+		cwd: projectRoot,
+		exclude: [...DOCKER_SCAN_EXCLUDE_PATTERNS]
+	});
+	return [...new Set(matches.map((entry) => normalizePosixPath(entry)))].sort();
+}
 function isDockerProjectContext(projectRoot) {
-	return DOCKER_FILE_CANDIDATES.some((f) => fs.existsSync(path.join(projectRoot, f)));
+	return discoverDockerTriggerFiles(projectRoot).length > 0;
 }
 const DOCKER_CONFIG_REQUIREMENT = {
 	id: "docker-config",
@@ -101,25 +127,17 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 				"dockerignore-missing": "📖 REMEDIATION GUIDE: dockerignore-missing\n1. Root Cause: The project contains Dockerfile or compose files but lacks a `.dockerignore` file, leading to excessive build context and secret leaks.\n2. Diagnosis: Check project root for `.dockerignore`.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to automatically scaffold the canonical `.dockerignore` file.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"dockerignore-missing-pattern": "📖 REMEDIATION GUIDE: dockerignore-missing-pattern\n1. Root Cause: Critical ignore patterns (`node_modules`, `.git`, `scratch`, `.env*`) are missing from `.dockerignore`.\n2. Diagnosis: Inspect existing `.dockerignore` against mandatory exclusions.\n3. Canonical Solution: Run `npm run auditor:fix` to append missing patterns without modifying existing rules.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
-			coverage: { include: [
-				".dockerignore",
-				"Dockerfile",
-				"Dockerfile.*",
-				"**/Dockerfile",
-				"**/Dockerfile.*",
-				"docker-compose.yml",
-				"docker-compose.yaml",
-				"compose.yml",
-				"compose.yaml"
-			] },
+			coverage: { include: [".dockerignore", ...DOCKER_TRIGGER_PATTERNS] },
 			projectRoot
 		});
 	}
 	async runAudit() {
-		if (!isDockerProjectContext(this.projectRoot)) {
+		const triggerFiles = discoverDockerTriggerFiles(this.projectRoot);
+		if (triggerFiles.length === 0) {
 			this.markSkipped("No Dockerfile or Docker configuration detected in project");
 			return;
 		}
+		this.recordScannedMany(triggerFiles);
 		const isFix = this.isFixActive();
 		let configFile = null;
 		this.runSubAuditorSync("dockerignore-missing", () => {
@@ -176,4 +194,4 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateDockerConfigAuditor());
-export { CANONICAL_DOCKERIGNORE_CONTENT, CANONICAL_DOCKERIGNORE_LINES, DOCKER_CONFIG_REQUIREMENT, DOCKER_CONFIG_RULES, DOCKER_FILE_CANDIDATES, MANDATORY_DOCKER_IGNORE_PATTERNS, ValidateDockerConfigAuditor, isDockerProjectContext };
+export { CANONICAL_DOCKERIGNORE_CONTENT, CANONICAL_DOCKERIGNORE_LINES, DOCKER_CONFIG_REQUIREMENT, DOCKER_CONFIG_RULES, DOCKER_FILE_CANDIDATES, DOCKER_TRIGGER_PATTERNS, MANDATORY_DOCKER_IGNORE_PATTERNS, ValidateDockerConfigAuditor, discoverDockerTriggerFiles, isDockerProjectContext };

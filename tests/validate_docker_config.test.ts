@@ -124,8 +124,11 @@ describe('ValidateDockerConfigAuditor', () => {
       expect(repaired).toContain('.env*');
     });
 
-    it('declares coverage for docker-compose.yml, compose.yaml, Dockerfile, and .dockerignore', async () => {
+    it('records scannedFiles for docker-compose.yml, nested Dockerfile, and .dockerignore alongside coverage.include', async () => {
+      fs.writeFileSync(path.join(tmpDir, 'Dockerfile'), 'FROM node:26-alpine\n', 'utf8');
       fs.writeFileSync(path.join(tmpDir, 'docker-compose.yml'), 'services:\n  app:\n', 'utf8');
+      fs.mkdirSync(path.join(tmpDir, 'deploy'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, 'deploy', 'Dockerfile'), 'FROM node:26-alpine\n', 'utf8');
       fs.writeFileSync(
         path.join(tmpDir, '.dockerignore'),
         'node_modules\n.git\nscratch\n.env*\n',
@@ -148,11 +151,16 @@ describe('ValidateDockerConfigAuditor', () => {
         );
         const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8')) as {
           declared: { include: string[] };
+          scanned: string[];
         };
         expect(ledger.declared.include).toContain('.dockerignore');
         expect(ledger.declared.include).toContain('Dockerfile');
         expect(ledger.declared.include).toContain('docker-compose.yml');
         expect(ledger.declared.include).toContain('compose.yaml');
+        expect(ledger.scanned).toContain('.dockerignore');
+        expect(ledger.scanned).toContain('Dockerfile');
+        expect(ledger.scanned).toContain('docker-compose.yml');
+        expect(ledger.scanned).toContain('deploy/Dockerfile');
       } finally {
         if (prevRunId === undefined) {
           delete process.env['AUDIT_COVERAGE_RUN_ID'];
