@@ -298,6 +298,40 @@ describe('validate_audit_coverage Suite', () => {
       expect(invalid[0]!.context).toBe('legacy/**/*.ts');
     });
 
+    it('accepts untracked presentFiles for exemption liveliness before first commit', () => {
+      const config: AuditEngineConfig = {
+        ...baseConfig,
+        paths: {
+          ...baseConfig.paths,
+          scriptsRoots: ['scripts']
+        },
+        coverage: {
+          enabled: true,
+          exemptGlobs: [],
+          acknowledgedDegradations: [
+            {
+              policy: 'scripts',
+              glob: 'scripts/**',
+              reason: 'Operational dev launcher script in scripts/dev/run_dev.ts'
+            }
+          ]
+        }
+      };
+
+      const input: CoverageAnalysisInput = {
+        trackedFiles: [],
+        presentFiles: ['scripts/dev/run_dev.ts'],
+        ledgers: [],
+        expectedSuites: [],
+        config,
+        isGloballyIgnored: () => false
+      };
+
+      const findings = analyzeAuditCoverage(input);
+      const invalid = findings.filter((f) => f.ruleId === 'coverage-invalid-exemption');
+      expect(invalid).toHaveLength(0);
+    });
+
     it('Clean Path Verification: passes with 0 findings when all files covered and rules evaluated', () => {
       const ledgers: CoverageLedger[] = [
         {

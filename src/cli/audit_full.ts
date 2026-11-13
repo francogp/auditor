@@ -359,7 +359,8 @@ export function parseAuditFullCliArgs(
   const positionals = parsed._.map(String);
   const values: Record<string, unknown> = {
     ...parsed,
-    fix: Boolean(parsed.fix) || positionals.includes('fix')
+    fix: Boolean(parsed.fix) || positionals.includes('fix'),
+    'init-baseline': Boolean(parsed['init-baseline']) || positionals.includes('init-baseline')
   };
 
   const targetPreset = resolveTargetPreset(values, positionals);

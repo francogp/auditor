@@ -63,6 +63,8 @@ export interface CoverageFinding {
 
 export interface CoverageAnalysisInput {
   readonly trackedFiles: readonly string[];
+  /** Tracked plus untracked non-ignored files on disk (used for exemption liveliness). */
+  readonly presentFiles?: readonly string[];
   readonly auditableFiles?: readonly string[];
   readonly ledgers: readonly CoverageLedger[];
   readonly expectedSuites: readonly string[];
@@ -268,8 +270,9 @@ function analyzeDormantRules(ledgers: readonly CoverageLedger[]): CoverageFindin
 function analyzeInvalidExemptions(input: CoverageAnalysisInput): CoverageFinding[] {
   const findings: CoverageFinding[] = [];
   const configFile = AUDIT_CONFIG_FILE;
+  const filesForExemptions = input.presentFiles ?? input.trackedFiles;
   for (const exemption of input.config.coverage?.exemptGlobs ?? []) {
-    if (!input.trackedFiles.some((f) => path.posix.matchesGlob(f, exemption.glob))) {
+    if (!filesForExemptions.some((f) => path.posix.matchesGlob(f, exemption.glob))) {
       findings.push({
         ruleId: 'coverage-invalid-exemption',
         file: configFile,
@@ -279,7 +282,7 @@ function analyzeInvalidExemptions(input: CoverageAnalysisInput): CoverageFinding
     }
   }
   for (const ack of input.config.coverage?.acknowledgedDegradations ?? []) {
-    const used = input.trackedFiles.some(
+    const used = filesForExemptions.some(
       (f) =>
         path.posix.matchesGlob(f, ack.glob) &&
         getMatchingExemptionPolicies(f, input.config).some((p) => p.id === ack.policy)
@@ -334,9 +337,8 @@ export function analyzeAuditCoverage(input: CoverageAnalysisInput): CoverageFind
   ];
 }
 
-/** Tracked files (git index) that still exist on disk, as POSIX relative paths. */
-export function listTrackedFiles(projectRoot: string): string[] {
-  const output = execFileSync('git', ['ls-files', '-z'], {
+function listGitFiles(projectRoot: string, args: readonly string[]): string[] {
+  const output = execFileSync('git', args, {
     cwd: projectRoot,
     encoding: 'utf8',
     maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
@@ -344,6 +346,22 @@ export function listTrackedFiles(projectRoot: string): string[] {
   return output
     .split('\0')
     .filter((f) => f.length > 0 && nodeFs.existsSync(path.join(projectRoot, f)));
+}
+
+/** Tracked files (git index) that still exist on disk, as POSIX relative paths. */
+export function listTrackedFiles(projectRoot: string): string[] {
+  return listGitFiles(projectRoot, ['ls-files', '-z']);
+}
+
+/** Tracked plus untracked non-ignored files on disk, as POSIX relative paths. */
+export function listPresentNonIgnoredFiles(projectRoot: string): string[] {
+  return listGitFiles(projectRoot, [
+    'ls-files',
+    '-z',
+    '--cached',
+    '--others',
+    '--exclude-standard'
+  ]);
 }
 
 export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
@@ -470,6 +488,7 @@ export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
       .filter((s) => s.length > 0 && s !== AUDIT_COVERAGE_SUITE_ID);
 
     const trackedFiles = listTrackedFiles(this.projectRoot);
+    const presentFiles = listPresentNonIgnoredFiles(this.projectRoot);
     const rawLedgers = await readCoverageLedgers(this.projectRoot, runId);
     const ledgers = rawLedgers.filter((l) => l.suiteId !== AUDIT_COVERAGE_SUITE_ID);
     const scannedSets = new Map(ledgers.map((l) => [l.suiteId, new Set(l.scanned)] as const));
@@ -479,6 +498,7 @@ export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
     );
     const input: CoverageAnalysisInput = {
       trackedFiles,
+      presentFiles,
       auditableFiles,
       ledgers: rawLedgers,
       expectedSuites,

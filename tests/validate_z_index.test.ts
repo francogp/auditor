@@ -281,4 +281,59 @@ describe('ZIndexAuditor', () => {
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('skipped');
   });
+
+  it('clears runtime coverage when no SCSS stylesheets exist so coverage-declared-not-scanned is not triggered', async () => {
+    const emptyAppDir = await fs.mkdtemp(path.join(os.tmpdir(), 'zindex-no-scss-'));
+    const prevRunId = process.env['AUDIT_COVERAGE_RUN_ID'];
+    const prevRunMode = process.env['AUDIT_COVERAGE_RUN_MODE'];
+    const runId = `test-zindex-${Date.now()}`;
+    try {
+      await fs.mkdir(path.join(emptyAppDir, 'src'), { recursive: true });
+      await fs.writeFile(
+        path.join(emptyAppDir, 'src', 'main.ts'),
+        'export const x = 1;\n',
+        'utf-8'
+      );
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'test-app',
+          paths: { srcRoots: ['src'] },
+          styles: { zLayersEnabled: true }
+        }),
+        emptyAppDir
+      );
+
+      process.env['AUDIT_COVERAGE_RUN_ID'] = runId;
+      process.env['AUDIT_COVERAGE_RUN_MODE'] = 'full';
+      const auditor = new ZIndexAuditor({ projectRoot: emptyAppDir, roots: ['src'] });
+      const result = await auditor.audit();
+      expect(result.summary.errors).toBe(0);
+
+      const ledgerPath = path.join(
+        emptyAppDir,
+        'scratch',
+        'audits',
+        'coverage',
+        'validate_z_index.json'
+      );
+      const ledger = JSON.parse(await fs.readFile(ledgerPath, 'utf-8')) as {
+        skipped: boolean;
+        scanned: string[];
+      };
+      expect(ledger.skipped).toBe(true);
+      expect(ledger.scanned).toEqual([]);
+    } finally {
+      if (prevRunId === undefined) {
+        delete process.env['AUDIT_COVERAGE_RUN_ID'];
+      } else {
+        process.env['AUDIT_COVERAGE_RUN_ID'] = prevRunId;
+      }
+      if (prevRunMode === undefined) {
+        delete process.env['AUDIT_COVERAGE_RUN_MODE'];
+      } else {
+        process.env['AUDIT_COVERAGE_RUN_MODE'] = prevRunMode;
+      }
+      await fs.rm(emptyAppDir, { recursive: true, force: true });
+    }
+  });
 });

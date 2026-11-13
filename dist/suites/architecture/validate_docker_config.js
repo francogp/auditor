@@ -101,7 +101,17 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 				"dockerignore-missing": "📖 REMEDIATION GUIDE: dockerignore-missing\n1. Root Cause: The project contains Dockerfile or compose files but lacks a `.dockerignore` file, leading to excessive build context and secret leaks.\n2. Diagnosis: Check project root for `.dockerignore`.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to automatically scaffold the canonical `.dockerignore` file.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"dockerignore-missing-pattern": "📖 REMEDIATION GUIDE: dockerignore-missing-pattern\n1. Root Cause: Critical ignore patterns (`node_modules`, `.git`, `scratch`, `.env*`) are missing from `.dockerignore`.\n2. Diagnosis: Inspect existing `.dockerignore` against mandatory exclusions.\n3. Canonical Solution: Run `npm run auditor:fix` to append missing patterns without modifying existing rules.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
-			coverage: { include: [".dockerignore"] },
+			coverage: { include: [
+				".dockerignore",
+				"Dockerfile",
+				"Dockerfile.*",
+				"**/Dockerfile",
+				"**/Dockerfile.*",
+				"docker-compose.yml",
+				"docker-compose.yaml",
+				"compose.yml",
+				"compose.yaml"
+			] },
 			projectRoot
 		});
 	}

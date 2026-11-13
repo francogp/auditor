@@ -123,5 +123,48 @@ describe('ValidateDockerConfigAuditor', () => {
       expect(repaired).toContain('scratch');
       expect(repaired).toContain('.env*');
     });
+
+    it('declares coverage for docker-compose.yml, compose.yaml, Dockerfile, and .dockerignore', async () => {
+      fs.writeFileSync(path.join(tmpDir, 'docker-compose.yml'), 'services:\n  app:\n', 'utf8');
+      fs.writeFileSync(
+        path.join(tmpDir, '.dockerignore'),
+        'node_modules\n.git\nscratch\n.env*\n',
+        'utf8'
+      );
+      const prevRunId = process.env['AUDIT_COVERAGE_RUN_ID'];
+      const prevRunMode = process.env['AUDIT_COVERAGE_RUN_MODE'];
+      const runId = `test-docker-${Date.now()}`;
+      try {
+        process.env['AUDIT_COVERAGE_RUN_ID'] = runId;
+        process.env['AUDIT_COVERAGE_RUN_MODE'] = 'full';
+        const auditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });
+        await auditor.audit();
+        const ledgerPath = path.join(
+          tmpDir,
+          'scratch',
+          'audits',
+          'coverage',
+          'validate_docker_config.json'
+        );
+        const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8')) as {
+          declared: { include: string[] };
+        };
+        expect(ledger.declared.include).toContain('.dockerignore');
+        expect(ledger.declared.include).toContain('Dockerfile');
+        expect(ledger.declared.include).toContain('docker-compose.yml');
+        expect(ledger.declared.include).toContain('compose.yaml');
+      } finally {
+        if (prevRunId === undefined) {
+          delete process.env['AUDIT_COVERAGE_RUN_ID'];
+        } else {
+          process.env['AUDIT_COVERAGE_RUN_ID'] = prevRunId;
+        }
+        if (prevRunMode === undefined) {
+          delete process.env['AUDIT_COVERAGE_RUN_MODE'];
+        } else {
+          process.env['AUDIT_COVERAGE_RUN_MODE'] = prevRunMode;
+        }
+      }
+    });
   });
 });

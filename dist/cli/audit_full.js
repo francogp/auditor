@@ -266,7 +266,8 @@ function parseAuditFullCliArgs(activeFamilies, rawArgs = getProcessCliArgs()) {
 	const positionals = parsed._.map(String);
 	const values = {
 		...parsed,
-		fix: Boolean(parsed.fix) || positionals.includes("fix")
+		fix: Boolean(parsed.fix) || positionals.includes("fix"),
+		"init-baseline": Boolean(parsed["init-baseline"]) || positionals.includes("init-baseline")
 	};
 	const targetPreset = resolveTargetPreset(values, positionals);
 	const explicitSpeed = parseSpeedValue(values.speed) ?? (targetPreset === "full" ? "full" : targetPreset === "lint" ? "light" : void 0);

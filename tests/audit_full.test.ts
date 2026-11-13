@@ -284,6 +284,11 @@ describe('audit_full CLI orchestration helpers', () => {
     it('returns full when no specific filter is provided', () => {
       expect(determineRunMode(undefined, undefined, undefined, undefined)).toBe('full');
     });
+
+    it('accepts positional init-baseline in parseAuditFullCliArgs', () => {
+      const parsed = parseAuditFullCliArgs(activeFamilies, ['init-baseline']);
+      expect(parsed.values['init-baseline']).toBe(true);
+    });
   });
 
   describe('buildTaskArgs', () => {

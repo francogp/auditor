@@ -143,7 +143,17 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
           '   `npm run auditor:fix`'
       },
       coverage: {
-        include: ['.dockerignore']
+        include: [
+          '.dockerignore',
+          'Dockerfile',
+          'Dockerfile.*',
+          '**/Dockerfile',
+          '**/Dockerfile.*',
+          'docker-compose.yml',
+          'docker-compose.yaml',
+          'compose.yml',
+          'compose.yaml'
+        ]
       },
       projectRoot
     });

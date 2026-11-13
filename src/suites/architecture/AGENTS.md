@@ -83,7 +83,7 @@ Architecture & Tooling Engineers.
 - [`validate_agent_plugin.ts`](./validate_agent_plugin.ts): Antigravity agent plugin registration, skill frontmatter/asset syntax, and project-scoped skill ownership (`host-duplicate-auditor-skill`) verification.
 - [`validate_audit_config.ts`](./validate_audit_config.ts): Verification that 100% of paths in `audit.config.ts` exist, required configuration sections are declared, and dynamic `.gitignore` governance.
 - [`validate_package_scripts.ts`](./validate_package_scripts.ts): Verification of `package.json` scripts, mandatory 2-part build chaining, warning ratchet references and baseline defects, and automated repair of obsolete scripts.
-- [`validate_audit_coverage.ts`](./validate_audit_coverage.ts): Audit coverage ledger verifier ensuring 100% file coverage, blind-spot detection, and acknowledged policy degradations.
+- [`validate_audit_coverage.ts`](./validate_audit_coverage.ts): Audit coverage ledger verifier ensuring 100% file coverage, blind-spot detection, and acknowledged policy degradations (evaluating `presentFiles` via `git ls-files --cached --others --exclude-standard` for exemption liveliness on untracked/Day-0 files).
 - [`validate_auditor_tests.ts`](./validate_auditor_tests.ts): Hermetic testing verifier ensuring clean path tests exist.
 - [`validate_bundle_budget.ts`](./validate_bundle_budget.ts): Production bundle chunk size and runtime leak gate.
 - [`validate_cli_contracts.ts`](./validate_cli_contracts.ts): Declarative Citty CLI contract and homebrew argument parser prohibition auditor.
@@ -91,7 +91,7 @@ Architecture & Tooling Engineers.
 - [`validate_dead_css.ts`](./validate_dead_css.ts): Dead scoped CSS class detection in Vue components powered by shared AST analysis.
 - [`validate_dependency_vulnerabilities.ts`](./validate_dependency_vulnerabilities.ts): Dependency CVE security vulnerabilities analysis via `npm audit --json`.
 - [`validate_dependency_minimums.ts`](./validate_dependency_minimums.ts): Conditional minimum version validator for shared libraries, with floors read from the auditor `peerDependencies`.
-- [`validate_docker_config.ts`](./validate_docker_config.ts): Docker configuration and .dockerignore hygiene verifier enforcing root isolation and automated scaffolding.
+- [`validate_docker_config.ts`](./validate_docker_config.ts): Docker configuration and .dockerignore hygiene verifier enforcing root isolation, automated scaffolding, and coverage over Dockerfile and Compose files.
 - [`validate_editorconfig.ts`](./validate_editorconfig.ts): EditorConfig baseline integrity verifier enforcing charset, indentation, and newline hygiene.
 - [`validate_environment_engines.ts`](./validate_environment_engines.ts): Package.json engines declaration and active runtime alignment validator with automated setup repair.
 - [`validate_git_config.ts`](./validate_git_config.ts): Local Git repository configuration validator ensuring core.filemode, core.autocrlf, and core.eol standards with automated repair.
@@ -120,7 +120,7 @@ Architecture & Tooling Engineers.
 - [`validate_type_coverage.ts`](./validate_type_coverage.ts): TypeScript type coverage and untyped symbol threshold auditor.
 - [`validate_typography_line_height.ts`](./validate_typography_line_height.ts): CSS typography line-height collision detector.
 - [`validate_scss_architecture.ts`](./validate_scss_architecture.ts): SCSS modular architecture, `:deep()` governance, theme token compliance, nesting depth limits, and modern CSS/SCSS AST layout/a11y rules with `--fix`.
-- [`validate_z_index.ts`](./validate_z_index.ts): Z-Index layer scale synchronization between TypeScript and SCSS.
+- [`validate_z_index.ts`](./validate_z_index.ts): Z-Index layer scale synchronization between TypeScript and SCSS (clearing runtime coverage on `!scssPath` early returns to prevent false `coverage-declared-not-scanned` findings).
 
 ## Work Guidance
 

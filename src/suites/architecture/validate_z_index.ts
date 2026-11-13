@@ -456,6 +456,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
             this.markRuleNotApplicable(r, 'No SCSS stylesheets found in project');
           });
         }
+        this.markSkipped('No SCSS stylesheets found in project');
         return;
       }
 
@@ -480,6 +481,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
           this.markRuleNotApplicable(r, 'Z-Layers not configured in project');
         });
       }
+      this.redeclareCoverage({ include: [AUDIT_CONFIG_FILE], source: 'declared-only' });
       return;
     }
 
@@ -499,7 +501,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
     let readErr: unknown = null;
     try {
       scssContent = await fs.readFile(this.scssPath, 'utf-8');
-      this.recordScanned(this.scssPath);
+      this.recordScanned(relTarget);
     } catch (err: unknown) {
       readErr = err;
     }

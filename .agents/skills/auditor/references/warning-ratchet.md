@@ -49,6 +49,7 @@ On existing repositories with pre-existing legacy warnings:
   npm run auditor -- init-baseline
   ```
 
+- Positional `init-baseline` avoids npm CLI flag interception (`Unknown cli flag: --init-baseline`), while direct binary invocations also accept `--init-baseline`.
 - This command is strictly refused if the remote production reference (`origin/main`) already contains a committed baseline file.
 - In virgin repositories (no `HEAD` commit yet) or local repositories using the default `origin/main` without an `origin` remote configured, `init-baseline` and `runWarningRatchet` automatically bootstrap against the local `.auditor/audit-baseline.json` (`local-bootstrap`) until `origin/main` is published. Once `origin` is configured or when using an explicit custom `productionRef`, an unresolvable ref still fails loudly.
 

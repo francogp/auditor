@@ -13,6 +13,8 @@ export interface CoverageFinding {
 }
 export interface CoverageAnalysisInput {
   readonly trackedFiles: readonly string[];
+  /** Tracked plus untracked non-ignored files on disk (used for exemption liveliness). */
+  readonly presentFiles?: readonly string[];
   readonly auditableFiles?: readonly string[];
   readonly ledgers: readonly CoverageLedger[];
   readonly expectedSuites: readonly string[];
@@ -27,6 +29,8 @@ export declare function isCoveredBy(file: string, ledger: CoverageLedger, scanne
 export declare function analyzeAuditCoverage(input: CoverageAnalysisInput): CoverageFinding[];
 /** Tracked files (git index) that still exist on disk, as POSIX relative paths. */
 export declare function listTrackedFiles(projectRoot: string): string[];
+/** Tracked plus untracked non-ignored files on disk, as POSIX relative paths. */
+export declare function listPresentNonIgnoredFiles(projectRoot: string): string[];
 export declare class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
   constructor(options?: {
     projectRoot?: string;

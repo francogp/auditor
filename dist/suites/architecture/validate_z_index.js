@@ -301,6 +301,7 @@ var ZIndexAuditor = class extends FileScanAuditor {
 				for (const r of Z_INDEX_RULES) this.runSubAuditorSync(r, () => {
 					this.markRuleNotApplicable(r, "No SCSS stylesheets found in project");
 				});
+				this.markSkipped("No SCSS stylesheets found in project");
 				return;
 			}
 			this.runSubAuditorSync("z-index-read-error", () => {
@@ -321,6 +322,10 @@ var ZIndexAuditor = class extends FileScanAuditor {
 			]) this.runSubAuditorSync(r, () => {
 				this.markRuleNotApplicable(r, "Z-Layers not configured in project");
 			});
+			this.redeclareCoverage({
+				include: [AUDIT_CONFIG_FILE],
+				source: "declared-only"
+			});
 			return;
 		}
 		const relTarget = path.relative(this.projectRoot, this.scssPath).split(path.sep).join(path.posix.sep);
@@ -334,7 +339,7 @@ var ZIndexAuditor = class extends FileScanAuditor {
 		let readErr = null;
 		try {
 			scssContent = await fs$1.readFile(this.scssPath, "utf-8");
-			this.recordScanned(this.scssPath);
+			this.recordScanned(relTarget);
 		} catch (err) {
 			readErr = err;
 		}

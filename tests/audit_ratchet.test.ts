@@ -148,7 +148,7 @@ describe('auditRatchet', () => {
   });
 
   it('fails loudly without any baseline and refuses re-initialization once published', () => {
-    expect(() => runWarningRatchet(root, RATCHET, result([]), true)).toThrow(/--init-baseline/);
+    expect(() => runWarningRatchet(root, RATCHET, result([]), true)).toThrow(/init-baseline/);
     initWarningBaseline(root, RATCHET, result([]));
     publish();
     expect(() => initWarningBaseline(root, RATCHET, result([]))).toThrow(/already exists/);

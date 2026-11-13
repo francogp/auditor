@@ -131,13 +131,14 @@ function analyzeDormantRules(ledgers) {
 function analyzeInvalidExemptions(input) {
 	const findings = [];
 	const configFile = AUDIT_CONFIG_FILE;
-	for (const exemption of input.config.coverage?.exemptGlobs ?? []) if (!input.trackedFiles.some((f) => path.posix.matchesGlob(f, exemption.glob))) findings.push({
+	const filesForExemptions = input.presentFiles ?? input.trackedFiles;
+	for (const exemption of input.config.coverage?.exemptGlobs ?? []) if (!filesForExemptions.some((f) => path.posix.matchesGlob(f, exemption.glob))) findings.push({
 		ruleId: "coverage-invalid-exemption",
 		file: configFile,
 		message: `coverage.exemptGlobs '${exemption.glob}' does not match any tracked file (dead exemption)`,
 		context: exemption.glob
 	});
-	for (const ack of input.config.coverage?.acknowledgedDegradations ?? []) if (!input.trackedFiles.some((f) => path.posix.matchesGlob(f, ack.glob) && getMatchingExemptionPolicies(f, input.config).some((p) => p.id === ack.policy))) findings.push({
+	for (const ack of input.config.coverage?.acknowledgedDegradations ?? []) if (!filesForExemptions.some((f) => path.posix.matchesGlob(f, ack.glob) && getMatchingExemptionPolicies(f, input.config).some((p) => p.id === ack.policy))) findings.push({
 		ruleId: "coverage-invalid-exemption",
 		file: configFile,
 		message: `coverage.acknowledgedDegradations '${ack.glob}' (policy '${ack.policy}') does not acknowledge any degraded file (dead exemption)`,
@@ -172,13 +173,26 @@ function analyzeAuditCoverage(input) {
 		...analyzeMissingLedgers(input, ledgers)
 	];
 }
-/** Tracked files (git index) that still exist on disk, as POSIX relative paths. */
-function listTrackedFiles(projectRoot) {
-	return execFileSync("git", ["ls-files", "-z"], {
+function listGitFiles(projectRoot, args) {
+	return execFileSync("git", args, {
 		cwd: projectRoot,
 		encoding: "utf8",
 		maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
 	}).split("\0").filter((f) => f.length > 0 && fs.existsSync(path.join(projectRoot, f)));
+}
+/** Tracked files (git index) that still exist on disk, as POSIX relative paths. */
+function listTrackedFiles(projectRoot) {
+	return listGitFiles(projectRoot, ["ls-files", "-z"]);
+}
+/** Tracked plus untracked non-ignored files on disk, as POSIX relative paths. */
+function listPresentNonIgnoredFiles(projectRoot) {
+	return listGitFiles(projectRoot, [
+		"ls-files",
+		"-z",
+		"--cached",
+		"--others",
+		"--exclude-standard"
+	]);
 }
 var AuditCoverageAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
@@ -242,12 +256,14 @@ var AuditCoverageAuditor = class extends BaseAuditor {
 		if (fs.existsSync(configPath)) this.recordScanned(configPath);
 		const expectedSuites = (process.env["AUDIT_COVERAGE_EXPECTED_SUITES"] ?? "").split(",").map((s) => s.trim()).filter((s) => s.length > 0 && s !== "validate_audit_coverage");
 		const trackedFiles = listTrackedFiles(this.projectRoot);
+		const presentFiles = listPresentNonIgnoredFiles(this.projectRoot);
 		const rawLedgers = await readCoverageLedgers(this.projectRoot, runId);
 		const ledgers = rawLedgers.filter((l) => l.suiteId !== AUDIT_COVERAGE_SUITE_ID);
 		const scannedSets = new Map(ledgers.map((l) => [l.suiteId, new Set(l.scanned)]));
 		const customExemptGlobs = (config.coverage?.exemptGlobs ?? []).map((e) => e.glob);
 		const input = {
 			trackedFiles,
+			presentFiles,
 			auditableFiles: trackedFiles.filter((f) => !isPathIgnored(f) && isAuditableCodebaseFile(f, customExemptGlobs)),
 			ledgers: rawLedgers,
 			expectedSuites,
@@ -285,4 +301,4 @@ var AuditCoverageAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new AuditCoverageAuditor());
-export { AUDIT_COVERAGE_RULES, AUDIT_COVERAGE_SUITE_ID, AuditCoverageAuditor, analyzeAuditCoverage, isCoveredBy, listTrackedFiles };
+export { AUDIT_COVERAGE_RULES, AUDIT_COVERAGE_SUITE_ID, AuditCoverageAuditor, analyzeAuditCoverage, isCoveredBy, listPresentNonIgnoredFiles, listTrackedFiles };
