@@ -2093,7 +2093,11 @@ export default defineConfig({
       const repoNodeModules = path.resolve(import.meta.dirname, '../node_modules');
       const hoistedNodeModules = path.join(tempDir, 'node_modules');
       if (!fs.existsSync(hoistedNodeModules) && fs.existsSync(repoNodeModules)) {
-        fs.symlinkSync(repoNodeModules, hoistedNodeModules, 'dir');
+        fs.symlinkSync(
+          repoNodeModules,
+          hoistedNodeModules,
+          process.platform === 'win32' ? 'junction' : 'dir'
+        );
       }
 
       const appDir = path.join(tempDir, 'packages/sub-app');

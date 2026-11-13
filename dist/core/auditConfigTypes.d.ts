@@ -316,8 +316,14 @@ export interface AuditFallowArchitectureConfig extends BaseAuditSubsystemConfig 
   readonly policy?: boolean;
   readonly sharedState?: boolean;
 }
+export interface AuditFallowIgnoreExportEntry {
+  readonly file: string;
+  readonly exports: readonly string[];
+}
 export interface AuditFallowConfig extends BaseAuditSubsystemConfig {
   readonly minimumVersion?: string;
+  readonly entry?: readonly string[];
+  readonly ignoreExports?: readonly AuditFallowIgnoreExportEntry[];
   readonly architecture?: AuditFallowArchitectureConfig;
   readonly mutation?: AuditFallowMutationConfig;
   readonly security?: AuditSecurityConfig;

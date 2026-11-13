@@ -4,6 +4,7 @@ import { initAgentSkill } from "../cli/init_agent.js";
 import { loadAuditConfig, resetAuditConfig } from "./auditConfigLoader.js";
 import { isSelfProviderProject } from "./auditProjectIdentity.js";
 import { migrateLegacyAuditConfig } from "../cli/migrateAuditConfig.js";
+import { syncEnvScripts } from "../cli/sync_env_scripts.js";
 import { collectMissingSections, createDefaultAuditConfigContent, enforceCriticalConfigurations, syncAuditorVersionInConfigFile } from "../suites/architecture/validate_audit_config.js";
 import "./auditConfig.js";
 import { appendMissingSectionsToConfigFile } from "./auditConfigAst.js";
@@ -40,6 +41,7 @@ const EMPTY_BOOTSTRAP_RESULT = {
 	versionUpdated: false,
 	currentVersion: AUDITOR_VERSION,
 	agentsRegistered: false,
+	envScriptsSynced: false,
 	gitIgnoreUpdated: false,
 	sectionsInjected: []
 };
@@ -130,6 +132,11 @@ async function ensureMissingSectionsInjected(projectRoot, configPath, jsonConfig
 function ensureAgentSkillRegistered(projectRoot) {
 	return tryOrNull(() => initAgentSkill({ targetDir: projectRoot }))?.created ?? false;
 }
+function ensureEnvScriptsSynchronized(projectRoot) {
+	if (isSelfProviderProject(projectRoot)) return false;
+	const syncResult = tryOrNull(() => syncEnvScripts({ targetDir: projectRoot }));
+	return Boolean(syncResult?.success && syncResult.filesUpdated.length > 0);
+}
 async function ensureGitIgnoreSynchronized(projectRoot) {
 	return await tryOrNull(async () => {
 		const gitignorePath = path.resolve(projectRoot, ".gitignore");
@@ -190,7 +197,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.11.2-build.20261111-171842")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.11.3-build.20261112-204457")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}
@@ -199,6 +206,7 @@ async function ensureProjectBootstrapped(options = {}) {
 	ensureNpmrcAllowGit(projectRoot);
 	repairVitePlusProject(projectRoot);
 	const agentsRegistered = ensureAgentSkillRegistered(projectRoot);
+	const envScriptsSynced = ensureEnvScriptsSynchronized(projectRoot);
 	const gitIgnoreUpdated = await ensureGitIgnoreSynchronized(projectRoot);
 	return {
 		configCreated,
@@ -207,6 +215,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		previousVersion,
 		currentVersion: AUDITOR_VERSION,
 		agentsRegistered,
+		envScriptsSynced,
 		gitIgnoreUpdated,
 		sectionsInjected
 	};

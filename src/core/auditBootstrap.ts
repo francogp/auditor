@@ -23,6 +23,7 @@ import path from 'node:path';
 import { discoverAuditors, collectAllGitIgnoreRequirements } from '../cli/auditScanner.ts';
 import { initAgentSkill } from '../cli/init_agent.ts';
 import { migrateLegacyAuditConfig } from '../cli/migrateAuditConfig.ts';
+import { syncEnvScripts } from '../cli/sync_env_scripts.ts';
 import {
   createDefaultAuditConfigContent,
   collectMissingSections,
@@ -53,6 +54,7 @@ export interface BootstrapResult {
   readonly previousVersion?: string;
   readonly currentVersion: string;
   readonly agentsRegistered: boolean;
+  readonly envScriptsSynced: boolean;
   readonly gitIgnoreUpdated: boolean;
   readonly sectionsInjected: readonly string[];
 }
@@ -68,6 +70,7 @@ const EMPTY_BOOTSTRAP_RESULT: BootstrapResult = {
   versionUpdated: false,
   currentVersion: AUDITOR_VERSION,
   agentsRegistered: false,
+  envScriptsSynced: false,
   gitIgnoreUpdated: false,
   sectionsInjected: []
 };
@@ -201,6 +204,12 @@ function ensureAgentSkillRegistered(projectRoot: string): boolean {
   return agentResult?.created ?? false;
 }
 
+function ensureEnvScriptsSynchronized(projectRoot: string): boolean {
+  if (isSelfProviderProject(projectRoot)) return false;
+  const syncResult = tryOrNull(() => syncEnvScripts({ targetDir: projectRoot }));
+  return Boolean(syncResult?.success && syncResult.filesUpdated.length > 0);
+}
+
 async function ensureGitIgnoreSynchronized(projectRoot: string): Promise<boolean> {
   const result = await tryOrNull(async () => {
     const gitignorePath = path.resolve(projectRoot, '.gitignore');
@@ -315,6 +324,7 @@ export async function ensureProjectBootstrapped(
   ensureNpmrcAllowGit(projectRoot);
   repairVitePlusProject(projectRoot);
   const agentsRegistered = ensureAgentSkillRegistered(projectRoot);
+  const envScriptsSynced = ensureEnvScriptsSynchronized(projectRoot);
   const gitIgnoreUpdated = await ensureGitIgnoreSynchronized(projectRoot);
 
   return {
@@ -324,6 +334,7 @@ export async function ensureProjectBootstrapped(
     previousVersion,
     currentVersion: AUDITOR_VERSION,
     agentsRegistered,
+    envScriptsSynced,
     gitIgnoreUpdated,
     sectionsInjected
   };

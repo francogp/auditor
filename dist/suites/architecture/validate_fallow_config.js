@@ -530,6 +530,11 @@ function projectFallowConfigFromAuditConfig(auditConfig) {
 		health: projectHealthConfig(fallow)
 	};
 	if (fallow?.minimumVersion) projected.minimumVersion = fallow.minimumVersion;
+	if (fallow?.entry && fallow.entry.length > 0) projected.entry = [...fallow.entry];
+	if (fallow?.ignoreExports && fallow.ignoreExports.length > 0) projected.ignoreExports = fallow.ignoreExports.map((item) => ({
+		file: item.file,
+		exports: [...item.exports]
+	}));
 	if (fallow?.architecture?.sharedState !== void 0) projected.architecture = { sharedState: fallow.architecture.sharedState };
 	const mutationCfg = projectMutationConfig(fallow?.mutation);
 	if (mutationCfg) projected.mutation = mutationCfg;
@@ -540,9 +545,14 @@ function applyFallowConfigFixes(config, projected) {
 	if (projected.duplicates) patch["duplicates"] = projected.duplicates;
 	if (projected.health) patch["health"] = projected.health;
 	if (projected.minimumVersion) patch["minimumVersion"] = projected.minimumVersion;
+	if (projected.entry) patch["entry"] = projected.entry;
 	if (projected.architecture) patch["architecture"] = projected.architecture;
 	if (projected.mutation) patch["mutation"] = projected.mutation;
 	let pruned = false;
+	if (projected.ignoreExports && JSON.stringify(config.ignoreExports ?? []) !== JSON.stringify(projected.ignoreExports)) {
+		config.ignoreExports = structuredClone(projected.ignoreExports);
+		pruned = true;
+	}
 	if ("typeAware" in config) {
 		delete config["typeAware"];
 		pruned = true;
@@ -688,6 +698,32 @@ function validateUndeclaredMinimumVersion(config, projected, auditor) {
 		fixable: true
 	});
 }
+function validateUndeclaredEntry(config, projected, auditor) {
+	if (!projected.entry) return;
+	if (JSON.stringify(config.entry ?? []) === JSON.stringify(projected.entry)) return;
+	auditor.addViolation({
+		ruleId: "fallow-undeclared-config-entry",
+		severity: "error",
+		file: ".fallowrc.json",
+		line: 1,
+		message: `Divergent entry points in .fallowrc.json vs .auditor/audit.config.ts (fallow.entry). Run 'npm run auditor:fix' to synchronize.`,
+		context: "entry",
+		fixable: true
+	});
+}
+function validateUndeclaredIgnoreExports(config, projected, auditor) {
+	if (!projected.ignoreExports) return;
+	if (JSON.stringify(config.ignoreExports ?? []) === JSON.stringify(projected.ignoreExports)) return;
+	auditor.addViolation({
+		ruleId: "fallow-undeclared-config-entry",
+		severity: "error",
+		file: ".fallowrc.json",
+		line: 1,
+		message: `Divergent ignoreExports in .fallowrc.json vs .auditor/audit.config.ts (fallow.ignoreExports). Run 'npm run auditor:fix' to synchronize.`,
+		context: "ignoreExports",
+		fixable: true
+	});
+}
 function validateUndeclaredFallowEntries(config, auditor) {
 	const auditConfig = getAuditConfig(auditor.projectRoot);
 	const projected = projectFallowConfigFromAuditConfig(auditConfig);
@@ -700,6 +736,8 @@ function validateUndeclaredFallowEntries(config, auditor) {
 		validateUndeclaredArchitecture(config, projected, auditor);
 		validateUndeclaredMutation(config, projected, auditor);
 		validateUndeclaredMinimumVersion(config, projected, auditor);
+		validateUndeclaredEntry(config, projected, auditor);
+		validateUndeclaredIgnoreExports(config, projected, auditor);
 	}
 	validateUndeclaredIgnorePatterns(config, auditConfig, auditor);
 	validateUndeclaredIgnoreDependencies(config, auditConfig, auditor);

@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.11.2 --allow-git=all
+npm install -D github:francogp/auditor#v10.11.3 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -228,7 +228,7 @@ In consumer host projects deploying to production, building Docker containers, r
 
 ## 8. Master Environment Setup Scripts Governance (`setup-linux.sh`, `setup-windows.ps1`)
 
-The root environment initialization scripts `setup-linux.sh` and `setup-windows.ps1` belong canonically to `@francogp/auditor` and are distributed with the package.
+The root environment initialization and update scripts (`setup-linux.sh`, `setup-windows.ps1`, `update-linux.sh`, `update-windows.ps1`) and `scripts/setup/plugins/` belong canonically to `@francogp/auditor` and are automatically installed and synchronized into host projects during `auditor init`, `auditor:fix`, `auditor:update`, and local pre-flight execution (`ensureProjectBootstrapped`).
 
 > [!CAUTION]
 > **Prohibition on Local Host Patches**: AI agents and developers **MUST NEVER** attempt to apply ad-hoc local patches, temporary regex replacements, or logic mutations directly inside a host project's `setup-linux.sh` or `setup-windows.ps1`.

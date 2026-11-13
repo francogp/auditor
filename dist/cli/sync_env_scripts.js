@@ -14,9 +14,9 @@ import { fileURLToPath } from "node:url";
 * into the host project root, ensuring zero code divergence.
 */
 function syncCanonicalScriptFile(file, packageRootDir, targetDir, dryRun) {
-	const srcPath = path.join(packageRootDir, file);
-	const destPath = path.join(targetDir, file);
-	if (!fs.existsSync(srcPath)) return false;
+	const srcPath = path.resolve(packageRootDir, file);
+	const destPath = path.resolve(targetDir, file);
+	if (srcPath === destPath || !fs.existsSync(srcPath)) return false;
 	if (!dryRun) {
 		fs.copyFileSync(srcPath, destPath);
 		if (file.endsWith(".sh")) tryCatchSync(() => {

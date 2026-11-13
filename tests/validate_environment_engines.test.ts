@@ -251,6 +251,46 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       expect(mutated.engines.npm).toBe(auditorEngines.npm);
     });
 
+    it('synchronizes setup and update environment scripts in consumer projects during fix', async () => {
+      const auditorEngines = getAuditorEngines();
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify(
+          {
+            name: 'sync-scripts-fix-test',
+            version: '1.0.0',
+            engines: {
+              node: auditorEngines.node,
+              npm: auditorEngines.npm
+            }
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      const auditor = new ValidateEnvironmentEnginesAuditor({
+        projectRoot: tempDir
+      });
+      await auditor.fix();
+
+      const exists = async (rel: string): Promise<boolean> => {
+        try {
+          await fs.access(path.join(tempDir, rel));
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      await expect(exists('setup-windows.ps1')).resolves.toBe(true);
+      await expect(exists('setup-linux.sh')).resolves.toBe(true);
+      await expect(exists('update-windows.ps1')).resolves.toBe(true);
+      await expect(exists('update-linux.sh')).resolves.toBe(true);
+      await expect(exists('scripts/setup/plugins/.gitkeep')).resolves.toBe(true);
+    });
+
     it('reports actionable terminal remediation instructions pointing to setup and update scripts without spawning shell', async () => {
       const isWin = process.platform === 'win32';
       const expectedSetup = isWin ? '.\\setup-windows.ps1' : './setup-linux.sh';

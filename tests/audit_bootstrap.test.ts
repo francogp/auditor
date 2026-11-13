@@ -61,7 +61,13 @@ describe('Zero-Setup Pre-Flight Auto-Bootstrap (ensureProjectBootstrapped)', () 
 
     expect(result.configCreated).toBe(true);
     expect(result.agentsRegistered).toBe(true);
+    expect(result.envScriptsSynced).toBe(true);
     expect(fs.readFileSync(path.join(tempDir, '.npmrc'), 'utf-8')).toContain('allow-git=all');
+    expect(fs.existsSync(path.join(tempDir, 'setup-windows.ps1'))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'setup-linux.sh'))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'update-windows.ps1'))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'update-linux.sh'))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'scripts/setup/plugins/.gitkeep'))).toBe(true);
 
     const generatedConfigFile = path.join(tempDir, AUDIT_CONFIG_FILE);
     expect(fs.existsSync(generatedConfigFile)).toBe(true);
@@ -184,7 +190,10 @@ export default defineAuditConfig({
     expect(result.configCreated).toBe(false);
     expect(result.configUpdated).toBe(false);
     expect(result.agentsRegistered).toBe(false);
+    expect(result.envScriptsSynced).toBe(false);
     expect(fs.existsSync(path.join(tempDir, AUDIT_CONFIG_FILE))).toBe(false);
+    expect(fs.existsSync(path.join(tempDir, 'setup-windows.ps1'))).toBe(false);
+    expect(fs.existsSync(path.join(tempDir, 'setup-linux.sh'))).toBe(false);
   });
 
   it('injects missing sections into existing audit.config.json', async () => {

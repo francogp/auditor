@@ -31,10 +31,10 @@ function syncCanonicalScriptFile(
   targetDir: string,
   dryRun?: boolean
 ): boolean {
-  const srcPath = path.join(packageRootDir, file);
-  const destPath = path.join(targetDir, file);
+  const srcPath = path.resolve(packageRootDir, file);
+  const destPath = path.resolve(targetDir, file);
 
-  if (!fs.existsSync(srcPath)) return false;
+  if (srcPath === destPath || !fs.existsSync(srcPath)) return false;
 
   if (!dryRun) {
     fs.copyFileSync(srcPath, destPath);

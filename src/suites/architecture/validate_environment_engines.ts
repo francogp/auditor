@@ -20,6 +20,8 @@ import {
   type SemverVersion,
   type AuditorEngineSpecs
 } from '../../cli/check_environment.ts';
+import { syncEnvScripts } from '../../cli/sync_env_scripts.ts';
+import { isSelfProviderProject } from '../../core/auditConfig.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -28,7 +30,7 @@ import {
 } from '../../core/auditorBase.ts';
 import { runNpmCommandSync } from '../../core/npmCommandUtils.ts';
 import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
-import { tryOrNull, safeRmSync } from '../../core/safeUtils.ts';
+import { tryOrNull, tryCatchSync, safeRmSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -312,6 +314,10 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
     const auditorEngines = getAuditorEngines();
     const minNodeReq = parseSemver(auditorEngines.node);
     const minNpmReq = parseSemver(auditorEngines.npm);
+
+    if (this.isFixActive() && !isSelfProviderProject(this.projectRoot)) {
+      tryCatchSync(() => syncEnvScripts({ targetDir: this.projectRoot }));
+    }
 
     let pkg = this.validatePackageJson(pkgPath);
     if (!pkg) {

@@ -23,6 +23,7 @@ export interface BootstrapResult {
   readonly previousVersion?: string;
   readonly currentVersion: string;
   readonly agentsRegistered: boolean;
+  readonly envScriptsSynced: boolean;
   readonly gitIgnoreUpdated: boolean;
   readonly sectionsInjected: readonly string[];
 }

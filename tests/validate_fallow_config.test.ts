@@ -17,6 +17,7 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
+import { loadAuditConfig, resetAuditConfig } from '../src/core/auditConfig.ts';
 import {
   ValidateFallowConfigAuditor,
   FALLOW_CONFIG_RULES,
@@ -525,6 +526,56 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(arch.unapprovedKey).toBeUndefined();
       // Because mutation is disabled by default in audit.config, undeclared mutation block is safely pruned
       expect(badConfig.mutation).toBeUndefined();
+    });
+
+    it('projects fallow.entry and fallow.ignoreExports from audit.config.ts into .fallowrc.json idempotently', async () => {
+      const auditorDir = path.join(scratchDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'audit.config.ts'),
+        `export default {
+  name: 'fallow-projection-test',
+  fallow: {
+    enabled: true,
+    entry: ['src/index.ts', 'src/client/main.ts'],
+    ignoreExports: [{ file: 'src/shared.ts', exports: ['sanitizeSegment'] }]
+  }
+};\n`,
+        'utf8'
+      );
+      resetAuditConfig();
+      await loadAuditConfig(scratchDir);
+
+      const satelliteConfig: Record<string, unknown> = {
+        $schema: 'https://fallow.tools/schema/config.json',
+        entry: ['src/index.ts']
+      };
+
+      // 1. Diagnostic detection pass
+      const detectAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      validateUndeclaredFallowEntries(satelliteConfig, detectAuditor);
+      const detectResult = await detectAuditor.finishAudit();
+      const undeclared = detectResult.findings.filter(
+        (f) => f.ruleId === 'fallow-undeclared-config-entry'
+      );
+      expect(undeclared.some((v) => v.context === 'entry')).toBe(true);
+      expect(undeclared.some((v) => v.context === 'ignoreExports')).toBe(true);
+
+      // 2. Auto-fix pass projects entry & ignoreExports
+      const fixAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      Reflect.set(fixAuditor, 'currentFixActive', true);
+      const modified = validateUndeclaredFallowEntries(satelliteConfig, fixAuditor);
+      expect(modified).toBe(true);
+      expect(satelliteConfig.entry).toEqual(['src/index.ts', 'src/client/main.ts']);
+      expect(satelliteConfig.ignoreExports).toEqual([
+        { file: 'src/shared.ts', exports: ['sanitizeSegment'] }
+      ]);
+
+      // 3. Second auto-fix pass is strictly idempotent
+      const secondFixAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      Reflect.set(secondFixAuditor, 'currentFixActive', true);
+      const modifiedAgain = validateUndeclaredFallowEntries(satelliteConfig, secondFixAuditor);
+      expect(modifiedAgain).toBe(false);
     });
   });
 });

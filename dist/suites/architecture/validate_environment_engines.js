@@ -1,8 +1,11 @@
 import { compareVersions, getAuditorEngines, parseSemver } from "../../cli/check_environment.js";
+import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
+import { syncEnvScripts } from "../../cli/sync_env_scripts.js";
+import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { runNpmCommandSync } from "../../core/npmCommandUtils.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
-import { safeRmSync, tryOrNull } from "../../core/safeUtils.js";
+import { safeRmSync, tryCatchSync, tryOrNull } from "../../core/safeUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -206,6 +209,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 		const auditorEngines = getAuditorEngines();
 		const minNodeReq = parseSemver(auditorEngines.node);
 		const minNpmReq = parseSemver(auditorEngines.npm);
+		if (this.isFixActive() && !isSelfProviderProject(this.projectRoot)) tryCatchSync(() => syncEnvScripts({ targetDir: this.projectRoot }));
 		let pkg = this.validatePackageJson(pkgPath);
 		if (!pkg) {
 			this.runSubAuditorSync("environment-engines-missing", () => {});
