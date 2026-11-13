@@ -243,6 +243,7 @@ graph TD
 ### 26. Warning Ratchet & Baseline Governance (`ratchet`)
 
 - Full audit (`npm run auditor` / `npm run auditor:full`) enforces **0 errors AND 0 new warnings** comparing fingerprints against `.auditor/audit-baseline.json`. Resolving existing warnings monotonically shrinks the baseline.
+- Virgin repositories (no `HEAD`) and local repositories using default `origin/main` without an `origin` remote bootstrap cleanly via `--init-baseline` (`local-bootstrap`) until `origin/main` is published; configured `origin` remotes or explicit `productionRef` values that fail to resolve fail loudly.
 
 ### 27. Canonical DOX Hierarchy Governance (`validate_dox_integrity`)
 

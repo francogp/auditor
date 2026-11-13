@@ -577,5 +577,62 @@ describe('ValidateFallowConfigAuditor', () => {
       const modifiedAgain = validateUndeclaredFallowEntries(satelliteConfig, secondFixAuditor);
       expect(modifiedAgain).toBe(false);
     });
+
+    it('detects missing fallow.ignoreDependencies / ignoreGlobs and projects them idempotently during fix', async () => {
+      fs.mkdirSync(path.join(scratchDir, '.auditor'), { recursive: true });
+      fs.writeFileSync(
+        path.join(scratchDir, '.auditor', 'audit.config.ts'),
+        `export default {
+  fallow: {
+    ignoreDependencies: ['tsx'],
+    exemptDependencies: ['vite'],
+    ignoreGlobs: ['dist/**'],
+    ignorePatterns: ['coverage/**']
+  }
+};
+`,
+        'utf-8'
+      );
+
+      resetAuditConfig();
+      await loadAuditConfig(scratchDir);
+
+      const satelliteConfig: Record<string, unknown> = {
+        ignoreDependencies: ['existing-dep'],
+        ignorePatterns: ['existing/**']
+      };
+
+      // 1. Check mode flags missing declared SSoT entries with fallow-undeclared-config-entry
+      const checkAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const modifiedOnCheck = validateUndeclaredFallowEntries(satelliteConfig, checkAuditor);
+      const checkResult = await checkAuditor.finishAudit();
+      const checkFindings = checkResult.findings.filter(
+        (f) => f.ruleId === 'fallow-undeclared-config-entry'
+      );
+      expect(modifiedOnCheck).toBe(false);
+      expect(checkFindings).toHaveLength(4);
+      expect(checkFindings.every((f) => f.severity === 'error')).toBe(true);
+
+      // 2. Auto-fix projects missing entries into .fallowrc.json without dropping existing ones
+      const fixAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      Reflect.set(fixAuditor, 'currentFixActive', true);
+      const modifiedOnFix = validateUndeclaredFallowEntries(satelliteConfig, fixAuditor);
+      expect(modifiedOnFix).toBe(true);
+      expect(satelliteConfig.ignoreDependencies).toEqual(['existing-dep', 'tsx', 'vite']);
+      expect(satelliteConfig.ignorePatterns).toEqual(['existing/**', 'dist/**', 'coverage/**']);
+
+      // 3. Second auto-fix pass and subsequent check pass are strictly idempotent and clean
+      const secondFixAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      Reflect.set(secondFixAuditor, 'currentFixActive', true);
+      expect(validateUndeclaredFallowEntries(satelliteConfig, secondFixAuditor)).toBe(false);
+
+      const recheckAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      validateUndeclaredFallowEntries(satelliteConfig, recheckAuditor);
+      const recheckResult = await recheckAuditor.finishAudit();
+      const remainingMissing = recheckResult.findings.filter(
+        (f) => !f.message.includes('existing-dep') && !f.message.includes('existing/**')
+      );
+      expect(remainingMissing).toHaveLength(0);
+    });
   });
 });

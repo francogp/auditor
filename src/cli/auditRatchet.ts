@@ -51,6 +51,17 @@ export function resolveGitCommit(projectRoot: string, ref: string): boolean {
   return runGit(projectRoot, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]).ok;
 }
 
+/**
+ * True when `productionRef` cannot resolve yet because the repository is virgin (no HEAD commit)
+ * or uses the default `'origin/main'` ref without an `'origin'` remote configured.
+ */
+export function isBootstrapableUnresolvedRef(projectRoot: string, productionRef: string): boolean {
+  if (!resolveGitCommit(projectRoot, 'HEAD')) return true;
+  if (productionRef !== 'origin/main') return false;
+  const remotes = runGit(projectRoot, ['remote']).stdout.trim().split(/\r?\n/u);
+  return !remotes.includes('origin');
+}
+
 function createLineReader(projectRoot: string): (file: string, line: number) => string | null {
   const cache = new Map<string, readonly string[] | null>();
   return (file, line) => {
@@ -152,6 +163,7 @@ function readProductionBaseline(
   ratchet: ResolvedRatchetConfig
 ): AuditBaseline | null {
   if (!resolveGitCommit(projectRoot, ratchet.productionRef)) {
+    if (isBootstrapableUnresolvedRef(projectRoot, ratchet.productionRef)) return null;
     throw new Error(
       `[Ratchet] Production ref '${ratchet.productionRef}' does not resolve to a commit. Run 'git fetch' or fix 'ratchet.productionRef' in audit.config.ts.`
     );

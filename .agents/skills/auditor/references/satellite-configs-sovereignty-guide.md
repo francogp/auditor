@@ -24,7 +24,7 @@ The following table documents every satellite configuration file, its governing 
 
 | Satellite Config File | Governing Setup Suite           | SSoT Section in `.auditor/audit.config.ts`                                 | Blocking Undeclared Entries Rule        | Auto-Fix Command      |
 | --------------------- | ------------------------------- | -------------------------------------------------------------------------- | --------------------------------------- | --------------------- |
-| `.fallowrc.json`      | `validate_fallow_config`        | `config.fallow.ignoreGlobs`, `config.fallow.ignoreDependencies`            | `fallow-undeclared-config-entry`        | `npm run auditor:fix` |
+| `.fallowrc.json`      | `validate_fallow_config`        | `config.fallow.ignoreGlobs` / `ignorePatterns`, `config.fallow.ignoreDependencies` | `fallow-undeclared-config-entry`        | `npm run auditor:fix` |
 | `vite.config.ts`      | `validate_vite_plus_config`     | `config.vitePlusConfig`, `config.paths.ignoreGlobs`, `config.testCoverage` | `vite-plus-undeclared-config-entry`     | `npm run auditor:fix` |
 | `.stylelintrc.json`   | `validate_stylelint_config`     | `config.stylelint.strictValues.properties`, `ignoreValues`                 | `stylelint-undeclared-config-entry`     | `npm run auditor:fix` |
 | `tsconfig.json`       | `validate_tsconfig`             | `config.paths.ignoreGlobs`, `config.paths.dataRoots`                       | `tsconfig-undeclared-config-entry`      | `npm run auditor:fix` |

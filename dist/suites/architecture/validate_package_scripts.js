@@ -1,10 +1,9 @@
 import { buildRatchetConfig } from "../../core/auditConfigBuilders.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
-import { describeBaselineDefect, resolveGitCommit } from "../../cli/auditRatchet.js";
+import { describeBaselineDefect, isBootstrapableUnresolvedRef, resolveGitCommit } from "../../cli/auditRatchet.js";
 import { collectAllPackageScriptRequirements } from "../../cli/auditScanner.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { runGit } from "../../core/configRatchet.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { DEFAULT_PERMISSIONS } from "../../core/permissionGuard.js";
 import { enableCompileCache } from "node:module";
@@ -487,13 +486,10 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 	verifyProductionRef(config) {
 		const ratchet = buildRatchetConfig(config.ratchet);
 		if (!ratchet.enabled) return;
-		if (!resolveGitCommit(this.projectRoot, "HEAD")) {
-			this.markRuleNotApplicable("package-scripts-invalid-production-ref", "Repository has no commits yet (virgin repository)");
-			return;
-		}
 		if (resolveGitCommit(this.projectRoot, ratchet.productionRef)) return;
-		if (!runGit(this.projectRoot, ["remote"]).stdout.trim().includes("origin") && ratchet.productionRef === "origin/main") {
-			this.markRuleNotApplicable("package-scripts-invalid-production-ref", "No 'origin' remote configured in repository; ratchet.productionRef skipped.");
+		if (isBootstrapableUnresolvedRef(this.projectRoot, ratchet.productionRef)) {
+			const reason = !resolveGitCommit(this.projectRoot, "HEAD") ? "Repository has no commits yet (virgin repository)" : "No 'origin' remote configured in repository; ratchet.productionRef skipped.";
+			this.markRuleNotApplicable("package-scripts-invalid-production-ref", reason);
 			return;
 		}
 		this.addViolation({

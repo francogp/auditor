@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   runWarningRatchet,
   initWarningBaseline,
+  isBootstrapableUnresolvedRef,
   resolveGitCommit
 } from '../src/cli/auditRatchet.ts';
 import { buildRatchetConfig } from '../src/core/auditConfig.ts';
@@ -158,5 +159,59 @@ describe('auditRatchet', () => {
     const outcome = runWarningRatchet(root, RATCHET, result([warning('a.ts', 1)]), false);
     expect(outcome.source).toBe('local-bootstrap');
     expect(outcome.newWarnings).toHaveLength(0);
+  });
+
+  it('allows local bootstrap in virgin repos (no HEAD) and local repos without origin remote', async () => {
+    const localRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'audit-ratchet-bootstrap-'));
+    const localGit = (...args: string[]): void => {
+      execFileSync('git', args, { cwd: localRoot, stdio: 'ignore' });
+    };
+    try {
+      localGit('init', '-q');
+      await fs.writeFile(path.join(localRoot, 'a.ts'), 'const a = 1;\n', 'utf-8');
+
+      expect(isBootstrapableUnresolvedRef(localRoot, RATCHET.productionRef)).toBe(true);
+
+      localGit('add', '-A');
+      localGit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'init');
+      expect(isBootstrapableUnresolvedRef(localRoot, RATCHET.productionRef)).toBe(true);
+      expect(isBootstrapableUnresolvedRef(localRoot, 'upstream/main')).toBe(false);
+
+      initWarningBaseline(localRoot, RATCHET, result([warning('a.ts', 1)]));
+      const outcome = runWarningRatchet(localRoot, RATCHET, result([warning('a.ts', 1)]), false);
+      expect(outcome.source).toBe('local-bootstrap');
+      expect(outcome.newWarnings).toHaveLength(0);
+    } finally {
+      await fs.rm(localRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('fails loudly when origin remote exists or an explicit productionRef fails to resolve', async () => {
+    const remoteRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'audit-ratchet-remote-'));
+    const remoteGit = (...args: string[]): void => {
+      execFileSync('git', args, { cwd: remoteRoot, stdio: 'ignore' });
+    };
+    try {
+      remoteGit('init', '-q');
+      await fs.writeFile(path.join(remoteRoot, 'a.ts'), 'const a = 1;\n', 'utf-8');
+      remoteGit('add', '-A');
+      remoteGit('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'init');
+      remoteGit('remote', 'add', 'origin', 'https://example.com/repo.git');
+
+      expect(isBootstrapableUnresolvedRef(remoteRoot, RATCHET.productionRef)).toBe(false);
+      expect(() => initWarningBaseline(remoteRoot, RATCHET, result([]))).toThrow(
+        /does not resolve to a commit/
+      );
+      expect(() => runWarningRatchet(remoteRoot, RATCHET, result([]), false)).toThrow(
+        /does not resolve to a commit/
+      );
+
+      const customRatchet = buildRatchetConfig({ productionRef: 'upstream/main' });
+      expect(() => initWarningBaseline(remoteRoot, customRatchet, result([]))).toThrow(
+        /does not resolve to a commit/
+      );
+    } finally {
+      await fs.rm(remoteRoot, { recursive: true, force: true });
+    }
   });
 });

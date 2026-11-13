@@ -25,6 +25,15 @@ function resolveGitCommit(projectRoot, ref) {
 		`${ref}^{commit}`
 	]).ok;
 }
+/**
+* True when `productionRef` cannot resolve yet because the repository is virgin (no HEAD commit)
+* or uses the default `'origin/main'` ref without an `'origin'` remote configured.
+*/
+function isBootstrapableUnresolvedRef(projectRoot, productionRef) {
+	if (!resolveGitCommit(projectRoot, "HEAD")) return true;
+	if (productionRef !== "origin/main") return false;
+	return !runGit(projectRoot, ["remote"]).stdout.trim().split(/\r?\n/u).includes("origin");
+}
 function createLineReader(projectRoot) {
 	const cache = /* @__PURE__ */ new Map();
 	return (file, line) => {
@@ -91,7 +100,10 @@ function describeBaselineDefect(projectRoot, baselineFile) {
 	}
 }
 function readProductionBaseline(projectRoot, ratchet) {
-	if (!resolveGitCommit(projectRoot, ratchet.productionRef)) throw new Error(`[Ratchet] Production ref '${ratchet.productionRef}' does not resolve to a commit. Run 'git fetch' or fix 'ratchet.productionRef' in audit.config.ts.`);
+	if (!resolveGitCommit(projectRoot, ratchet.productionRef)) {
+		if (isBootstrapableUnresolvedRef(projectRoot, ratchet.productionRef)) return null;
+		throw new Error(`[Ratchet] Production ref '${ratchet.productionRef}' does not resolve to a commit. Run 'git fetch' or fix 'ratchet.productionRef' in audit.config.ts.`);
+	}
 	const listed = runGit(projectRoot, [
 		"ls-tree",
 		"--name-only",
@@ -173,4 +185,4 @@ function initWarningBaseline(projectRoot, ratchet, results) {
 	fs.writeFileSync(absolute, serializeBaseline(current), "utf-8");
 	return current.length;
 }
-export { RATCHET_SOURCES, describeBaselineDefect, initWarningBaseline, resolveGitCommit, runWarningRatchet };
+export { RATCHET_SOURCES, describeBaselineDefect, initWarningBaseline, isBootstrapableUnresolvedRef, resolveGitCommit, runWarningRatchet };

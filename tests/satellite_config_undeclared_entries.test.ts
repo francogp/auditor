@@ -101,7 +101,8 @@ export default {
       const fallowConfig = {
         $schema: 'https://fallow.tools/schema/config.json',
         entry: ['src/index.ts'],
-        ignorePatterns: ['scratch/**', 'src/secret/unauthorized/**']
+        ignorePatterns: ['scratch/**', 'custom-allowed/**', 'src/secret/unauthorized/**'],
+        ignoreDependencies: ['allowed-fallow-dep', 'allowed-pkg-dep']
       };
       fs.writeFileSync(
         path.join(tempDir, '.fallowrc.json'),
@@ -130,7 +131,8 @@ export default {
       const fallowConfig = {
         $schema: 'https://fallow.tools/schema/config.json',
         entry: ['src/index.ts'],
-        ignoreDependencies: ['unauthorized-ghost-lib']
+        ignorePatterns: ['custom-allowed/**'],
+        ignoreDependencies: ['allowed-fallow-dep', 'allowed-pkg-dep', 'unauthorized-ghost-lib']
       };
       fs.writeFileSync(
         path.join(tempDir, '.fallowrc.json'),
@@ -156,7 +158,8 @@ export default {
       const fallowConfig = {
         $schema: 'https://fallow.tools/schema/config.json',
         entry: ['src/index.ts'],
-        ignoreDependencies: ['allowed-pkg-dep']
+        ignorePatterns: ['custom-allowed/**'],
+        ignoreDependencies: ['allowed-fallow-dep', 'allowed-pkg-dep']
       };
       // scaffold has allowed-pkg-dep under packageHygiene, but in scaffold fallow only has allowed-fallow-dep
       // Wait, scaffoldAuditConfig currently has allowed-pkg-dep in fallow too. Let's make sure it's distinct.

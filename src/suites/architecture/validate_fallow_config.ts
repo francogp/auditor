@@ -874,9 +874,48 @@ export function projectFallowConfigFromAuditConfig(
   return projected;
 }
 
+function collectDeclaredFallowIgnoreDependencies(
+  auditConfig: ReturnType<typeof getAuditConfig>
+): string[] {
+  const raw = [
+    ...(auditConfig.fallow?.ignoreDependencies ?? []),
+    ...(auditConfig.fallow?.exemptDependencies ?? [])
+  ];
+  return Array.from(new Set(raw));
+}
+
+function collectDeclaredFallowIgnorePatterns(
+  auditConfig: ReturnType<typeof getAuditConfig>
+): string[] {
+  const raw = [
+    ...(auditConfig.fallow?.ignoreGlobs ?? []),
+    ...(auditConfig.fallow?.ignorePatterns ?? []),
+    ...(auditConfig.fallow?.exemptPaths ?? [])
+  ].map((p) => normalizePosixPath(p));
+  return Array.from(new Set(raw));
+}
+
+function appendMissingStringEntries(
+  existing: readonly string[] | undefined,
+  declared: readonly string[]
+): { next: string[]; changed: boolean } {
+  const current = Array.isArray(existing) ? [...existing] : [];
+  const existingSet = new Set(current);
+  let changed = false;
+  for (const item of declared) {
+    if (!existingSet.has(item)) {
+      current.push(item);
+      existingSet.add(item);
+      changed = true;
+    }
+  }
+  return { next: current, changed };
+}
+
 function applyFallowConfigFixes(
   config: FallowConfigSchema,
-  projected: Partial<FallowConfigSchema>
+  projected: Partial<FallowConfigSchema>,
+  auditConfig: ReturnType<typeof getAuditConfig>
 ): boolean {
   const patch: Record<string, unknown> = {};
   if (projected.duplicates) patch['duplicates'] = projected.duplicates;
@@ -892,6 +931,24 @@ function applyFallowConfigFixes(
   ) {
     config.ignoreExports = structuredClone(projected.ignoreExports);
     pruned = true;
+  }
+
+  const declaredDeps = collectDeclaredFallowIgnoreDependencies(auditConfig);
+  if (declaredDeps.length > 0) {
+    const { next, changed } = appendMissingStringEntries(config.ignoreDependencies, declaredDeps);
+    if (changed) {
+      config.ignoreDependencies = next;
+      pruned = true;
+    }
+  }
+
+  const declaredPatterns = collectDeclaredFallowIgnorePatterns(auditConfig);
+  if (declaredPatterns.length > 0) {
+    const { next, changed } = appendMissingStringEntries(config.ignorePatterns, declaredPatterns);
+    if (changed) {
+      config.ignorePatterns = next;
+      pruned = true;
+    }
   }
   if ('typeAware' in config) {
     delete (config as Record<string, unknown>)['typeAware'];
@@ -1161,6 +1218,27 @@ function validateUndeclaredIgnoreExports(
   });
 }
 
+function validateMissingDeclaredEntries(params: {
+  actual: readonly string[] | undefined;
+  declared: readonly string[];
+  ssotField: string;
+  auditor: ValidateFallowConfigAuditor;
+}): void {
+  if (params.declared.length === 0) return;
+  const actualSet = new Set(params.actual ?? []);
+  const missing = params.declared.filter((item) => !actualSet.has(item));
+  if (missing.length === 0) return;
+  params.auditor.addViolation({
+    ruleId: 'fallow-undeclared-config-entry',
+    severity: 'error',
+    file: '.fallowrc.json',
+    line: 1,
+    message: `Missing declared ${params.ssotField} [${missing.join(', ')}] in .fallowrc.json. Run 'npm run auditor:fix' to synchronize from .auditor/audit.config.ts.`,
+    context: params.ssotField,
+    fixable: true
+  });
+}
+
 export function validateUndeclaredFallowEntries(
   config: FallowConfigSchema,
   auditor: ValidateFallowConfigAuditor
@@ -1170,7 +1248,7 @@ export function validateUndeclaredFallowEntries(
   let modified = false;
 
   if (auditor.isFixActive()) {
-    modified = applyFallowConfigFixes(config, projected);
+    modified = applyFallowConfigFixes(config, projected, auditConfig);
   } else {
     validateUndeclaredTypeAware(config, auditor);
     validateUndeclaredDuplicates(config, projected, auditor);
@@ -1180,6 +1258,18 @@ export function validateUndeclaredFallowEntries(
     validateUndeclaredMinimumVersion(config, projected, auditor);
     validateUndeclaredEntry(config, projected, auditor);
     validateUndeclaredIgnoreExports(config, projected, auditor);
+    validateMissingDeclaredEntries({
+      actual: config.ignoreDependencies,
+      declared: collectDeclaredFallowIgnoreDependencies(auditConfig),
+      ssotField: 'fallow.ignoreDependencies',
+      auditor
+    });
+    validateMissingDeclaredEntries({
+      actual: config.ignorePatterns,
+      declared: collectDeclaredFallowIgnorePatterns(auditConfig),
+      ssotField: 'fallow.ignorePatterns',
+      auditor
+    });
   }
 
   validateUndeclaredIgnorePatterns(config, auditConfig, auditor);

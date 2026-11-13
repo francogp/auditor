@@ -93,10 +93,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.11.3`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.11.4`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.11.3 --allow-git=all
+npm install -D github:francogp/auditor#v10.11.4 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -106,7 +106,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.11.3"
+    "@francogp/auditor": "github:francogp/auditor#v10.11.4"
   }
 }
 ```
@@ -160,9 +160,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.11.3
+npm run auditor:update -- v10.11.4
 # or directly:
-auditor-update v10.11.3
+auditor-update v10.11.4
 ```
 
 `auditor-update` snapshots `package.json`, `package-lock.json`, and `.npmrc` (rolling them back cleanly on failure), pre-elevates declared dependency ranges to SSoT minimums while pruning stale `vite-plus`/`vitest`/`@vitest/*` lockfile clusters to prevent `ERESOLVE` peer conflicts, installs the pinned `@francogp/auditor` tag, synchronizes agent skills in `.agents/skills/` and environment scripts (`setup-windows.ps1`, `setup-linux.sh`), runs `auditor fix`, and automatically upgrades any declared production or development dependencies below the newly installed auditor's `peerDependencies` floors.
@@ -248,7 +248,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.11.3-build.20261112-204457',
+  auditorVersion: '10.11.4-build.20261113-183748',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -307,7 +307,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.11.3"`), or install via `npm install -D github:francogp/auditor#v10.11.3 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.11.4"`), or install via `npm install -D github:francogp/auditor#v10.11.4 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -496,6 +496,7 @@ npm run auditor -- init-baseline    # one-time bootstrap when the production ref
 
 - The baseline only shrinks: clean full runs rewrite it when warnings disappear; commit the updated file.
 - Local fingerprints absent from the production baseline, a missing local baseline, or an unresolvable ref fail loudly. There is no accept-new escape hatch.
+- Virgin repositories (no `HEAD`) and local repositories using the default `origin/main` without an `origin` remote bootstrap cleanly via `--init-baseline` (`local-bootstrap`) until `origin/main` is published; once `origin` exists or an explicit `productionRef` is set, unresolvable refs fail loudly.
 - Partial runs (`speed=light`, `only-speed=...`, `preset=md`, families, tasks, rules, `changed-since`, `fix`, `phase=post-build`) skip the ratchet.
 - CI checkouts must expose the production ref (for example `fetch-depth: 0`).
 - The former `audit:for-commit` / `auditor-commit` gate is removed; `validate_audit_config` flags leftover scripts (`audit-config-removed-commit-gate`) and `auditor fix` rewrites them.
@@ -673,14 +674,14 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 
 In projects governed by `@francogp/auditor`, `.auditor/audit.config.ts` is the **SOLE Single Source of Truth (SSoT)**. Root satellite configuration files are projected artifacts owned and synchronized exclusively by the Auditor:
 
-| Satellite Configuration File | Governing Setup Suite (`phase: 'setup'`) | SSoT Key in `.auditor/audit.config.ts`                                     | Blocking Undeclared Entries Rule        |
-| :--------------------------- | :--------------------------------------- | :------------------------------------------------------------------------- | :-------------------------------------- |
-| `.fallowrc.json`             | `validate_fallow_config`                 | `config.fallow.ignoreGlobs`, `config.fallow.ignoreDependencies`            | `fallow-undeclared-config-entry`        |
-| `vite.config.ts`             | `validate_vite_plus_config`              | `config.vitePlusConfig`, `config.paths.ignoreGlobs`, `config.testCoverage` | `vite-plus-undeclared-config-entry`     |
-| `.stylelintrc.json`          | `validate_stylelint_config`              | `config.stylelint.strictValues.properties`, `ignoreValues`                 | `stylelint-undeclared-config-entry`     |
-| `tsconfig.json`              | `validate_tsconfig`                      | `config.paths.ignoreGlobs`, `config.paths.dataRoots` (dynamic)             | `tsconfig-undeclared-config-entry`      |
-| `.htmlvalidate.json`         | `validate_html_validate_config`          | `config.htmlValidate.rules`, `disabledRules`, `extraPlugins`               | `html-validate-undeclared-config-entry` |
-| `.markdownlint.json`         | `validate_markdown_lint_config`          | `config.documentation.markdownLint.rules`, `disabledRules`                 | `markdownlint-undeclared-config-entry`  |
+| Satellite Configuration File | Governing Setup Suite (`phase: 'setup'`) | SSoT Key in `.auditor/audit.config.ts`                                             | Blocking Undeclared Entries Rule        |
+| :--------------------------- | :--------------------------------------- | :--------------------------------------------------------------------------------- | :-------------------------------------- |
+| `.fallowrc.json`             | `validate_fallow_config`                 | `config.fallow.ignoreGlobs` / `ignorePatterns`, `config.fallow.ignoreDependencies` | `fallow-undeclared-config-entry`        |
+| `vite.config.ts`             | `validate_vite_plus_config`              | `config.vitePlusConfig`, `config.paths.ignoreGlobs`, `config.testCoverage`         | `vite-plus-undeclared-config-entry`     |
+| `.stylelintrc.json`          | `validate_stylelint_config`              | `config.stylelint.strictValues.properties`, `ignoreValues`                         | `stylelint-undeclared-config-entry`     |
+| `tsconfig.json`              | `validate_tsconfig`                      | `config.paths.ignoreGlobs`, `config.paths.dataRoots` (dynamic)                     | `tsconfig-undeclared-config-entry`      |
+| `.htmlvalidate.json`         | `validate_html_validate_config`          | `config.htmlValidate.rules`, `disabledRules`, `extraPlugins`                       | `html-validate-undeclared-config-entry` |
+| `.markdownlint.json`         | `validate_markdown_lint_config`          | `config.documentation.markdownLint.rules`, `disabledRules`                         | `markdownlint-undeclared-config-entry`  |
 
 - **Zero Manual Edits**: AI agents and developers are **strictly prohibited** from proposing work plans or executing manual edits on satellite configuration files.
 - **Deterministic Auto-Sync**: The ONLY canonical way to update satellite files is running `npm run auditor:fix`. Setup suites execute first (`resolveFixOrderWeight < 200`) and synchronize all 6 satellite configs deterministically.

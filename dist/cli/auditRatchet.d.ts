@@ -11,6 +11,11 @@ interface WarningRatchetOutcome {
 }
 /** True when `ref` resolves to a commit in the repository at `projectRoot`. */
 export declare function resolveGitCommit(projectRoot: string, ref: string): boolean;
+/**
+ * True when `productionRef` cannot resolve yet because the repository is virgin (no HEAD commit)
+ * or uses the default `'origin/main'` ref without an `'origin'` remote configured.
+ */
+export declare function isBootstrapableUnresolvedRef(projectRoot: string, productionRef: string): boolean;
 /** Returns a human-readable defect for a malformed local baseline, or null when it is valid. */
 export declare function describeBaselineDefect(projectRoot: string, baselineFile: string): string | null;
 /**
