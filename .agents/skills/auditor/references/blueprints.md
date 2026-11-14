@@ -28,26 +28,25 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 18. `typeCoverage`: Strict TypeScript type coverage (defaults to `enabled: true`, `atLeast: 95`).
 19. `coverage`: Full file audit coverage ledger, blind-spot detection, and acknowledged degradation policies (defaults to `enabled: true`).
 20. `version`: Semantic version synchronization across files and build metadata (defaults to `enabled: true`).
-21. `secretLeaks`: Static secret token and private credential leak detection via `@secretlint/core` (defaults to `enabled: true`).
-22. `dependencyVulnerabilities`: External dependency CVE vulnerability scanner via `npm audit --json` (defaults to `enabled: true`).
-23. `packageDistribution`: Package distribution hygiene, export map resolution, and dual ESM/CJS compatibility (defaults to `enabled: true`, requires post-build `npm run auditor:post-build`).
-24. `packageTypes`: Package TypeScript `.d.ts` declaration and module resolution analysis via `@arethetypeswrong/core` (defaults to `enabled: true`, requires post-build `npm run auditor:post-build`).
-25. `valibot`: Bidirectional schema and persistence parity verification between TypeScript interfaces, Valibot schemas, and serializers (defaults to `enabled: true`, `targets: []`).
-26. `environment`: Node.js and npm engine declaration and runtime compliance governance (defaults to `enabled: true`).
-27. `testCoverage`: Istanbul/C8 coverage analysis, thresholds, and untracked file detection (defaults to `enabled: true`, `threshold: 80`, `enforceInAudit: true`).
-28. `auditorHygiene`: Anti-pattern and homebrew helper governance across core sub-auditors and host extensions (defaults to `enabled: true`).
-29. `oxlint`: Vite+ Oxlint syntax and code hygiene execution via `vp lint` (defaults to `enabled: true`).
-30. `oxfmt`: Vite+ Oxfmt code formatting hygiene execution via `vp fmt` (defaults to `enabled: true`).
-31. `vitePlusConfig`: Vite+ unified configuration governance and mandatory type safety in `vite.config.ts` (defaults to `enabled: true`).
-32. `htmlValidate`: Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation (defaults to `enabled: true`).
-33. `ratchet`: Warning ratchet baseline governance preventing warning degradation (defaults to `enabled: true`, `productionRef: 'origin/main'`, `baselineFile: '.auditor/audit-baseline.json'`).
-34. `webPerformance`: Frontend web performance hygiene (defaults to `enabled: true`, `maxDomDepth: 32`, `maxInlineSvgBytes: 4096`, `maxUncompressedVideoBytes: 10485760`, `exemptSvgPaths: []`, `exemptImgClasses: []`, `exemptPaths: []`).
-35. `queryPerformance`: Database query efficiency and anti-pattern governance (defaults to `enabled: true`, `enforceSelectStar: true`, `enforcePagination: true`, `enforceNPlusOneDetection: true`, `exemptSelectStarPaths: []`, `exemptPaths: []`).
-36. `securityHardening`: Static security hygiene and vulnerability hardening (defaults to `enabled: true`, `enforceInsecureRandom: true`, `enforceVulnerableRegex: true`, `enforceEvalDetection: true`, `exemptPaths: []`).
-37. `codeSimplification`: Pragmatic code complexity and anti-pattern governance (defaults to `enabled: true`, `maxNestingDepth: 4`, `maxBooleanParams: 2`, `maxSwitchCases: 10`, `allowMatrixLoops: false`, `exemptPaths: []`).
-38. `scssArchitecture`: Modular SCSS styling architecture and token governance (defaults to `enabled: true`, `maxNestingDepth: 4`, `enforceThemeTokens: true`, `bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc']`, `scopedMaxNestingDepth: {}`, `allowPixelArtSpacing: false`, `allowedSpacingUnits: []`, `allowScopedColors: false`, `exemptPaths: []`).
+21. `secretLeaks`: Static secret token and private credential leak detection via `@francogp/domain-type` in `validate_oxlint` (defaults to `enabled: true`).
+22. `dependencyVulnerabilities`: External dependency CVE vulnerability scanner via `npm audit --json` (defaults to `enabled: true`, `failOn: 'critical'`).
+23. `packageDistribution`: Library package distribution hygiene, export map resolution, and TypeScript `.d.ts` resolution via Publint and `@arethetypeswrong/core` (defaults to `enabled: false` for applications; set `enabled: true` for published npm packages).
+24. `valibot`: Bidirectional schema and persistence parity verification between TypeScript interfaces, Valibot schemas, and serializers (defaults to `enabled: true`, `targets: []`).
+25. `environment`: Node.js and npm engine declaration and runtime compliance governance (defaults to `enabled: true`).
+26. `testCoverage`: Istanbul/V8 coverage analysis (`scratch/coverage/coverage-final.json`), thresholds, and untracked file detection (defaults to `enabled: true`, `threshold: 80`, `enforceInAudit: true`).
+27. `auditorHygiene`: Anti-pattern and homebrew helper governance across core sub-auditors and host extensions (defaults to `enabled: true`).
+28. `oxlint`: Vite+ Oxlint syntax, domain types, security, query, GSAP, and code hygiene execution via `vp lint` (defaults to `enabled: true`).
+29. `oxfmt`: Vite+ Oxfmt code formatting hygiene execution via `vp fmt` (defaults to `enabled: true`).
+30. `vitePlusConfig`: Vite+ unified configuration governance and mandatory type safety in `vite.config.ts` (defaults to `enabled: true`).
+31. `htmlValidate`: Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation (defaults to `enabled: true`).
+32. `ratchet`: Warning ratchet baseline governance preventing warning degradation (defaults to `enabled: true`, `productionRef: 'origin/main'`, `baselineFile: '.auditor/audit-baseline.json'`).
+33. `webPerformance`: Frontend web performance hygiene (defaults to `enabled: true`, `maxDomDepth: 16`, `maxInlineSvgSize: 2048`, `exemptSvgPaths: []`, `exemptImgClasses: []`, `exemptPaths: []`).
+34. `queryPerformance`: Database query efficiency settings (`enabled: true`, `excludeMigrationsDir: true`, `exemptSelectStarPaths: []`, `exemptPaths: []`).
+35. `securityHardening`: Static security hygiene settings (`enabled: true`, `exemptPaths: []`).
+36. `codeSimplification`: Pragmatic code complexity settings (`enabled: true`, `maxNestingDepth: 4`, `allowMatrixLoops: false`, `exemptPaths: []`).
+37. `scssArchitecture`: Modular SCSS styling architecture and token governance (`enabled: true`, `maxNestingDepth: 3`, `scopedMaxNestingDepth: 4`, `allowPixelArtSpacing: false`, `allowedSpacingUnits: []`, `allowScopedColors: false`, `exemptPaths: []`).
 
-When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics. Suites requiring compiled artifacts (`capabilities.phase === 'post-build'`, including `bundle`, `packageDistribution`, and `packageTypes`) are dynamically routed to post-build verification (`npm run auditor:post-build` / `phase=post-build`).
+When omitted, each subsystem is safely populated with its active defaults. Note that every explicitly declared subsystem block in `.auditor/audit.config.ts` (including `paths`) MUST explicitly specify `enabled: true` or `enabled: false` (`audit-config-missing-enabled`). Suites requiring compiled production bundle artifacts (`phase: 'post-build'`, i.e. `validate_bundle_budget`) are dynamically routed to post-build verification (`npm run auditor:post-build` / `npm run auditor:full`).
 
 ---
 

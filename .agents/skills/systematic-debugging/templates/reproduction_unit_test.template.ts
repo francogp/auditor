@@ -6,8 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 /**
  * REPRODUCTION UNIT TEST TEMPLATE (Tier 1)
  *
- * Location: tests/node/<domain>/reproduce_<slug>.test.ts (for pure logic)
- *       or: tests/unit/<domain>/reproduce_<slug>.spec.ts (for Vue/JSDOM components)
+ * Location: <testRoot>/<domain>/reproduce_<slug>.test.ts (from config.paths.testRoots)
  *
  * Mandatory Laws:
  * 1. INLINE ALL STATIC FIXTURE DATA (entity definition, domain records, configuration tokens, calculation inputs).

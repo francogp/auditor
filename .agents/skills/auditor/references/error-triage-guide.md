@@ -12,27 +12,27 @@ Any guide can be rendered on demand in the console with zero text truncation and
 
 ```bash
 # 1. By exact rule ID:
-npm run auditor guide <ruleId>
+npm run auditor:guide <ruleId>
 # Examples:
-npm run auditor guide coverage-missing-ledger
-npm run auditor guide audit-config-missing-section
+npm run auditor:guide coverage-missing-ledger
+npm run auditor:guide audit-config-missing-section
 
 # 2. By complete suite (displays all declared rules in the suite):
-npm run auditor guide suite=<suiteId>
+npm run auditor:guide suite=<suiteId>
 # or simply:
-npm run auditor guide <suiteId>
+npm run auditor:guide <suiteId>
 # Examples:
-npm run auditor guide validate_audit_coverage
-npm run auditor guide validate_audit_config
+npm run auditor:guide validate_audit_coverage
+npm run auditor:guide validate_audit_config
 
 # 3. By architectural family:
-npm run auditor guide family=<family>
+npm run auditor:guide family=<family>
 # Examples:
-npm run auditor guide family=architecture
-npm run auditor guide family=persistence
+npm run auditor:guide family=architecture
+npm run auditor:guide family=persistence
 
 # 4. Global index of available rules and suites:
-npm run auditor guide
+npm run auditor:guide
 ```
 
 ---
@@ -117,7 +117,7 @@ npm run auditor guide
 ### 7. `audit-config-missing-enabled`
 
 - **Family**: `architecture` | **Suite**: `validate_audit_config`
-- **Symptom**: A declared subsystem object omits an explicit `enabled: boolean` declaration. To eradicate implicit blind spots, all 44 toggleable subsystems must explicitly declare their enabled state.
+- **Symptom**: A declared subsystem object omits an explicit `enabled: boolean` declaration. To eradicate implicit blind spots, every declared toggleable subsystem block must explicitly declare its enabled state.
 - **Remediation**:
   1. Run `npm run auditor:fix` to auto-inject `enabled: true` into declared blocks.
   2. Or explicitly declare `enabled: false` if the subsystem is intentionally deactivated.
@@ -127,18 +127,20 @@ npm run auditor guide
 ### 8. `missing-clean-auditor-test` / `untested-auditor-rule`
 
 - **Family**: `architecture` | **Suite**: `validate_auditor_tests`
-- **Symptom**: A sub-auditor or extension lacks complete unit test coverage under the 5-point contract.
+- **Symptom**: A sub-auditor or extension lacks complete unit test coverage under the 6-point conformance contract.
 - **Remediation**:
   1. Create or update the dedicated test file under `tests/`.
   2. Ensure the test file contains:
      - Construction verification via `validateAuditorConstruction(auditor)`.
      - Clean path testing with `errors === 0` and `status === 'passed'`.
-     - Violation detection with `severity === 'error'`.
+     - Violation detection with `severity === 'error'` and `status === 'failed'`.
+     - Warning verification (where applicable) with `warnings > 0`, `errors === 0`, and `status === 'passed'`.
      - Explicit verification of 100% of declared `ruleIds`.
+     - Fixer verification (`fix: true`) when `fix: 'normal' | 'priority'`.
 
 ---
 
-### 6. `fallow-refactoring-targets` / Architectural Debt
+### 9. `fallow-refactoring-targets` / Architectural Debt
 
 - **Family**: `architecture` | **Suite**: `validate_fallow`
 - **Symptom**: A source file exceeds holistic refactoring priority and cyclomatic complexity limits.
@@ -148,7 +150,7 @@ npm run auditor guide
 
 ---
 
-### 7. `cli-contracts-*` / CLI Contracts & Citty Governance
+### 10. `cli-contracts-*` / CLI Contracts & Citty Governance
 
 - **Family**: `architecture` | **Suite**: `validate_cli_contracts` (`phase: 'setup'`)
 - **Symptom**: A script under `src/cli/`, `scripts/`, or root binaries accesses `process.argv`, uses banned parsers, or performs manual flag parsing.
@@ -158,9 +160,9 @@ npm run auditor guide
   3. Homebrew argument inspection like `.startsWith('--')` or `args[0]` (`cli-contracts-homebrew-flag-parsing`).
   4. Missing declarative Citty contract (`cli-contracts-missing-citty-contract`).
 - **Remediation**:
-  1. Define command arguments declaratively using `defineCommand` from `citty`.
+  1. Define command arguments declaratively using `defineCommand` from `@francogp/auditor` (`cittyHarness`).
   2. Consume options strictly via `run({ args })`.
-  3. **CRITICAL GUARD**: Always wrap `runMain(command)` with `if (isMainModule(import.meta.url))` to prevent catastrophic background execution storms during module imports.
+  3. **CRITICAL GUARD**: Always wrap `runNormalizedMain(command)` with `if (isMainModule(import.meta.url))` to prevent catastrophic background execution storms during module imports.
   4. For comprehensive before/after examples and anti-patterns, consult [citty-cli-governance-guide.md](./citty-cli-governance-guide.md).
 
 ---

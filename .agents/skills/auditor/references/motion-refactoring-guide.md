@@ -3,11 +3,11 @@
 > [!IMPORTANT]
 > **Distinction Between CI Quality Gate & Interactive Refactor Tool**:
 >
-> - **`validate_gsap_animations` & `validate_gsap_timelines` (`npm run auditor`)**: CI static verification suites. Audits mandatory UI animation rules in Phase 5 (`behavior`): no raw browser timers (`setTimeout`, `setInterval`) inside UI components/views, no layout-thrashing animations (`top`, `left`, `margin`), and no legacy GSAP easing objects. If CI passes with 0 errors, animation hygiene is intact.
+> - **`validate_oxlint` (`@francogp/domain-type` GSAP rules in `npm run auditor`)**: CI static verification suite. Audits mandatory UI animation rules in Phase 5 (`behavior`): no raw browser timers (`setTimeout`, `setInterval`) inside UI components/views (`no-gsap-banned-ui-timers`), no layout-thrashing animations (`no-gsap-layout-properties`), and named timer constants (`gsap-named-timer-constants`). If CI passes with 0 errors, animation hygiene is intact.
 > - **`auditor-motion` (`npm run auditor:motion`)**: Interactive refactoring engine (`BaseRefactorEngine`). Discovers opportunities across the entire codebase to migrate manual transitions to coordinated GSAP timelines, convert layout tweens to GPU transforms (`x`, `y`), and auto-inject `gsap.delayedCall()`.
 > - `npm run auditor` **NEVER** runs `auditor:motion`. Candidate proposals in `auditor:motion discover` are elective improvements, not blocking CI failures. See [quality-gates-vs-refactor-engines.md](./quality-gates-vs-refactor-engines.md).
 
-The `auditor-motion` CLI and `MotionRefactorEngine` provide automated detection and deterministic remediation for UI animation hygiene and timing rules governed by `validate_gsap_animations`.
+The `auditor-motion` CLI and `MotionRefactorEngine` provide automated detection and deterministic remediation for UI animation hygiene and timing rules governed by `validate_oxlint` (`@francogp/domain-type`).
 
 ---
 
@@ -27,9 +27,9 @@ Modern UI animation architecture requires:
 # Direct CLI invocation (bin in node_modules/.bin)
 auditor-motion <command> [options]
 
-# Via package script
-npm run auditor:motion <command>
-npm run auditor:motion -- <command> [options]
+# Via package script (pass positional subcommands, key=value, and bare booleans without --)
+npm run auditor:motion help
+npm run auditor:motion <command> [options]
 ```
 
 ### 1. `discover`: Scan Project for Violations
@@ -38,7 +38,7 @@ Scans `.ts`, `.js`, and `.vue` files for banned timers, layout properties, and l
 
 ```bash
 npm run auditor:motion discover
-npm run auditor:motion -- discover project=../my-app
+npm run auditor:motion discover project=../my-app
 ```
 
 Renders a standardized 80-column Box-Drawing table with breakdown per file.
@@ -60,7 +60,7 @@ Applies a declarative refactoring plan file with optional verification inside an
 npm run auditor:motion apply scratch/motion-plan.json
 
 # Safe execution with Git Worktree verification (build/typecheck passes before modifying host files)
-npm run auditor:motion apply scratch/motion-plan.json --worktree
+npm run auditor:motion apply scratch/motion-plan.json worktree
 ```
 
 ---
@@ -111,39 +111,39 @@ npm run auditor:motion apply scratch/motion-plan.json --worktree
 
 Comment escape hatches (`// timer-ok:`, `// layout-ok:`) are permanently eradicated. Instead, use canonical architectural solutions:
 
-1. **Timers outside UI**: Timers in background services, Node.js scripts, and CLI utilities are permitted natively (scoped strictly outside `componentsRoots`/`viewsRoots`). For UI component delays, use `gsap.delayedCall(delay, callback)` or `gsapSleep(delay)`.
+1. **Timers outside UI**: Timers in background services, Node.js scripts, and CLI utilities are permitted via dynamic SSoT overrides (`paths.scriptsRoots`, `paths.cliRoots`, `paths.testRoots`). For UI component delays, use `gsap.delayedCall(delay, callback)` or `gsapSleep(delay)`.
 2. **Layout Tweens vs Transforms**: Continuous animations must use GPU transforms (`x`, `y`, `scaleX`, `scaleY`) or `Flip`. For static setup, use `gsap.set()`. For collapsible accordions, use recognized zero-to-auto transitions (`height: 'auto'` <-> `height: 0` / `'0px'`).
 
 ---
 
 ## 5. Reaction Protocol: CI Error vs. Elective Motion Refactoring
 
-### Scenario A: CI Quality Gate Error (`validate_gsap_animations`)
+### Scenario A: CI Quality Gate Error (`validate_oxlint`)
 
-- **Trigger**: `npm run auditor` reports `gsap-banned-timer` or `gsap-banned-layout-property`.
+- **Trigger**: `npm run auditor` reports `@francogp/domain-type/no-gsap-banned-ui-timers` or `@francogp/domain-type/no-gsap-layout-properties`.
 - **Strategic Phase**: Phase 5 (`behavior`).
 - **Action**: Formulate a **Correction Plan**. Replace `setTimeout` with `gsap.delayedCall(delay, cb)` or change `top/left` tweens to `y/x` transforms.
-- **Verification**: `npm run auditor -- suite=validate_gsap_animations` -> Green.
+- **Verification**: `npm run auditor suite=validate_oxlint` -> Green.
 
 ### Scenario B: Elective UI Animation Modernization (`auditor:motion`)
 
 - **Trigger**: User requests _"improve UI animations"_, _"replace component timers"_, or _"optimize animations to 60 FPS"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before proceeding.
-- **Action**: Formulate an **Improvement Plan**. Run `auditor:motion discover`, inspect specific candidate files via `auditor:motion inspect --file <target>`, generate `scratch/motion-plan.json`, and apply with `--worktree`.
+- **Action**: Formulate an **Improvement Plan**. Run `npm run auditor:motion discover`, inspect specific candidate files via `npm run auditor:motion inspect <target>`, generate `scratch/motion-plan.json`, and apply with `npm run auditor:motion apply scratch/motion-plan.json worktree`.
 
 ---
 
 ## 6. Concrete Plan Blueprints
 
-### Correction Plan (CI Error: `gsap-banned-timer`)
+### Correction Plan (CI Error: `@francogp/domain-type/no-gsap-banned-ui-timers`)
 
 ````markdown
-# Correction Plan: gsap-banned-timer in ToastNotification.vue
+# Correction Plan: no-gsap-banned-ui-timers in ToastNotification.vue
 
 ## 1. Diagnosis & Strategic Phase
 
 - **Active Phase (`auditor:next`)**: `behavior` (Phase 5)
-- **Suite**: `validate_gsap_animations`
+- **Suite**: `validate_oxlint`
 - **Location**: `src/components/ToastNotification.vue:L52`
 - **Violation**: Use of `setTimeout(() => isVisible.value = false, 3000)` inside a Vue component.
 
@@ -159,7 +159,7 @@ gsap.delayedCall(3, () => {
 
 ## 3. Verification
 
-`npm run auditor -- suite=validate_gsap_animations`
+`npm run auditor suite=validate_oxlint`
 ````
 
 ### Improvement Plan (Elective: `auditor:motion`)
@@ -171,7 +171,7 @@ gsap.delayedCall(3, () => {
 
 - **Tool**: `auditor-motion`
 - **Objective**: Replace layout animation `left: -320px` to `left: 0` with hardware-accelerated `x: -320` to `x: 0` to prevent layout thrashing at 60 FPS.
-- **Pre-flight CI Baseline**: 100% Green (0 errors, 0 warnings).
+- **Pre-flight CI Baseline**: 100% Green (0 errors, 0 new warnings).
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
 
@@ -199,7 +199,7 @@ gsap.delayedCall(3, () => {
 
 ## 4. Sandbox Execution
 
-`npm run auditor:motion apply --plan scratch/motion-plan.json --worktree`
+`npm run auditor:motion apply scratch/motion-plan.json worktree`
 ````
 
 ---
@@ -236,7 +236,7 @@ Emits targeted Dirac micro-context with exact lines, proposed replacements, and 
 ### Step 3: Apply Declarative Plan via Worktree Sandbox
 
 ```bash
-npm run auditor:motion apply scratch/motion-plan.json --worktree
+npm run auditor:motion apply scratch/motion-plan.json worktree
 ```
 
-The engine executes in an ephemeral worktree, verifies build and tests (`vp check && vp test`), and safely merges changes upon green verification.
+The engine executes in an ephemeral worktree, verifies build and tests (`vp check` and `vp test run`), and safely merges changes upon green verification.

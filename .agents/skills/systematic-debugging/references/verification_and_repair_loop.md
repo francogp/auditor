@@ -13,14 +13,14 @@ flowchart TD
     VerifyUnit -- "No (Still RED)" --> AttemptCheck{"Attempts < 5?"}
     AttemptCheck -- "Yes" --> Increment["Increment Attempt Counter"] --> Diagnose
     AttemptCheck -- "No (5 Reached)" --> AbortBlocked["Halt: Emit Blocked Status Report"]
-    VerifyUnit -- "Yes (GREEN)" --> RunNodeRegression["4. Run Regression Suite: vp test (or npm test)"]
+    VerifyUnit -- "Yes (GREEN)" --> RunNodeRegression["4. Run Regression Suite Once: vp test run (or test:coverage if closing)"]
     RunNodeRegression -- "Fail" --> Diagnose
     RunNodeRegression -- "Pass (0 Regressions)" --> CheckTier3{"E2E / Integration Affected?"}
-    CheckTier3 -- "No" --> LintAndDox["5. Lint & DOX Pass: npm run lint && npm run auditor:md"]
+    CheckTier3 -- "No" --> UpdateDox["5. Update AGENTS.md (if needed)"] --> FinalAudit["6. Single Final Audit Gate: npm run auditor"]
     CheckTier3 -- "Yes" --> RunPlaywright["5. Run E2E: npm run test:e2e"]
     RunPlaywright -- "Pass" --> CleanZeroPass["6. Step 6B: Verification Pass"]
-    CleanZeroPass -- "Pass" --> LintAndDox
-    LintAndDox --> Done(["Bug Fully Certified & Fixed!"])
+    CleanZeroPass -- "Pass" --> UpdateDox
+    FinalAudit --> Done(["Bug Fully Certified & Fixed!"])
 ```
 
 ---
@@ -58,51 +58,27 @@ To prevent infinite loops and token waste:
 
 Once Tier 1 turns GREEN, verify all layers sequentially:
 
-### Step 1: Full Node Unit Regression Check
+### Step 1: Full Unit & Component Regression Check (Single Run)
 
-Run the complete test suite to guarantee 0 regressions across the codebase:
+Run the complete test suite **once** to guarantee 0 regressions across both Node and UI/component layers (do NOT run `vp test run` / `npm test` twice):
 
 ```bash
-vp test # or npm test
+vp test run # or npm run test:coverage if you are heading into a build/commit next
 ```
 
 If any unrelated test fails, it is an empirical regression caused by the edit in `src/`. Re-enter the repair loop immediately.
 
-**Database-Specific Step 1 Pass**:
-If the bug touched persistence, database migrations, or SQL schemas:
+**Database-Specific Pass**:
+If the bug touched persistence, database migrations, or SQL schemas, also validate SQL migration syntax and schema integrity with `auditor family=persistence`.
 
-1. Confirm the reproduction test runs and passes GREEN against the configured database engine.
-2. Validate SQL migration syntax and schema integrity:
+### Step 2: DOX Update & Single Final Static Gate
 
-   ```bash
-   auditor family=persistence
-   ```
-
-### Step 2: UI & Component Interaction Verification
-
-If the bug affected UI, GSAP animations, or view interactions:
-
-1. Run component and view tests:
+1. **DOX Lesson Update (`dox-navigator`)**:
+   If needed, update the nearest owning `AGENTS.md` file with the invariant established by this fix **before** running the final audit.
+2. **Single Final Audit (`npm run auditor`)**:
 
    ```bash
-   vp test # or npm test
+   npm run auditor
    ```
 
-### Step 3: Fast Quality Gate & DOX Pass
-
-1. **Fast Development Lint**:
-
-   ```bash
-   npm run lint
-   ```
-
-   Ensures domain types, vue-tsc type checking, Oxlint / Vite+, and markdownlint pass cleanly.
-
-2. **Documentation & DOX Audit**:
-
-   ```bash
-   npm run auditor:md
-   ```
-
-3. **DOX Lesson Update (`dox-navigator`)**:
-   Update the nearest owning `AGENTS.md` file with the lesson learned, contract clarification, or invariant established by this fix.
+   Runs Oxlint, type checking, Oxfmt, domain types, and all Markdown/DOX suites (`auditor:md`) in one pass. Do NOT run `npm run lint` and `npm run auditor:md` separately, and skip this step altogether if you are immediately running `npm run build` (which already executes `auditor:full`).

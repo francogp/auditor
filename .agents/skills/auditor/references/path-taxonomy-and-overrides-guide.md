@@ -12,7 +12,7 @@ All filesystem roots, code scanning scopes, and exemption boundaries MUST be dec
 | :--- | :--- | :--- |
 | `paths.srcRoots` / `paths.codeRoots` | Core application and library production source code | Absolute rigor: strict Java-style return types (`allowExpressions: true`), zero `: any`, domain-type enforcement. |
 | `paths.scriptsRoots` / `paths.cliRoots` | Node.js maintenance scripts, database seeds, migrations, Supabase/Docker CLI tools, simulations (e.g. `['scripts', 'supabase']`). **Note**: `vite.plugins.ts` is also automatically included in script overrides by default. | Automatically injects dynamic AST overrides into `vite.config.ts`: `no-console: 'off'`, `unicorn/prefer-global-this: 'off'`, `typescript/no-floating-promises: 'off'`, `typescript/explicit-function-return-type: 'off'`, `max-depth: 'off'`, `no-unused-expressions: 'off'`, `@francogp/domain-type/unsafe-path-concat: 'off'`, `@francogp/domain-type/hardcoded-slash-path: 'off'`, `@francogp/domain-type/no-hardcoded-secrets: 'off'`, `@francogp/domain-type/no-raw-session-storage: 'off'`, `@francogp/domain-type/no-playwright-polling-waits: 'off'`. |
-| `paths.testRoots` / `paths.e2eRoots` / `paths.integrationRoots` | Unit, integration, security, and Playwright E2E simulation test suites | Automatically injects dynamic AST overrides into `vite.config.ts`: `vitest/*: 'off'`, `no-console: 'off'`, `unicorn/prefer-global-this: 'off'`, `typescript/explicit-function-return-type: 'off'`, `max-depth: 'off'`, `no-script-url: 'off'`, `no-implied-eval: 'off'`, `no-new-func: 'off'`, `no-unused-expressions: 'off'`, `@francogp/domain-type/unsafe-path-concat: 'off'`, `@francogp/domain-type/hardcoded-slash-path: 'off'`, `@francogp/domain-type/no-raw-local-storage: 'off'`, `@francogp/domain-type/no-raw-session-storage: 'off'`, `@francogp/domain-type/require-storage-try-catch: 'off'`, `@francogp/domain-type/no-silent-promise-catch: 'off'`, `@francogp/domain-type/no-await-in-loops-query: 'off'`, `@francogp/domain-type/no-literal-suffix-constant: 'off'`, `@francogp/domain-type/no-raw-html-injection: 'off'`, `@francogp/domain-type/no-redundant-constant-alias: 'off'`, `@francogp/domain-type/no-insecure-random: 'off'`. |
+| `paths.testRoots` / `paths.e2eRoots` / `paths.integrationRoots` | Unit, integration, security, and Playwright E2E simulation test suites | Automatically injects dynamic AST overrides into `vite.config.ts`: `vitest/*: 'off'`, `no-console: 'off'`, `unicorn/prefer-global-this: 'off'`, `typescript/explicit-function-return-type: 'off'`, `max-depth: 'off'`, `no-script-url: 'off'`, `typescript/no-implied-eval: 'off'`, `no-new-func: 'off'`, `no-unused-expressions: 'off'`, `@francogp/domain-type/unsafe-path-concat: 'off'`, `@francogp/domain-type/hardcoded-slash-path: 'off'`, `@francogp/domain-type/no-raw-local-storage: 'off'`, `@francogp/domain-type/no-raw-session-storage: 'off'`, `@francogp/domain-type/require-storage-try-catch: 'off'`, `@francogp/domain-type/no-silent-promise-catch: 'off'`, `@francogp/domain-type/no-await-in-loops-query: 'off'`, `@francogp/domain-type/no-literal-suffix-constant: 'off'`, `@francogp/domain-type/no-raw-html-injection: 'off'`, `@francogp/domain-type/no-redundant-constant-alias: 'off'`, `@francogp/domain-type/no-insecure-random: 'off'`. |
 | `paths.demoRoots` | Interactive UI prototypes, design system sandboxes, experimental map/editor sub-apps (e.g. `['ui-demo', 'demo', 'test_aventura']`) | Automatically injects dynamic AST overrides into `vite.config.ts`: `no-console: 'off'`, `unicorn/prefer-global-this: 'off'`, `typescript/explicit-function-return-type: 'off'`, `@francogp/domain-type/no-insecure-random: 'off'`, `@francogp/domain-type/no-broad-string-array: 'off'`, `@francogp/domain-type/no-gsap-layout-properties: 'off'`, `@francogp/domain-type/no-record-string-key: 'off'`. |
 | `paths.ignoredDirs` | Nested sub-applications, monorepo packages, or secondary apps with independent life cycles (e.g. `['web-app']`) | Universally projected into `lint.ignorePatterns` and `fmt.ignorePatterns` in `vite.config.ts` and stylelint configurations, isolating the nested app from the root workspace audit. |
 | `paths.ignoredPatterns` | Specific legacy third-party vendor files, polyfills, or immutable assets (e.g. `['src/paged.polyfill.ts']`) | Automatically excluded across all static analysis engines and satellite linters. |
@@ -20,14 +20,15 @@ All filesystem roots, code scanning scopes, and exemption boundaries MUST be dec
 
 ---
 
-## 2. Test Coverage Thresholds vs. Linter Exemption Distinction Mandate
+## 2. File Audit Coverage & Test Coverage vs. Linter Exemption Distinction Mandate
 
 > 🔴 **CRITICAL ARCHITECTURAL BOUNDARY**:
-> Developers and AI agents are **STRICTLY AND CATEGORICALLY PROHIBITED** from attempting to silence linter errors or static analysis findings using `coverage.acknowledgedDegradations`.
-> 
-> - `coverage.acknowledgedDegradations` is evaluated **EXCLUSIVELY** by `validate_test_coverage` to tolerate documented, intentional coverage threshold drops in legacy or uninstrumentable modules.
-> - `coverage.acknowledgedDegradations` **HAS ZERO EFFECT** on Oxlint, Oxfmt, Vite+, Stylelint, or AST plugins.
-> - To properly exempt or relax rules for non-production modules, declare them in the appropriate `paths` property (`scriptsRoots`, `testRoots`, `demoRoots`, `ignoredDirs`) in `.auditor/audit.config.ts` and run `npm run auditor:fix`.
+> Developers and AI agents are **STRICTLY AND CATEGORICALLY PROHIBITED** from attempting to silence linter errors or static analysis findings using `coverage.acknowledgedDegradations` or `testCoverage.exemptGlobs`.
+>
+> - `coverage.acknowledgedDegradations` is evaluated **EXCLUSIVELY** by `validate_audit_coverage` to acknowledge intentional scanner scope policies (`cli`, `scripts`, `data`, `demo`, `exemptFiles`) on the repository file coverage ledger.
+> - `testCoverage.exemptGlobs` and `testCoverage.directoryThresholds` are evaluated **EXCLUSIVELY** by `validate_test_coverage` for Istanbul/V8 test execution line/branch/function metrics.
+> - Neither setting **HAS ANY EFFECT** on Oxlint, Oxfmt, Vite+, Stylelint, or AST plugins.
+> - To properly scope or relax rules for non-production modules, declare them in the appropriate `paths` property (`scriptsRoots`, `testRoots`, `demoRoots`, `ignoredDirs`) in `.auditor/audit.config.ts` and run `npm run auditor:fix`.
 
 ---
 
@@ -82,6 +83,7 @@ However, a specific adapter module may legitimately implement a standard JavaScr
      vitePlusConfig: {
        enabled: true,
        lint: {
+         enabled: true,
          overrides: [
            {
              files: ['src/persistence/sqliteQueryBuilder.ts'],

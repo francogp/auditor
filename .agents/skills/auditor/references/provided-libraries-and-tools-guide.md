@@ -28,7 +28,7 @@ flowchart TD
     subgraph NODE_SDK["3. Node.js Extension, Registry, CLI & Safe I/O SDK"]
         EXT["@francogp/auditor/base & /plugin (BaseAuditor, FileScanAuditor, SharedAstContext)"]
         REG["BaseEntityRegistry & resetAllEntityRegistries (O(1) Lifecycle Registries)"]
-        CIT["cittyHarness (defineCommand, COMMON_CLI_ARGS, parseCliArgs)"]
+        CIT["cittyHarness (defineCommand, COMMON_CLI_ARGS, parseCittyArgs, runNormalizedMain)"]
         SAF["safePath & safeUtils (CWE-22 Containment, SafeResult, safeJsonParse)"]
         THM["@francogp/auditor/theme (UnifiedTheme 80-Column Box-Drawing)"]
         TST["runAuditorContractConformanceTests (5-Point Vitest Extension Harness)"]
@@ -54,13 +54,13 @@ flowchart TD
 | :--- | :--- | :--- | :--- |
 | `@francogp/auditor/modals` | Browser, SSR, Web Worker, Node | `createModalStack`, `ModalStackManager`, `ModalDomController`, `createBackdropPointerGuard`, `ModalSequenceQueue`, `ModalAnimationController`, `createWaapiModalDriver`, `createGsapModalDriver`, `resolveModalZLayers`, `resolveModalCssVars`, `resolveModalDomIds`, `resolveModalMotionPreset`, `resolveModalStructuralStyles` | Frontend LIFO modal stack, customizable `z-index` governance, customizable motion presets, safe light-dismiss, and priority modal sequences. |
 | `@francogp/auditor/domain` | Browser, SSR, Web Worker, Node | `createDomainSet`, `createDomainMap`, `DomainSet` | Compile-time narrowed `ReadonlySet` / `ReadonlyMap` with `has(x: unknown): x is T` type guard and zero `as string` casts. |
-| `@francogp/auditor/version` | Browser, SSR, Node | `AUDITOR_VERSION`, `AUDITOR_SEMVER` | Runtime telemetry and package stamp verification. |
+| `@francogp/auditor/version` | Browser, SSR, Node | `AUDITOR_VERSION`, `AUDITOR_SEMVER`, `AUDITOR_BUILD_ID` | Runtime telemetry and package stamp verification. |
 | `@francogp/auditor/domain-type-plugin` | Vite+ / Oxlint | Default Oxlint JS plugin | Enforces `/domain-type-first`, security, and query rules inside `vite.config.ts`. |
 | `@francogp/auditor/config` | Node (`.auditor/audit.config.ts`) | `defineAuditConfig`, `AuditEngineConfig` | Strongly typed Single Source of Truth configuration authoring. |
-| `@francogp/auditor/base` | Node (Custom Sub-Auditors) | `BaseAuditor`, `FileScanAuditor`, `createRuleCapabilities`, `resolveFileScanRoots` | Authoring domain-specific static analysis suites in host projects. |
+| `@francogp/auditor/base` | Node (Custom Sub-Auditors) | `BaseAuditor`, `FileScanAuditor`, `createUniformRuleCapabilities`, `resolveFileScanRoots` | Authoring domain-specific static analysis suites in host projects. |
 | `@francogp/auditor/plugin` | Node (Custom Extensions) | `defineAuditorExtension` | Registering custom host sub-auditors cleanly with `.auditor/audit.config.ts`. |
-| `@francogp/auditor/contract` | Node / Tooling | `AuditViolation`, `AuditSuiteResult`, `AuditRunMetadata`, `AuditorManifest` | Consuming structured audit reports and rule metadata. |
-| `@francogp/auditor/theme` | Node CLI | `UnifiedTheme`, `renderBoxTable`, `stringWidth`, `padVisual` | 80-column Unicode-aligned Box-Drawing terminal tables and banners. |
+| `@francogp/auditor/contract` | Node / Tooling | `AuditFinding`, `StandardAuditResult`, `AuditStatus`, `AuditorManifestDTO` | Consuming structured audit reports and rule metadata. |
+| `@francogp/auditor/theme` | Node CLI | `renderBoxTable`, `stringWidth`, `padVisual`, `formatStatusPill` | 80-column Unicode-aligned Box-Drawing terminal tables and banners. |
 | `@francogp/auditor` | Node (Full SDK Barrel) | All of the above + `vitePrecompressPlugin`, `BaseEntityRegistry`, `COMMON_CLI_ARGS`, `safeResolve`, `tryCatchSync`, `parseVueSfc`, `runAuditorContractConformanceTests` | Build plugins (`vite.plugins.ts`), Node backend/CLI scripts, and Vitest suites. |
 
 ---
@@ -106,7 +106,7 @@ See the dedicated specification: [modal-stack-governance-guide.md](./modal-stack
 
 ### 3.2 Domain-Type-First Collections (`@francogp/auditor/domain`)
 
-Eliminates `new Set<string>([...])` and manual `as MyUnion` type assertions in both browser frontend code and Node.js backend code:
+Eliminate `new Set<string>([...])` and manual `as MyUnion` type assertions in both browser frontend code and Node.js backend code:
 
 ```typescript
 import { createDomainMap, createDomainSet } from '@francogp/auditor/domain';
@@ -158,7 +158,7 @@ resetAllEntityRegistries();
 
 ### 3.4 Vite+ Static Asset Precompression (`vitePrecompressPlugin` in `vite.plugins.ts`)
 
-Generates companion `.br` (Brotli Quality 11) and `.gz` (Gzip Level 9) production bundles using native `node:zlib` and optionally scaffolds static-serving snippets for Nginx, Apache, or Caddy:
+Generates companion `.br` (Brotli Quality 11) and `.gz` (Gzip Level 9) production bundles using native `node:zlib` and optionally scaffolds static-serving snippets (`'nginx' | 'apache' | 'caddy' | 'all'`):
 
 ```typescript
 // vite.plugins.ts (100% developer/AI-owned module)
@@ -172,8 +172,8 @@ export const plugins: PluginOption[] = [
     enabled: true,
     brotli: true,
     gzip: true,
-    thresholdBytes: 512,
-    serverConfigs: ['nginx', 'caddy'],
+    threshold: 512,
+    server: 'nginx',
     report: 'summary'
   })
 ];
@@ -240,11 +240,11 @@ const rawContent = safeReadFileSync(configPath);
 
 if (rawContent !== null) {
   const parsed = safeJsonParse<{ readonly retries: number }>(rawContent);
-  if (parsed.ok) {
+  if (parsed !== undefined) {
     const rel = toPosixRelative(process.cwd(), configPath);
     const insideConfig = isPathContained(normalizePosixPath(rel), 'config');
     if (insideConfig) {
-      tryCatchSync(() => parsed.value.retries);
+      tryCatchSync(() => parsed.retries);
     }
   }
 }
@@ -305,14 +305,11 @@ if (scssPath !== undefined && stringWidth(scssPath) > 0) {
 | `auditor-post-build` | Core CI Gate | Post-build verification against compiled `dist/` artifacts (`phase=post-build`). |
 | `auditor-build-deploy` | Deployment | Production deployment build runner (`AUDITOR_ENV=production`). |
 | `auditor-next` | Diagnostics | Isolates findings in the earliest active strategic phase (`setup` -> `polish`). |
-| `auditor-findings` | Diagnostics | Interactive multi-dimensional query engine over `scratch/audits/latest_audit.json`. |
-| `auditor-errors` | Diagnostics | Filters active findings strictly to blocking `severity=error` items. |
-| `auditor-warnings` | Diagnostics | Filters active findings strictly to `severity=warning` items. |
-| `auditor-summary` | Diagnostics | Compact executive breakdown of audit results and suite status. |
+| `auditor-findings` | Diagnostics | Interactive multi-dimensional query engine over `scratch/audits/latest_audit.json` (npm severity presets: `auditor:errors`, `auditor:warnings`, `auditor:summary`). |
+| `auditor-report-findings` | Diagnostics | Alias for `auditor-findings`. |
 | `auditor-rules` | Diagnostics | Consolidated Box-Drawing breakdown grouped by `ruleId`. |
 | `auditor-by-rule` | Diagnostics | Alias for `auditor-rules`. |
 | `auditor-by-file` | Diagnostics | Hierarchical file-tree report ordered by line number ascending. |
-| `auditor-guide` | Diagnostics | Renders canonical remediation manuals (`auditor guide <ruleId\|suiteId>`). |
 | `auditor-guard` | Pre-Flight | Inspects architectural boundaries and active policies for target files. |
 | `auditor-config` | Advisor | Unidirectional Config Ratchet hardening advisor (`diff`, `apply`, `human`). |
 | `auditor-dependencies` | Advisor | Audits shared package version floors and outputs grouped `npm install` upgrade commands. |
@@ -335,19 +332,27 @@ if (scssPath !== undefined && stringWidth(scssPath) > 0) {
 | `auditor-version` | Lifecycle | SemVer diff analyzer (`analyze`), deterministic version bumper (`bump`), and stamp verifier. |
 | `auditor-update` | Lifecycle | Pulls upstream `@francogp/auditor` tags, syncs skills/scripts, and runs `auditor fix`. |
 | `auditor-init` | Bootstrap | Initializes a zero-defect Vite+ repository with `.auditor/audit.config.ts` and `AGENTS.md`. |
-| `auditor-init-agent` | Bootstrap | Registers `@francogp/auditor` in `.agents/plugins.json` (+ `auditor-sync-env`, `auditor-check-env`, `auditor-setup-env`). |
+| `auditor-init-agent` | Bootstrap | Registers `@francogp/auditor` in `.agents/plugins.json`. |
+| `auditor-sync-env` | Environment | Synchronizes canonical `setup-linux.sh` and `setup-windows.ps1` scripts. |
+| `auditor-setup-env` | Environment | Runs cross-platform runtime environment initialization. |
+| `auditor-check-env` | Environment | Validates Node.js, npm, and system tool prerequisites. |
 
 ---
 
 ## 5. Operational CLI Workflow Decision Graph
 
+Pick the single command matching your current stage — never chain overlapping tiers (`auditor:lint ⊂ auditor ⊂ auditor:full ⊂ build`):
+
 ```mermaid
-flowchart LR
-    START["Developer / AI Task"] --> GATE0["npm run auditor:setup (Gate 0.0 Infrastructure)"]
-    GATE0 -->|"Setup Error"| FIX["npm run auditor:fix"]
-    GATE0 -->|"Clean"| LINT["npm run auditor:lint (Fast Iteration)"]
-    LINT -->|"Violations"| NEXT["npm run auditor:next & auditor guide <ruleId>"]
-    LINT -->|"Clean"| FULL["npm run auditor (Full Gate + Warning Ratchet)"]
-    FULL -->|"Elective Refactoring"| DIRAC["auditor:dupes | magic | motion | o1 | types | domain | hygiene"]
-    FULL -->|"Config / Deps Check"| ADV["npm run auditor:config & npm run auditor:dependencies"]
+flowchart TD
+    START["Developer / AI Task"] --> STAGE{"Current Stage?"}
+    STAGE -->|"Active Coding Loop"| LINT["npm run auditor:lint (Fast 🐇)"]
+    STAGE -->|"Setup / Config Check"| GATE0["npm run auditor:setup (Infra Only)"]
+    STAGE -->|"Task Complete (No Build)"| AUDIT["npm run auditor (Full Gate + Ratchet 🐢)"]
+    STAGE -->|"Final Release / Build"| BUILD["npm run test:coverage (once) -> npm run build (once)"]
+
+    LINT -->|"Violations"| TRIAGE["npm run auditor:fix -> npm run auditor:next -> suite=<id>"]
+    AUDIT -->|"Violations"| TRIAGE
+    AUDIT -->|"Elective Refactoring"| DIRAC["auditor:dupes | magic | motion | o1 | types | domain | hygiene"]
+    AUDIT -->|"Config / Deps Check"| ADV["npm run auditor:config & npm run auditor:dependencies"]
 ```

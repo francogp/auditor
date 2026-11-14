@@ -20,11 +20,11 @@ When interacting with hygiene rules, AI agents and developers must strictly dist
 
 ### Scenario B: Elective Code Modernization
 
-1. **Verify Clean Baseline**: Confirm `npm run auditor` passes (0 errors, 0 warnings).
+1. **Verify Clean Baseline**: Confirm `npm run auditor` passes (0 errors, 0 new warnings).
 2. **Global Discovery**: Run `npm run auditor:hygiene discover` to list files with hygiene debt.
 3. **Dirac Inspection**: Run `npm run auditor:hygiene inspect <filePath>` to inspect the compact Dirac micro-context without loading entire files into LLM context.
 4. **Formulate Improvement Plan**: Propose changes and save the plan to `scratch/hygiene_plan.json`.
-5. **Worktree Sandbox Execution**: Apply via `npm run auditor:hygiene apply scratch/hygiene_plan.json --worktree`.
+5. **Worktree Sandbox Execution**: Apply via `npm run auditor:hygiene apply scratch/hygiene_plan.json worktree`.
 
 ---
 
@@ -193,13 +193,13 @@ _Output (`scratch/hygiene_plan.json`)_:
 Apply the generated declarative plan safely inside an isolated worktree branch:
 
 ```bash
-npm run auditor:hygiene apply scratch/hygiene_plan.json --worktree
+npm run auditor:hygiene apply scratch/hygiene_plan.json worktree
 ```
 
 The engine automatically:
 
 1. Branches an isolated Git worktree (`git worktree add`).
 2. Mutates code via TypeScript AST replacements.
-3. Runs regression tests (`vp test`).
+3. Runs regression tests (`vp test run`).
 4. Verifies the audit gate (`vp check`).
 5. Merges cleanly to the working branch and cleans up the worktree.

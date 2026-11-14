@@ -12,19 +12,19 @@ The `@francogp/auditor` ecosystem is strictly partitioned into two separate tool
 flowchart TD
     subgraph CI["1. CI Static Quality Gates (Blocking)"]
         A["npm run auditor / auditor:lint"]
-        A1["81 Static Suites (validate_*)"]
+        A1["Static Suites (validate_*)"]
         A2["Binary Output: PASS or FAIL"]
         A3["Blocks commit / build / deploy"]
-        A4["Deterministic, non-interactive (ms)"]
+        A4["Deterministic, non-interactive"]
         A --> A1 --> A2 --> A3
     end
 
     subgraph REFACTOR["2. Interactive Refactor Engines (Elective)"]
-        B["npm run auditor:&lt;tool&gt; (magic, dupes, o1, types)"]
+        B["npm run auditor:&lt;tool&gt; (magic, dupes, o1, types, motion, domain, hygiene)"]
         B1["BaseRefactorEngine CLI assistants"]
         B2["Outputs: Candidate Clusters & Plans"]
         B3["Never blocks commit or build"]
-        B4["Interactive: inspect -&gt; plan -&gt; apply --worktree"]
+        B4["Interactive: inspect -&gt; plan -&gt; apply &lt;plan.json&gt; worktree"]
         B --> B1 --> B2 --> B3
     end
 ```
@@ -40,7 +40,7 @@ flowchart TD
 | **Execution Trigger**         | Automatic in CI/CD, pre-commit, and safe-commit gates             | On-demand explicit invocation by developer or AI agent                                                                                                                   |
 | **Run in `npm run auditor`?** | **YES** (runs 100% of applicable suites)                          | **NEVER** (strictly separate standalone CLI tools)                                                                                                                       |
 | **Commit Blocking?**          | **YES**: Errors block build, safe-commit, and deploy              | **NO**: Opportunities and proposals never block CI                                                                                                                       |
-| **Resolution Mode**           | `npm run auditor:fix` (auto) or surgical manual fix               | Declarative JSON plans applied via `--worktree`                                                                                                                          |
+| **Resolution Mode**           | `npm run auditor:fix` (auto) or surgical manual fix               | Declarative JSON plans applied via `apply <plan.json> worktree` (`--worktree`)                                                                                           |
 
 > [!IMPORTANT]
 > **The Golden Rule for AI Agents**:
@@ -79,28 +79,28 @@ When `npm run auditor` or `npm run auditor:findings` reports violations, agents 
 flowchart TD
     E["Audit Failure (Errors / Warnings)"] --> N["1. Run npm run auditor:next"]
     N --> P["2. Isolate Active Strategic Phase"]
-    P --> G["3. Consult npm run auditor guide &lt;ruleId&gt;"]
+    P --> G["3. Consult npm run auditor:guide &lt;ruleId&gt;"]
     G --> F{"4. Is it auto-fixable?"}
     F -- Yes --> AF["Run npm run auditor:fix FIRST"]
     F -- No --> CP["5. Formulate Correction Plan"]
     AF --> V["6. Verify: npm run auditor suite=&lt;suiteId&gt;"]
     CP --> M["Manual Surgical Fix"] --> V
-    V --> Done["All suites green (0 errors, 0 warnings)"]
+    V --> Done["Final Gate: npm run auditor (0 errors, 0 new warnings)"]
 ```
 
 ### Step-by-Step Triage
 
-1. **Isolate Strategic Phase**: Run `npm run auditor:next` (or `npm run auditor:findings -- phase=next`). Always remediate the earliest active phase (`setup` -> `prune` -> `dedup` -> `contracts` -> `behavior` -> `hygiene` -> `polish`).
-2. **Consult Canonical Guide**: Run `npm run auditor guide <ruleId>` to read the Root Cause, Diagnosis, and Canonical Solution.
+1. **Isolate Strategic Phase**: Run `npm run auditor:next` (or `npm run auditor:findings phase=next`). Always remediate the earliest active phase (`setup` -> `prune` -> `dedup` -> `contracts` -> `behavior` -> `hygiene` -> `polish`).
+2. **Consult Canonical Guide**: Run `npm run auditor:guide <ruleId>` to read the Root Cause, Diagnosis, and Canonical Solution.
 3. **Auto-Fix First Mandate**: If findings are marked `(N auto-fixable)`, execute `npm run auditor:fix` BEFORE touching any file manually.
 4. **Formulate a Correction Plan**: If manual code edits are required, create a structured **Correction Plan** (see template below).
-5. **Hermetic Verification**: Verify the fixed suite in isolation (`npm run auditor -- suite=<suiteId>`), then verify the full gate (`npm run auditor`).
+5. **Hermetic Verification (Zero Redundant Gates)**: Verify the fixed suite in isolation (`npm run auditor suite=<suiteId>`) during iteration, then run `npm run auditor` ONCE as the final gate (never chain `auditor:lint` or `auditor:md` alongside `npm run auditor`).
 
 ---
 
 ## 4. Reaction Protocol: When Improvements are Requested (Refactor Engines)
 
-When the user asks to optimize, deduplicate, modernize, or clean up code (_"revisa si hay mejoras"_, _"limpiar números mágicos"_, _"deduplicar código"_), agents MUST follow the **Enhancement Protocol**:
+When the user asks to optimize, deduplicate, modernize, or clean up code (_"check for refactoring opportunities"_, _"extract magic numbers"_, _"deduplicate code"_), agents MUST follow the **Enhancement Protocol**:
 
 ```mermaid
 flowchart TD
@@ -111,17 +111,17 @@ flowchart TD
     Disc --> Insp["3. Ingest Dirac Micro-Context: npm run auditor:&lt;tool&gt; inspect &lt;target&gt;"]
     Insp --> Plan["4. Formulate Improvement Plan with User"]
     Plan --> Save["5. Save JSON Plan: scratch/&lt;tool&gt;_plan.json"]
-    Save --> Worktree["6. Apply in Sandbox: npm run auditor:&lt;tool&gt; apply &lt;plan.json&gt; --worktree"]
-    Worktree --> Verify["7. Verify Tests &amp; CI Gate: npm test &amp;&amp; npm run auditor"]
+    Save --> Worktree["6. Apply in Sandbox: npm run auditor:&lt;tool&gt; apply &lt;plan.json&gt; worktree"]
+    Worktree --> Verify["7. Verify Tests &amp; Single CI Gate: npm test then npm run auditor"]
 ```
 
 ### Step-by-Step Refactoring
 
 1. **Baseline Invariant**: Never start an elective refactor on a red CI baseline. Always confirm `npm run auditor` passes first.
-2. **Discovery & Dirac Inspection**: Run `npm run auditor:<tool> discover` to identify candidate files. Run `inspect <file>` to obtain the Dirac Micro-Context. **NEVER load full source files into context**; use the compact Dirac packet.
+2. **Discovery & Dirac Inspection**: Run `npm run auditor:<tool> discover` to identify candidate files. Run `npm run auditor:<tool> inspect <file>` to obtain the Dirac Micro-Context. **NEVER load full source files into context**; use the compact Dirac packet.
 3. **Collaborative Naming**: Present candidate tokens/constants to the user with clear semantic proposals.
 4. **Formulate an Improvement Plan**: Create a structured **Improvement Plan** (see template below).
-5. **Worktree Sandbox Execution**: Apply the generated declarative JSON plan using `--worktree`. The refactor engine applies changes in an isolated Git worktree, runs `vp check` / `vp test`, and merges only upon 100% verification.
+5. **Worktree Sandbox Execution**: Apply the generated declarative JSON plan using `npm run auditor:<tool> apply <plan.json> worktree`. The refactor engine applies changes in an isolated Git worktree, runs `vp check` / `vp test run`, and merges only upon 100% verification.
 
 ---
 
@@ -139,7 +139,7 @@ Use this format when formulating a plan to resolve CI audit failures:
 - **Active Phase (`auditor:next`)**: [setup | prune | dedup | contracts | behavior | hygiene | polish]
 - **Affected Suite**: `[suite_id]`
 - **Failing Rules**: `[rule-id-1]`, `[rule-id-2]`
-- **Root Cause**: [Concise explanation extracted from `auditor guide <ruleId>`]
+- **Root Cause**: [Concise explanation extracted from `npm run auditor:guide <ruleId>`]
 
 ## 2. Affected Files & Planned Modifications
 
@@ -156,9 +156,9 @@ Use this format when formulating a plan to resolve CI audit failures:
 
 ## 4. Verification Plan
 
-1. Isolated suite verification: `npm run auditor -- suite=[suite_id]`
-2. Full quality gate: `npm run auditor`
-3. Regression tests: `npm test`
+1. Isolated suite verification during edit: `npm run auditor suite=[suite_id]`
+2. Regression tests: `npm test`
+3. Single final quality gate: `npm run auditor`
 ```
 
 ---
@@ -172,9 +172,9 @@ Use this format when formulating an elective modernization, token extraction, or
 
 ## 1. Scope & Motivation
 
-- **Tool**: `[auditor-magic | auditor-dupes | auditor-o1 | auditor-types | auditor-motion]`
+- **Tool**: `[auditor-magic | auditor-dupes | auditor-o1 | auditor-types | auditor-motion | auditor-domain | auditor-hygiene]`
 - **Objective**: [Extract color tokens to SCSS variables / Eliminate semantic clones / Migrate Map to O(1)]
-- **Pre-flight CI Baseline**: 100% Green (0 errors, 0 warnings).
+- **Pre-flight CI Baseline**: 100% Green (0 errors, 0 new warnings).
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
 
@@ -221,7 +221,7 @@ Use this format when formulating an elective modernization, token extraction, or
 
 1. Save the plan to `scratch/[tool]_plan.json`.
 2. Apply inside isolated worktree:
-   `npm run auditor:[tool] apply scratch/[tool]_plan.json --worktree`
+   `npm run auditor:[tool] apply scratch/[tool]_plan.json worktree`
 3. Verify test suite passes: `npm test`.
 4. Verify auditor remains 100% green: `npm run auditor`.
 ````
@@ -230,7 +230,7 @@ Use this format when formulating an elective modernization, token extraction, or
 
 ## 6. Tutorials & Realistic Scenarios
 
-### Tutorial 1: Agent Encounters a CI Error (`domain-naked-string-primitive`)
+### Tutorial 1: Agent Encounters a CI Error (`@francogp/domain-type/domain-naked-string-primitive`)
 
 **User Prompt**: _"Run the auditor and repair any reported issues."_
 
@@ -245,16 +245,16 @@ Use this format when formulating an elective modernization, token extraction, or
    ```text
    [FAIL] AUDIT FAILED [1 suite failed]
      Phase: contracts (1 error)
-     [validate_domain_types] src/models/user.ts:12: Domain parameter 'userId: string' is a bare string primitive.
+     [validate_oxlint] src/models/user.ts:12: Domain parameter 'userId: string' is a bare string primitive.
    ```
 
 2. **Agent Thought**:
-   _"This is a CI error in Phase 4 (contracts). It blocks safe-commit. I will run `auditor guide domain-naked-string-primitive` to get the canonical solution."_
+   _"This is a CI error in Phase 4 (contracts). It blocks safe-commit. I will run `npm run auditor:guide @francogp/domain-type/domain-naked-string-primitive` to get the canonical solution."_
 
 3. **Agent Action (Guide)**:
 
    ```bash
-   npm run auditor guide domain-naked-string-primitive
+   npm run auditor:guide @francogp/domain-type/domain-naked-string-primitive
    ```
 
    _Guide indicates_: Use `Brand<string, 'UserId'>` from `@francogp/auditor`.
@@ -263,13 +263,13 @@ Use this format when formulating an elective modernization, token extraction, or
    The agent edits `src/models/user.ts` to export `type UserId = Brand<string, 'UserId'>;` and updates the function signature.
 
    ```bash
-   npm run auditor -- suite=validate_domain_types
+   npm run auditor suite=validate_oxlint
    npm run auditor
    ```
 
-   _Output_: `[OK] AUDIT PASSED [81 suites]`.
+   _Output_: `[OK] AUDIT PASSED`.
 
-5. **Agent Reply to User (in Spanish)**: Clear, concise confirmation in Spanish that the contract error was repaired and verified clean.
+5. **Agent Reply to User**: Clear, concise confirmation in `config.documentation.chatLanguage` that the contract error was repaired and verified clean.
 
 ---
 
@@ -312,7 +312,7 @@ Use this format when formulating an elective modernization, token extraction, or
    Once approved:
 
    ```bash
-   npm run auditor:magic apply scratch/magic_plan.json --worktree
+   npm run auditor:magic apply scratch/magic_plan.json worktree
    npm test
    npm run auditor
    ```

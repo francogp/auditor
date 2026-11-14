@@ -46,13 +46,13 @@ Apply this workflow whenever the task involves any of the following:
 - **Finite Domain IDs & Values**: Finite identifiers such as entity species, moves, abilities, items, maps, trainers, factions, statuses, weather, ranks, categories, modes, slots, phases, classes, tables, or routes across `src/` and `scripts/`.
 - **Collections & Dictionaries**: Constants declared as arrays, sets, maps, records, or object dictionaries in `src/` and `scripts/`.
 - **Generated Data & Boundary Validation**: Generated data under `src/data/**`, generated wrappers from JSON, npm scripts under `scripts/**`, or runtime boundary validators (`isDomainId`, `requireDomainId`).
-- **Audit Findings**: Review/audit findings from `npm run auditor -- task=validate_domain_types` (or `auditor task=validate_domain_types`) or `npm run auditor`.
+- **Audit Findings**: Review/audit findings from `npm run auditor:domain-types` (`auditor task=validate_oxlint`) or `npm run auditor`.
 
 If it represents a finite domain, design and use the domain type first.
 
 ## Pre-Flight Mental Protocol (First-Time-Right Coding)
 
-Before writing or modifying ANY TypeScript code in `src/` or `scripts/`, mentally run through the **5 Binary Decision Gates**:
+Before writing or modifying ANY TypeScript code in `src/` or `scripts/`, mentally run through the **6 Binary Decision Gates**:
 
 | Gate                        | Question                                                                                                         | Required Canonical Action                                                                                                                                                                                                                   |
 | :-------------------------- | :--------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -128,7 +128,7 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
 - **Prohibition on Linear Searches in Hot Paths**: It is STRICTLY FORBIDDEN to perform unindexed linear scans (`.find()`, `.filter()`, `.some()`, `.includes()`) over static entity catalogs or large collections during tight loops, background workers, hot calculations, or inventory lookups.
 - **Typed O(1) Dictionaries**:
   - Static catalogs (items, categories, roles, permissions) MUST be pre-indexed at module load time as frozen records: `export const ITEMS_BY_ID: Record<ItemId, Item> = Object.freeze(...)`.
-  - Finite identifier membership sets MUST use typed sets with `// runtime-set`: `export const RESERVED_ROLES: ReadonlySet<string> = new Set<string>(RESERVED_ROLES_LIST); // runtime-set`.
+  - Finite identifier membership sets MUST use typed sets (`createDomainSet` from `@francogp/auditor/domain` or `new Set<RoleId>(...)`): `export const RESERVED_ROLES: ReadonlySet<RoleId> = createDomainSet(RESERVED_ROLES_LIST);`.
 - **Zero-Allocation Boundary Lookups**:
   - Getters MUST accept `id: string`, validate via boundary guards (`requireItemId(id)`), and retrieve in $O(1)$ without requiring caller-side type assertions (`as unknown as`).
   - Hot calculation paths and domain state checks MUST avoid deep serialization cloning (`JSON.parse(JSON.stringify(...))`), utilizing shallow structured cloning or `structuredClone` to eliminate Garbage Collection lag.
@@ -144,7 +144,7 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
 - **Fail Loud & Fast Mandate**: If an ID is missing, malformed, or does not exist in the domain set, the system MUST throw an explicit, descriptive error immediately (e.g. via `requireItemId(x)`, `requireEntityId(x)`).
 - **Canonical ID Mandate**: Every domain entity MUST be resolved, validated, and evaluated STRICTLY via its canonical `id`. It is forbidden to fall back to secondary fields or names (`toID(m.id || m.name)`, `item.category || item.name`, `entity.id || entity.name`, `action.id || action.name`).
 - **UI Localization Boundary**: For presentation in UI labels/buttons, localized translations must be resolved via standard domain mapping helpers (e.g. `getItemName(id)`, `getRoleName(id)`). The underlying data structures, payloads, and state properties must remain strictly typed domain IDs.
-- **Audit Rules Enforcement**: Enforced automatically by `noDomainIdFallbacks` and `noDomainNameFallbacks` in `src/suites/architecture/audit_rules.ts`.
+- **Audit Rules Enforcement**: Enforced automatically by `@francogp/domain-type` inside `validate_oxlint`.
 
 ## Absolute Prohibition on Value-Hardcoding in Constant Names (`badConstantNames`)
 
@@ -166,7 +166,7 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
   1. Top-level type aliases: `type Role = 'admin' | 'editor' | 'viewer';` (FORBIDDEN when `UserRole` is exported).
   2. Literal constant arrays: `const ROLES = ['admin', 'editor', 'viewer'] as const;` (FORBIDDEN when canonical union exists).
   3. Interface and object properties, including mixed primitive unions: `interface Bar { status?: 'active' | 'disabled' | number; }` (FORBIDDEN — use `status?: StatusName | number;`).
-- **Dynamic Auditor Indexing**: The domain auditor `validate_domain_types` (from `@francogp/auditor`) dynamically indexes all exported union types from `node_modules/` `.d.ts` files at runtime and enforces zero duplicate definitions across top-level types, constants, and interface properties.
+- **Dynamic Auditor Indexing**: `validate_oxlint` (`@francogp/domain-type` plugin) dynamically indexes all exported union types from `node_modules/` `.d.ts` files and enforces zero duplicate definitions across top-level types, constants, and interface properties.
 
 ## Absolute Prohibition on Redundant 1:1 Type & Value Aliases (`noRedundantAliases`)
 
@@ -177,7 +177,7 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
 
 ## Dynamic AST Domain Collection Auditing & Zero Hardcoding (`noRedundantDomainCollections`)
 
-- **Dynamic Harvesting**: The domain auditor `validate_domain_types` (from `@francogp/auditor`) dynamically extracts canonical exported domain collections (`as const` arrays) from `src/types/` and `src/data/` at audit time using TypeScript AST traversal.
+- **Dynamic Harvesting**: `validate_oxlint` (`@francogp/domain-type` plugin) dynamically extracts canonical exported domain collections (`as const` arrays) from `src/types/` and `src/data/` at audit time using TypeScript AST traversal.
 - **Zero-Hardcoding Mandate**: Auditors must never hardcode domain names or literals (e.g. `'hp'`, `'atk'`) to detect duplication. All comparisons are performed dynamically against harvested domain sets.
 - **Exact Duplicates & Redundant Subsets**: The auditor scans all array literals in `src/` and `scripts/` and reports blocking errors for:
   1. Exact duplicate collections ($A = D$) where an array literal reproduces an existing canonical domain array.
@@ -327,18 +327,18 @@ Business logic functions must never accept `unknown` or rely on `payload as Reco
 
 - **Vue SFC Compiler Standard**: `<script setup>` is strictly scoped to the component template/runtime and CANNOT contain ES module exports (`export const`, `export type`, `export interface`, `export function`, `export default`).
 - **Shared Contracts Extraction**: If any type, interface, or constant needs to be shared across multiple components or tests, it MUST be extracted to a companion `.ts` module (e.g. `src/components/.../*Types.ts` or `src/types/...`).
-- **Local Types Unexported**: Types, interfaces, and filter tuples that are only used within that specific SFC must remain unexported (without the `export` keyword) and use the `_` prefix for local filter arrays (`const _FILTER_MODES = ['all', ...DOMAINS] as const;`).
-- **Auditor Enforcement**: The auditor `validate_domain_types` (from `@francogp/auditor`) scans all `.vue` files and immediately flags any `export` inside `<script setup>` as a blocking `ERROR`.
+- **Local Types Unexported**: Types, interfaces, and filter tuples used only within that SFC must remain unexported (`const FILTER_MODES = ['all', ...DOMAINS] as const;`, never dummy `_` prefixes if unused).
+- **Auditor Enforcement**: `validate_oxlint` (`@francogp/domain-type` plugin) scans all `.vue` files and immediately flags any `export` inside `<script setup>` as a blocking `ERROR`.
 
 ## Nominal Branded Types for Domain IDs (`Brand<T, B>`)
 
-- **Nominal Safety Mandate**: Finite domain identifiers (`EntityId`, `ItemId`, `ActionId`) SHOULD be defined as Nominal Branded Types using `Brand<T, B>` from `@/types/system/branding` to prevent accidental assignability across distinct domains.
+- **Nominal Safety Mandate**: Finite domain identifiers (`EntityId`, `ItemId`, `ActionId`) SHOULD be defined as Nominal Branded Types using `Brand<T, B>` from `@francogp/auditor` to prevent accidental assignability across distinct domains.
 - **Example**:
 
   ```ts
-  import { type Brand, toBrand } from '@/types/system/branding';
+  import type { Brand } from '@francogp/auditor';
   export type EntityId = Brand<string, 'EntityId'>;
-  export const makeEntityId = (raw: string): EntityId => toBrand(requireEntityId(raw));
+  export const makeEntityId = (raw: string): EntityId => requireEntityId(raw) as EntityId;
   ```
 
 ## Floating Promise & Architecture Rules (`noFloatingPromises`, `noLeakedGlobalState`, `noDynamicImportInHotPath`)
@@ -349,7 +349,7 @@ Business logic functions must never accept `unknown` or rely on `payload as Reco
 - **Auto-Fixer Command**: Mechanical rules can be auto-repaired across the codebase by running:
 
   ```bash
-  npm run lint:fix
+  npm run auditor:fix
   ```
 
 ## Canonical Patterns & Boundary Validation
@@ -402,7 +402,7 @@ Do not use these for finite domains:
 - `new Map<string, ...>(...)` to represent a domain map.
 - Type assertions such as `as DomainId`, `as unknown as Record<...>`, `(OBJ as Record<string, T>)[key]`, `(ARRAY as readonly string[]).includes(...)`, or `as any` to force values into domain contracts or bypass index/inclusion checks during lookup.
 - **Tuple Inclusion Cast Prohibition**: Casting tuple constants (e.g. `(USER_ROLES as readonly string[]).includes(val)`) in business logic to bypass TypeScript's tuple inclusion check is STRICTLY FORBIDDEN. Annotate parameters with the domain union type directly (e.g. `val: UserRole`) or encapsulate the check inside a dedicated `isDomainId` type guard.
-- **Ad-Hoc String Literal Union Prohibition**: Defining or casting string literal unions inline (e.g. `as 'read' | 'write'`, `: 'admin' | 'user'`, `as 'active' | 'inactive'`) instead of consuming canonical domain types (e.g. `UserRole`, `AccessLevel`) is STRICTLY FORBIDDEN. The `validate_domain_types` auditor flags all such occurrences as ERRORs. Whenever a finite domain union is needed, consume or define a named canonical domain type alias exported from shared domain contracts.
+- **Ad-Hoc String Literal Union Prohibition**: Defining or casting string literal unions inline (e.g. `as 'read' | 'write'`, `: 'admin' | 'user'`, `as 'active' | 'inactive'`) instead of consuming canonical domain types (e.g. `UserRole`, `AccessLevel`) is STRICTLY FORBIDDEN. `validate_oxlint` (`@francogp/domain-type` plugin) flags all such occurrences as ERRORs. Whenever a finite domain union is needed, consume or define a named canonical domain type alias exported from shared domain contracts.
 - **Helper Cast Wrappers / Anti-Cheat Prohibition**: Creating helper functions, arrow getters, or composables (e.g. `const toEntity = (d: unknown) => d as unknown as entity`) solely to wrap and conceal double type assertions is STRICTLY FORBIDDEN. Refactor the underlying types using Discriminated Unions (e.g. `type Listing = { type: 'entity'; data: entity } | { type: 'item'; data: Item }`) so TypeScript infers types naturally without any casts.
 - **Multi-Domain Dispatcher Cast Prohibition**: Creating centralized asset, data, or view resolvers that accept open `(category, id: string | number)` shapes without strict function overloads mapped to their domain unions (`ItemId`, `EntityId`, `RouteId`, `RoleId`).
 
@@ -443,19 +443,19 @@ The canonical domain type auditor is the `@francogp/domain-type` Oxlint plugin f
 
 ```bash
 # Standard in-depth audit across src/ and scripts/
-npm run auditor -- task=validate_oxlint
-# or: auditor task=validate_oxlint
+npm run auditor:domain-types
+# or: npm run auditor task=validate_oxlint
 
 # Full domain data suite audit
 auditor family=domain_data
 
-# Inspect domain findings in Box-Drawing tables
-npm run auditor:findings category=validate_domain_types
+# Inspect findings in Box-Drawing tables
+npm run auditor:findings category=validate_oxlint
 ```
 
 ### Full Verification Pipeline & Review Heuristics
 
-Verify domain types as part of the fast verification flow: `npm run lint`.
+Verify domain types during iterative edits with `npm run auditor:lint` (do not chain it alongside `npm run auditor`, which already includes `validate_oxlint`).
 If generator scripts or generated data were touched, inspect generator templates in `scripts/` to ensure strict types are emitted.
 
 **Review Heuristics**:
@@ -468,7 +468,7 @@ If generator scripts or generated data were touched, inspect generator templates
 
 ## Output Expectations
 
-When reporting work: name canonical domain types introduced or reused, report `validate_domain_types` results, and treat `vue-tsc`/lint errors as real migration debt.
+When reporting work: name canonical domain types introduced or reused, report `validate_oxlint` (`@francogp/domain-type`) results, and treat `vue-tsc`/lint errors as real migration debt.
 
 ---
 
@@ -476,6 +476,6 @@ When reporting work: name canonical domain types introduced or reused, report `v
 
 Consult `.auditor/audit.config.ts` dynamically:
 
-- **Chat Language (`config.documentation.chatLanguage`)**: Interactive chat communication and user dialogs.
-- **Documentation Language (`config.documentation.language`)**: Code comments, markdown files, and commit messages.
+- **Chat Language (`config.documentation.chatLanguage`)**: Interactive chat communication, user dialogs, and AI brain artifacts (`walkthrough.md`, `task.md`, `implementation_plan.md`).
+- **Documentation Language (`config.documentation.language`)**: Code comments, repository markdown files, and commit messages.
 - **Integrity**: Never confuse or conflate conversational chat language with repository file writing language.

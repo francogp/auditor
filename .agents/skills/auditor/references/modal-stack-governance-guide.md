@@ -375,7 +375,7 @@ Bind `resolveModalCssVars(entry)` to the modal root element and reference CSS cu
 
 ## 6. Priority-Ordered Modal Sequences (`ModalSequenceQueue`)
 
-When domain workflows (such as post-battle rewards, onboarding steps, or multi-stage wizards) must display several modals strictly one after another ordered by priority without `setInterval` polling—and when instantiating `createModalStack` inside UI/store modules governed by `@francogp/domain-type/no-raw-timers-in-ui`, inject a GSAP `delayedCall` `timerDriver` on `ModalStackConfig` so exit-animation safety timeouts use GSAP's animation ticker with zero raw `setTimeout`:
+When domain workflows (such as post-battle rewards, onboarding steps, or multi-stage wizards) must display several modals strictly one after another ordered by priority without `setInterval` polling—and when instantiating `createModalStack` inside UI/store modules governed by `@francogp/domain-type/no-gsap-banned-ui-timers`, inject a GSAP `delayedCall` `timerDriver` on `ModalStackConfig` so exit-animation safety timeouts use GSAP's animation ticker with zero raw `setTimeout`:
 
 ```typescript
 import { gsap } from 'gsap';

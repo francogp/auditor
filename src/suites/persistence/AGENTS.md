@@ -26,7 +26,7 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run persistence suite tests: `vp test tests/validate_sql_anti_patterns.test.ts tests/oxlint_valibot_parity_migration.test.ts` (or `npm test -- tests/validate_sql_anti_patterns.test.ts tests/oxlint_valibot_parity_migration.test.ts`)
+- Run persistence suite tests: `vp test run tests/validate_sql_anti_patterns.test.ts tests/oxlint_valibot_parity_migration.test.ts` (or `npm test -- tests/validate_sql_anti_patterns.test.ts tests/oxlint_valibot_parity_migration.test.ts`)
 - Run general audit: `npm run auditor:lint`
 
 ## Child DOX Index

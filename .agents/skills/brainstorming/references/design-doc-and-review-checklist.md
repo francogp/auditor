@@ -1,6 +1,6 @@
 # Decision Logs, Spec Self-Review Gate & Design Document Templates
 
-Comprehensive reference for **Phase 7 (Decision Log & Spec Self-Review)** and **Phase 8 (Implementation Handoff)** of the [`brainstorming`](../SKILL.md) skill.
+Comprehensive reference for **Stage 7 (Decision Log & Spec Self-Review)** and **Stage 8 (Implementation Handoff)** of the [`brainstorming`](../SKILL.md) skill.
 
 ## Table of Contents
 
@@ -135,10 +135,10 @@ When documenting the finalized design (either inline, in a persistent design doc
 
 ## 4. Pre-Handoff Architectural Governance Checklist
 
-Every `implementation_plan.md` and `task.md` generated during **Phase 8 (Implementation Handoff)** must explicitly enforce compliance with the repository's foundational governance skills:
+Every `implementation_plan.md` and `task.md` generated during **Stage 8 (Implementation Handoff)** must explicitly enforce compliance with the repository's foundational governance skills:
 
 1. **[`/architecture`](../../architecture/SKILL.md) (Master Governance)**:
-   - Configuration is the Single Source of Truth (`.auditor/audit.config.ts`). Zero hardcoded paths or fallback candidate lists.
+   - Configuration is the Single Source of Truth (`.auditor/audit.config.ts`). Zero hardcoded paths or fallback candidate lists, and zero manual edits to auditor-owned satellite configs (`vite.config.ts`, `tsconfig.json`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`, `.markdownlint.json`).
    - Fail loud and fast (`throw new Error(...)`). Zero backward-compatible shims or silent fallbacks.
    - Use native Node.js standard library modules (`node:fs`, `node:path`, `node:url`, `node:crypto`).
 2. **[`/domain-type-first`](../../domain-type-first/SKILL.md) (Strict Compile-Time Typing)**:
@@ -149,6 +149,6 @@ Every `implementation_plan.md` and `task.md` generated during **Phase 8 (Impleme
    - YAGNI enforced: zero speculative wrappers or dead abstractions.
 4. **[`/dox-navigator`](../../dox-navigator/SKILL.md) (DOX Hierarchy Synchronization)**:
    - Every new or modified source file and directory must be accurately indexed in its governing `AGENTS.md` under `## Key Files` or `## Child DOX Index`.
-   - Respect language separation dynamically configured in `.auditor/audit.config.ts` (`config.documentation.chatLanguage` for user dialogue vs. `config.documentation.language` for files, comments, and documentation).
-5. **[`/auditor`](../../auditor/SKILL.md) (Official Verification Tools)**:
-   - Verification steps must use canonical repository scripts (`npm run check`, `npm test`, `npm run auditor:findings`) rather than ad-hoc one-liner scripts.
+   - Respect language separation dynamically configured in `.auditor/audit.config.ts` (`config.documentation.chatLanguage` for user dialogue and AI brain artifacts vs. `config.documentation.language` for repository files, comments, and documentation).
+5. **[`/auditor`](../../auditor/SKILL.md) & [`/fallow`](../../fallow/SKILL.md) (Official Verification & Codebase Intelligence)**:
+   - Verification steps must use canonical repository scripts without redundant command chaining (`npm run auditor:lint` during iterative edits, and a single `npm test` + `npm run auditor` gate when work is complete; inspect findings via `npm run auditor:findings`) rather than ad-hoc one-liner scripts.

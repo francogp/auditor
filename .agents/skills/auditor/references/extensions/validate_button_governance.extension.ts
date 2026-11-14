@@ -11,9 +11,8 @@
  *   4. Canonical button variants only (btn-primary, btn-secondary, btn-dark, btn-3d, etc.).
  *
  * Usage in .auditor/audit.config.ts:
- *   import { ButtonGovernanceAuditor } from '../scripts/auditors/extensions/validate_button_governance.extension.ts';
  *   export default defineAuditConfig({
- *     extensions: [new ButtonGovernanceAuditor()]
+ *     extensions: ['scripts/auditors/extensions/validate_button_governance.extension.ts']
  *   });
  */
 

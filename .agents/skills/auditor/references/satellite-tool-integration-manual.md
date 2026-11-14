@@ -30,7 +30,7 @@ flowchart TD
     end
 
     subgraph Tier2 ["Tier 2: Static Verification Gate 0.0 (phase: setup)"]
-        E["npm run auditor / npm run auditor phase=setup"] --> F["deepCompareSatelliteConfig(ssotProjection, satelliteJson)"]
+        E["npm run auditor:setup / npm run auditor phase=setup"] --> F["deepCompareSatelliteConfig(ssotProjection, satelliteJson)"]
         F --> G{"Any undeclared, missing or divergent sub-properties?"}
         G -- Yes --> H["❌ Emit *-undeclared-config-entry<br/>Double-bordered Red Boxen Alert (Imperative Setup Blocking)"]
         H --> I["Developer / AI runs npm run auditor:fix"]
@@ -76,14 +76,12 @@ Whenever integrating a new external tool or extending an existing one that requi
 Declare the configuration contract under `AuditEngineConfig`:
 
 ```typescript
-export interface AuditMyToolConfig {
-  enabled?: boolean;
-  rules?: Record<string, 'error' | 'warn' | 'off'>;
-  thresholds?: {
-    maxDepth?: number;
-    maxComplexity?: number;
+export interface AuditMyToolConfig extends BaseAuditSubsystemConfig {
+  readonly rules?: Readonly<Record<string, 'error' | 'warn' | 'off'>>;
+  readonly thresholds?: {
+    readonly maxDepth?: number;
+    readonly maxComplexity?: number;
   };
-  ignoreGlobs?: string[];
 }
 ```
 

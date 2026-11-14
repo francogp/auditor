@@ -2,7 +2,7 @@
 
 ## Purpose & Core Philosophy
 
-In modern software architecture governed by `@francogp/auditor`, multiple underlying tools (Fallow, Vite+, Stylelint, TypeScript, HTML-Validate, Oxlint, etc.) require configuration files in the project root (`.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, `tsconfig.json`, `.htmlvalidate.json`).
+In modern software architecture governed by `@francogp/auditor`, multiple underlying tools (Fallow, Vite+, Stylelint, TypeScript, HTML-Validate, Markdownlint, Oxlint, etc.) require configuration files in the project root (`.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, `tsconfig.json`, `.htmlvalidate.json`, `.markdownlint.json`).
 
 Allowing developers or AI agents to manually edit these disparate configuration files causes:
 
@@ -35,7 +35,7 @@ The following table documents every satellite configuration file, its governing 
 
 ## 2. Forensic Case Study: Anti-Pattern in `poekborrador`
 
-In conversation [`poekborrador`](conversation://5e1a6657-8469-43ea-abd4-fbf454ea2ee6), a failure of agent judgment occurred:
+In a prior consumer session (`poekborrador`), a failure of agent judgment occurred:
 
 ```mermaid
 sequenceDiagram
@@ -48,7 +48,7 @@ sequenceDiagram
     Auditor->>Agent: fallow-workspace-diagnostic: 7 redundant ignore entries
     Note over Agent: Anti-Pattern: Agent treats .fallowrc.json as editable source code
     Agent->>User: Drafts plan: "Requesting authorization to edit .fallowrc.json manually"
-    User->>Agent: Confused: "no entendí, ¿ahora fallow va a analizar eso?"
+    User->>Agent: Confused: "Why is Fallow going to analyze those files now?"
     Agent->>FallowRc: Performs manual edit_file on .fallowrc.json
     Note over Auditor,FallowRc: VIOLATION: Bypassed validate_fallow_config native auto-fix!
 ```
@@ -113,7 +113,7 @@ If a third-party plugin factory returns a structurally incompatible legacy `Plug
 
 AI agents, developers, and architectural planning workflows (`/plan`, `/brainstorming`, `/architecture`, `/code-review`) are **STRICTLY AND CATEGORICALLY PROHIBITED** from:
 
-- Creating work plans or task lists that propose manual edits to satellite configurations (`.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, etc.).
+- Creating work plans or task lists that propose manual edits to satellite configurations (`.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, `tsconfig.json`, `.htmlvalidate.json`, `.markdownlint.json`).
 - Calling `write_file` or `edit_file` on satellite configuration files.
 - Asking the user for permission to edit satellite configuration files directly.
 - Bypassing, evading, or creating proxy scripts in `scratch/`, brain directories, or temporary paths to mutate satellite configuration files.
@@ -144,7 +144,7 @@ flowchart TD
     C --> D["Declare Change in .auditor/audit.config.ts<br/>(The SOLE Single Source of Truth)"]
     B -- No / Diagnostic Warning --> E["Run npm run auditor:fix<br/>(Auditor syncs & repairs all satellites)"]
     D --> E
-    E --> F["Verify with npm run auditor:lint & npm test"]
+    E --> F["Verify with npm run auditor:setup (or npm run auditor:lint)"]
 ```
 
 ### Step 1: Consult the Human Programmer (if altering governance)
@@ -157,7 +157,7 @@ Declare the desired change in the appropriate section of `.auditor/audit.config.
 
 ### Step 3: Run `npm run auditor:fix`
 
-The Auditor's setup suites (`phase: 'setup'`) execute in deterministic order (`resolveFixOrderWeight < 200`), reading `.auditor/audit.config.ts` and synchronizing `.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, and `tsconfig.json` automatically.
+The Auditor's setup suites (`phase: 'setup'`) execute in deterministic order (`resolveFixOrderWeight < 200`), reading `.auditor/audit.config.ts` and synchronizing `.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, `tsconfig.json`, `.htmlvalidate.json`, and `.markdownlint.json` automatically.
 
 ### 4.1 Granular File-Scoped Linter Overrides (`vitePlusConfig.lint.overrides`) vs. Global Rule Disablement
 
@@ -217,6 +217,6 @@ thirdPartyToolPolicy: {
 }
 ```
 
-If the third-party tool has no external satellite configuration file (such as `npm audit` in `validate_package_hygiene`), it must declare `explainSatelliteConfig: undefined` explicitly.
+If the third-party tool has no external satellite configuration file (such as `npm audit` in `validate_dependency_vulnerabilities` or Knip in `validate_package_hygiene`), it must declare `explainSatelliteConfig: undefined` explicitly.
 
 Omitting `explainSatelliteConfig` causes `BaseAuditor` and `auditorContractConformance` to fail loudly during instantiation with a blocking runtime error (`throw new Error(...)`).

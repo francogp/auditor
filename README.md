@@ -15,7 +15,7 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 5. [Strict Type Safety & Vite+ (Oxlint) Governance](#5-strict-type-safety--vite-oxlint-governance)
 6. [Integrated Quality & Analysis Tools (SSoT)](#6-integrated-quality--analysis-tools-ssot)
 7. [Bundle & Performance Packaging with Vite+](#7-bundle--performance-packaging-with-vite)
-8. [AI Agent Integration (57 Antigravity Skills)](#8-ai-agent-integration-57-antigravity-skills)
+8. [AI Agent Integration (68 Antigravity Skills)](#8-ai-agent-integration-68-antigravity-skills)
 9. [Authoring Custom Sub-Auditors](#9-authoring-custom-sub-auditors)
 10. [Centralized Configuration (`audit.config.ts`)](#10-centralized-configuration-auditconfigts)
 11. [Hermetic Testing with Vite+ & Vitest](#11-hermetic-testing-with-vite--vitest)
@@ -35,10 +35,10 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 - **Strict 3-Layer Interface Protection & Canary Introspection**: All framework registries and refactor engines implement strict, dedicated TypeScript interfaces (`IBaseEntityRegistry<TItem>`, `IRefactorEngine`). Singletons are exported masked with their interfaces (`SuiteIgnoreRegistry: ISuiteIgnoreRegistry`), compile-time exact type invariance is proven via `VerifyExact` in dedicated test canaries, and runtime prototype purity is verified by inspecting prototype keys against explicit module-level allowed sets (`REGISTRY_ALLOWED_PROTO_METHODS`) with zero alias methods.
 - **Node.js 26+ Native Path Utilities**: Strict enforcement of native Node.js path manipulation (`isPathContained`, `stripGlobSuffix`, `toPosixRelative`), eradicating fragile regex and third-party path dependencies.
 - **Strategic Remediation Order (`ruleRemediationPhases` & `npm run auditor:next`)**: Every rule is mapped to one of the 7 canonical strategic phases (`setup`, `prune`, `dedup`, `contracts`, `behavior`, `hygiene`, `polish`), enabling targeted iterative remediation.
-- **Diagnostic Remediation Guides (`ruleRemediations`)**: 100% of declared rules include structured 4-section remediation guides (`1. Root Cause / Causa Raíz`, `2. Diagnosis / Diagnóstico`, `3. Canonical Solution / Solución Canónica`, `4. Example / Ejemplo o auto-fix`), accessible on demand via `auditor guide <ruleId>`.
-- **Capability-Driven Auto-Coordination & Contract-Driven Auto-Fix (`AuditorRuleCapabilities`, `ruleFixers`)**: Sub-auditors declare explicit orthogonal per-rule capabilities (`speed: 'light' | 'heavy' | 'full'`, `phase: 'normal' | 'post-run' | 'post-build'`, `md: boolean`, `ast: boolean`, `changedOnly: boolean`, `critical: boolean`) with zero fallbacks, while `fix` is computed automatically by `BaseAuditor` from registered executable `ruleFixers`, replace patterns, or configuration files (`configFiles`). Zero manual fix booleans; rules without registered fixers unconditionally report `isFixable = false` (Zero False-Fix Mandate).
+- **Diagnostic Remediation Guides (`ruleRemediations`)**: 100% of declared rules include structured 4-section English remediation guides (`1. Root Cause`, `2. Diagnosis`, `3. Canonical Solution`, `4. Example / Command`), accessible on demand via `auditor guide <ruleId>`.
+- **Capability-Driven Auto-Coordination & Contract-Driven Auto-Fix (`AuditorRuleCapabilities`, `ruleFixers`)**: Sub-auditors declare explicit 6-field orthogonal per-rule capabilities (`speed: 'light' | 'heavy' | 'full' | readonly AuditExecutionSpeed[]`, `phase: 'setup' | 'normal' | 'post-run' | 'post-build'`, `md: boolean`, `ast: boolean`, `changedOnly: boolean`, `critical: boolean`) with zero fallbacks, while `fix` (`'none' | 'normal' | 'priority'`) is computed automatically by `BaseAuditor` from registered executable `ruleFixers`, replace patterns, or configuration files (`configFiles`). Zero manual fix booleans; rules without registered fixers unconditionally report `isFixable = false` (Zero False-Fix Mandate).
 - **3-Tier Speed Engine (`light` `🐇`, `heavy` `🐢`, `full` `🐘`) & `TieredCommandProfile`**: Supports cumulative ceiling mode (`speed=light|heavy|full`, default `speed=heavy`) and exact isolation mode (`only-speed=light|heavy|full`). Type-checking and semantic lint verification are unified across 100% of tiers in `validate_oxlint` (`--type-aware` and `--type-check`), while tiered profiles optimize tool scopes and heavy operations (such as test coverage, vector analysis, and cascades).
-- **RAM Optimization (`WorkspaceFileCache` & `scanFilesSinglePass`)**: Deduplicates file reads across rules via `WorkspaceFileCache` (`getFileLines()`, `getFileContent()`, `scanFilesSinglePass(files, handlers)`), enforced by `validate_auditor_hygiene` (`auditor-inefficient-file-scan`).
+- **RAM Optimization (`WorkspaceFileCache` & `scanFilesSinglePass`)**: Deduplicates file reads across rules via `WorkspaceFileCache` (`getFileLines()`, `getFileContent()`, `scanFilesSinglePass(files, handlers)`), enforced natively in `validate_oxlint` (`@francogp/domain-type` plugin: `auditor-inefficient-file-scan`).
 - **Strict Domain-Type-First Governance**: Complete static eradication of arbitrary type bypasses (`: any`, `as any`, `<any>`, and `as unknown as`) and legacy `new Date()` / `Date.now()` constructors in favor of Temporal API.
 - **Automated Vite+ Configuration Auditor (`validate_vite_plus_config`)**: Statically analyzes `vite.config.ts` to ensure host projects enforce strict type safety, banning `any`, double casting, and legacy dates, while prohibiting legacy standalone configs.
 - **Official Living Specification Engines**: Standards enforcement via official linters (`html-validate`, `stylelint`, `knip`, `publint`, `type-coverage`, `vue-tsc`) rather than handcrafted regex.
@@ -93,10 +93,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.12.4`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.12.5`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.12.4 --allow-git=all
+npm install -D github:francogp/auditor#v10.12.5 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -106,7 +106,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.12.4"
+    "@francogp/auditor": "github:francogp/auditor#v10.12.5"
   }
 }
 ```
@@ -142,7 +142,7 @@ In **npm 12+**, lifecycle installation scripts (`preinstall`, `postinstall`) are
 
 1. **Virgin Projects**: Automatically scaffolds `.auditor/audit.config.ts` with 100% of discovered sub-auditors and registered extensions initialized with their canonical default configurations.
 2. **Existing / Older Projects**: Detects newly added sub-auditors or missing configuration sections, automatically injecting them via TypeScript Compiler AST (`appendMissingSectionsToConfigFile`) without altering any existing user settings.
-3. **Antigravity AI Agent Discovery**: Automatically registers `.agents/plugins.json` and `.agents/skills.json` so Antigravity AI agents instantly discover all 52+ skills without duplicating files.
+3. **Antigravity AI Agent Discovery**: Automatically registers `.agents/plugins.json` and `.agents/skills.json` so Antigravity AI agents instantly discover all 68 bundled skills without duplicating files, while strictly preserving each existing host project's independent `AGENTS.md` hierarchy (`auditor init` scaffolds Day-0 `AGENTS.md` only when initializing a brand-new repository).
 4. **Git Hygiene**: Automatically synchronizes required `.gitignore` tool cache entries (`scratch/`, etc.).
 5. **npm 12+ git dependencies**: Ensures `.npmrc` contains `allow-git=all` (idempotent, preserves other lines) for git dependencies resolution without flags.
 6. **CI/CD Safety**: In automated CI environments (`process.env.CI = 'true'`), auto-mutation is cleanly inhibited to ensure deterministic and immutable build gates.
@@ -160,37 +160,37 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.12.4
+npm run auditor:update v10.12.5
 # or directly:
-auditor-update v10.12.4
+auditor-update v10.12.5
 ```
 
-`auditor-update` snapshots `package.json`, `package-lock.json`, and `.npmrc` (rolling them back cleanly on failure), pre-elevates declared dependency ranges to SSoT minimums while pruning stale `vite-plus`/`vitest`/`@vitest/*` lockfile clusters to prevent `ERESOLVE` peer conflicts, installs the pinned `@francogp/auditor` tag, synchronizes agent skills in `.agents/skills/` and environment scripts (`setup-windows.ps1`, `setup-linux.sh`), runs `auditor fix`, and automatically upgrades any declared production or development dependencies below the newly installed auditor's `peerDependencies` floors.
+`auditor-update` snapshots `package.json`, `package-lock.json`, and `.npmrc` (rolling them back cleanly on failure), pre-elevates declared dependency ranges to SSoT minimums while pruning stale `vite-plus`/`vitest`/`@vitest/*` lockfile clusters to prevent `ERESOLVE` peer conflicts, installs the pinned `@francogp/auditor` tag, synchronizes agent skills registration and environment scripts (`setup-windows.ps1`, `setup-linux.sh`), runs `auditor fix`, and automatically upgrades any declared production or development dependencies below the newly installed auditor's `peerDependencies` floors.
 
 To inspect whether an update is available without making changes (safe read-only inspection), pass `check` (`-c`):
 
 ```bash
-npm run auditor:update -- check
+npm run auditor:update check
 # or directly:
-auditor-update --check
+auditor-update check
 ```
 
 To display help and available options safely, pass `help` (`-h`):
 
 ```bash
-npm run auditor:update -- help
+npm run auditor:update help
 # or directly:
-auditor-update --help
+auditor-update help
 ```
 
 > Dependency changes use `npm install` to regenerate `package-lock.json`; commit it together with `package.json`. Setup scripts install with `npm ci` and, if it fails because the lockfile is out of sync, fall back to `npm install` and print a warning that the lockfile was modified.
 
 ### Mandatory Minimum Library Versions & Caret Ranges (`validate_dependency_minimums`)
 
-The auditor exposes a conditional version floor for shared libraries (`typescript`, `vite-plus`, `@vitest/coverage-v8`, `citty`, `@types/node`, `@vitejs/plugin-vue`, `vue`, `vue-router`, `pinia`, `gsap`, `valibot`, `sass`, `html-validate`, `markdownlint-cli`, `fallow`, `@playwright/test`) through the **optional `peerDependencies`** of `@francogp/auditor/package.json` (single source of truth, zero hardcoded versions).
+The auditor exposes a conditional version floor for all 17 shared optional peer libraries (`typescript`, `vite-plus`, `@vitest/coverage-v8`, `citty`, `@types/node`, `@vitejs/plugin-vue`, `vue`, `vue-router`, `pinia`, `gsap`, `valibot`, `sass`, `html-validate`, `markdownlint-cli`, `fallow`, `fallow-similar-code`, `@playwright/test`) through the **optional `peerDependencies`** of `@francogp/auditor/package.json` (single source of truth, zero hardcoded versions).
 
-- If your project declares one of these libraries (`dependencies`, `devDependencies`, `optionalDependencies`), both the declared range and the version locked in `package-lock.json` must be at least the auditor floor; otherwise the audit fails with the exact command (e.g. `npm install -D vite-plus@^1.4.0`).
-- **Zero Pinned Versions Mandate (`dependency-exact-version-pinned`)**: Under modern npm standards, dependencies MUST declare minimum ranges using caret (`^`) or greater-than operators (e.g. `"^1.4.0"`). Pinned exact version numbers without range operators (e.g. `"1.4.0"`) are strictly flagged by `validate_dependency_minimums` and automatically repaired to caret ranges via `auditor fix`.
+- If your project declares one of these libraries (`dependencies`, `devDependencies`, `optionalDependencies`), both the declared range and the version locked in `package-lock.json` must be at least the auditor floor; otherwise the audit fails with the exact command (e.g. `npm install -D vite-plus@^1.6.0`).
+- **Zero Pinned Versions Mandate (`dependency-exact-version-pinned`)**: Under modern npm standards, dependencies MUST declare minimum ranges using caret (`^`) or greater-than operators (e.g. `"^1.6.0"`). Pinned exact version numbers without range operators (e.g. `"1.6.0"`) are strictly flagged by `validate_dependency_minimums` and automatically repaired to caret ranges via `auditor fix`.
 - **Dynamic Vite+ Overrides (`"$vite"`, `"$vitest"`)**: To prevent transitive version collisions and fatal `EOVERRIDE` conflicts when upgrading Vite+, the auditor synchronizes package overrides using dynamic references (`"vite": "$vite"`, `"vitest": "$vitest"`), cleanly binding transitive plugins directly to the version declared in `devDependencies`.
 - Libraries you do not use are never required (peers are optional, so npm does not install them).
 - To raise a floor for every consumer, edit the auditor `peerDependencies` and release a new tag.
@@ -207,13 +207,14 @@ auditor-dependencies
 auditor dependencies
 ```
 
-Supported options:
+Supported Citty options (pass directly as bare positional/key-value tokens after `npm run auditor:dependencies`, or with `--` flags on `auditor-dependencies`):
 
-- `--json`: Emit structured JSON output (`ProjectDependenciesReport`) for scripts and AI agents.
-- `--outdated`: Filter table to display only dependencies whose declared range or installed version is below the mandatory floor.
-- `--undeclared`: Display only auditor-governed libraries not currently declared in the host project.
-- `--strict`: Exit with code 1 if any declared dependency is outdated (ideal for CI pipelines).
-- `--project=<path>`: Inspect dependencies of a specific host project directory.
+- `json` (`--json`): Emit structured JSON output (`ProjectDependenciesReport`) for scripts and AI agents.
+- `outdated` (`--outdated`): Filter table to display only dependencies whose declared range or installed version is below the mandatory floor.
+- `undeclared` (`--undeclared`): Display only auditor-governed libraries not currently declared in the host project.
+- `strict` (`--strict`): Exit with code 1 if any declared dependency is outdated (ideal for CI pipelines).
+- `commands` (`--commands`): Print grouped `npm install` upgrade commands ready to execute.
+- `project=<path>` (`--project=<path>`): Inspect dependencies of a specific host project directory.
 
 #### Advising & Hardening Configuration Settings CLI (`auditor:config` / `auditor-config`)
 
@@ -225,20 +226,20 @@ npm run auditor:config
 auditor-config
 ```
 
-Supported options:
+Supported Citty options (pass directly as bare tokens after `npm run auditor:config`, e.g. `npm run auditor:config diff`):
 
-- `--human`: Render interactive Box-Drawing tables with `SUBSYSTEM`, `SETTING`, `CURRENT`, `RECOMMENDED`, `RATIONALE`, and preserved strict rules table.
-- `--diff`: Display proposed configuration changes in TypeScript/JSON format without modifying files on disk.
-- `--apply`: Safely and additively write missing sections and recommended hardening into `.auditor/audit.config.ts` via AST (`appendMissingSectionsToConfigFile`).
-- `--subsystem=<name>`: Restrict evaluation to a single configuration section (e.g. `subsystem=fallow` or `subsystem=vitePlusConfig`).
-- `--json`: Emit structured JSON report (`ConfigAdvisorReport`) for automated pipelines and AI agents.
-- `--help`: Display usage manual and CLI flags.
+- `human` (`--human`): Render interactive Box-Drawing tables with `SUBSYSTEM`, `SETTING`, `CURRENT`, `RECOMMENDED`, `RATIONALE`, and preserved strict rules table.
+- `diff` (`--diff`): Display proposed configuration changes in TypeScript/JSON format without modifying files on disk.
+- `apply` (`--apply`): Safely and additively write missing sections and recommended hardening into `.auditor/audit.config.ts` via AST (`appendMissingSectionsToConfigFile`).
+- `subsystem=<name>` (`--subsystem=<name>`): Restrict evaluation to a single configuration section (e.g. `subsystem=fallow` or `subsystem=vitePlusConfig`).
+- `json` (`--json`): Emit structured JSON report (`ConfigAdvisorReport`) for automated pipelines and AI agents.
+- `help` (`--help`): Display usage manual and CLI flags.
 
 > [!NOTE]
 > **The Unidirectional Config Ratchet Guarantee**:
 > If your project already configures stricter thresholds (e.g. `maxCognitive: 12` vs default 20) or higher coverage floors (`threshold: 95` vs default 80), `auditor:config` **NEVER recommends relaxing them**. It honors and preserves all preexisting strict settings.
 
-### 3.2. Auditor Configuration Architecture & SSoT (`.auditor/audit.config.ts`)
+### 3.1. Auditor Configuration Architecture & SSoT (`.auditor/audit.config.ts`)
 
 Every host project is governed by a Single Source of Truth configuration file located strictly at `.auditor/audit.config.ts` (or `.auditor/audit.config.json`):
 
@@ -246,18 +247,19 @@ Every host project is governed by a Single Source of Truth configuration file lo
 import { defineAuditConfig } from '@francogp/auditor';
 
 export default defineAuditConfig({
-  name: 'MiProyecto',
-  // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.12.4-build.20261114-020601',
+  name: 'MyProject',
+  // Automatically synchronized by the auditor pre-flight bootstrap (SemVer + Build ID):
+  auditorVersion: '10.12.5-build.20261114-144219',
   paths: {
+    enabled: true,
     srcRoots: ['src'],
     testRoots: ['tests'],
     scriptsRoots: ['scripts']
   },
   documentation: {
     enabled: true,
-    language: 'en', // Idioma del repositorio (código, docs, commits)
-    chatLanguage: 'es' // Idioma de interacción y chat del agente de IA
+    language: 'en', // Repository writing language (code comments, docs, commits)
+    chatLanguage: 'es' // AI agent chat and brain-artifacts language
   },
   testCoverage: {
     enabled: true,
@@ -293,11 +295,11 @@ npm run auditor:fix
 The engine will:
 
 1. Inspect all active built-in sub-auditors and registered host extensions.
-2. Check for naming collisions across commands (`[COLISIÓN DE COMANDOS]`).
+2. Check for naming collisions across commands (`[COMMAND COLLISION]`).
 3. Inject any missing scripts into your `package.json` without modifying or duplicating your existing custom scripts or aliases.
 4. Automatically chain `npm run auditor:full` and `npm run auditor:post-build` into your `build` script.
 
-### 3.1. AI Agent Installation & Onboarding Protocol (Environment & Config First)
+### 3.2. AI Agent Installation & Onboarding Protocol (Environment & Config First)
 
 When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates, installs, or updates `@francogp/auditor` in any host repository, it **MUST strictly execute this sequence**:
 
@@ -307,7 +309,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.12.4"`), or install via `npm install -D github:francogp/auditor#v10.12.4 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.12.5"`), or install via `npm install -D github:francogp/auditor#v10.12.5 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -330,13 +332,12 @@ In fix mode, `@francogp/auditor` executes **100% serially (`concurrency = 1`)** 
 3. **Phase 3 — Third-Party Linter Repair (`fix: 'normal'`)**: `validate_oxlint`, `validate_stylelint`, `validate_html_validate`, and `validate_markdown_lint`.
 4. **Phase 4 — Final Formatting Pass (`fix: 'normal'`)**: `validate_oxfmt` runs as the absolute final step so all repaired files and configurations end in 100% canonical formatting.
 
-#### Step 4: Verify Clean Baseline
+#### Step 4: Verify Clean Baseline (Without Redundant Re-Runs)
 
-Establish the clean baseline by running fast presets:
+Establish the clean baseline with a single fast light pass (`auditor:lint` already includes 100% of `auditor:md` suites, so never run `auditor:md` immediately after `auditor:lint`):
 
 ```bash
 npm run auditor:lint
-npm run auditor:md
 ```
 
 #### Step 5: Absolute Prohibition on Silencing Rules
@@ -347,6 +348,15 @@ AI agents and developers are strictly forbidden from suppressing, disabling, or 
 
 ## 4. Execution Modes & Capability-Driven Presets
 
+> [!IMPORTANT]
+> **Zero Redundant Execution & Strict Command Containment (`auditor:lint ⊂ auditor ⊂ auditor:full ⊂ npm run build`)**:
+> Higher-tier commands already execute 100% of lower-tier checks:
+>
+> - `npm run auditor:lint` (`speed=light` `🐇`) already runs 100% of `npm run auditor:md` (`preset=md`) plus fast Oxlint/Stylelint/HTML/AST checks. Run `npm run auditor:md` **ONLY** when exclusively `.md` / `AGENTS.md` files changed.
+> - `npm run auditor` (`speed=heavy` `🐢`) already runs 100% of `auditor:setup`, `auditor:lint`, `auditor:md`, `auditor:fallow`, and the Warning Ratchet.
+> - `npm run build` already chains `npm run auditor:full` (`speed=full` `🐘`), production bundling (`vp build` / `vp pack`), and `npm run auditor:post-build` (`phase=post-build`).
+> - **NEVER** chain `npm run test:coverage` + `npm run auditor` + `npm run build` or re-run individual sub-suites (`auditor:oxlint`, `auditor:fallow`, `auditor:md`) after a superset gate has already executed; inspect `scratch/audits/latest_audit.json` via `npm run auditor:next` / `npm run auditor:findings` instead!
+
 ### 4.1. AI-Friendly Compact Mode (Default) vs. Human Mode (`:human`)
 
 By default, all auditor commands execute in an **AI-friendly compact mode** designed for token efficiency, machine parseability, and zero console spam:
@@ -356,7 +366,7 @@ By default, all auditor commands execute in an **AI-friendly compact mode** desi
 - **Status Verdict**: Upon completion, a concise 3-line English status block summarizes the result:
 
 ```text
-✔ AUDIT PASSED [73/80 suites] in 1.42s
+✔ AUDIT PASSED [54/54 suites] in 1.42s
   Errors: 0 | Warnings: 0 | Ratchet: OK
   Report: scratch/audits/latest_audit.json
 ```
@@ -418,51 +428,55 @@ auditor only-speed=full
 - Renders the Box-Drawing consolidated summary table with the `TOTAL CONSOLIDADO` footer row.
 - Saves full structured results to `scratch/audits/latest_audit.json`.
 
-### 4.3. Dynamic Discovery & Suite Introspection (`--list`, `--info`)
+### 4.4. Dynamic Discovery & Suite Introspection (`list`, `info`, `guide`)
 
-Discover and inspect suites dynamically without reading source code:
+Discover and inspect suites dynamically without reading source code (Citty normalizes positional subcommands and `key=value` tokens automatically without `--`):
 
 ```bash
 # Render 80-column Box-Drawing table of all discovered suites and capabilities:
-auditor --list
+npm run auditor list
+# or directly:
+auditor list
 
 # Emit complete manifest catalog in JSON format (AuditorManifestDTO[]):
+npm run auditor list json
+# or directly:
 auditor --list --json
 
 # Inspect single suite specification, purpose, evaluated rules, and configuration key:
+npm run auditor info=validate_oxlint
+# or directly:
 auditor --info=validate_oxlint
 
 # Interactive CLI help manual and specialized refactoring tools catalog:
 npm run auditor:help
 # or directly:
-auditor --help
+auditor help
 
 # Specific rule step-by-step diagnostic & remediation manual:
-npm run auditor:guide -- <ruleId>
+npm run auditor:guide <ruleId>
 # or directly:
 auditor guide <ruleId>
 ```
 
-### 4.4. Fast Light Preset (`auditor:lint` / `speed=light` `🐇`)
+### 4.5. Fast Light Preset (`auditor:lint` / `speed=light` `🐇`)
 
-Dynamically isolates and executes only suites declaring `speed: 'light'` (or multi-profile `speed: ['light', 'full']` in light syntax-only mode) in milliseconds:
+Dynamically isolates and executes only suites declaring `speed: 'light'` (or multi-profile `speed: ['light', 'full']` in light mode) in milliseconds:
 
 ```bash
 npm run auditor:lint
 # or:
 auditor speed=light
 
-# Run unified TypeScript compiler type-check and lint verification:
-npm run auditor:type-check
-# or:
+# Run unified TypeScript compiler type-check and lint verification standalone when needed:
 npm run auditor:oxlint
 ```
 
-Discovers `light`-tier (`🐇`) suites dynamically (including Oxlint syntax-only mode, Stylelint, HTML-Validate, Markdownlint, A11y, Domain Types, Vue SFC hygiene, and AST checkers).
+Discovers `light`-tier (`🐇`) suites dynamically (including Oxlint with `--type-aware` and `--type-check`, Stylelint, HTML-Validate, Markdownlint, A11y, `@francogp/domain-type` AST rules, and all `preset=md` documentation suites).
 
-### 4.5. Documentation Preset (`preset=md`)
+### 4.6. Documentation Preset (`preset=md`)
 
-Dynamically isolates and executes suites declaring `md: true` in their `ruleCapabilities`:
+Dynamically isolates and executes suites declaring `md: true` in their `ruleCapabilities` (use exclusively on Markdown-only edits; `auditor:lint` already includes 100% of these suites):
 
 ```bash
 npm run auditor:md
@@ -472,9 +486,9 @@ auditor preset=md
 
 Discovers documentation suites dynamically (including DOX hierarchy, Markdown syntax, link integrity, Mermaid diagram syntax, code references, and authentic documented commands).
 
-### 4.6. Auto-Fix Mode (`auditor fix`)
+### 4.7. Auto-Fix Mode (`auditor fix`)
 
-Dynamically isolates and runs only suites declaring `fix: 'priority'` or `fix: 'normal'` under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal interface (`fix: 'priority'` suites execute first):
+Dynamically isolates and runs only suites declaring `fix: 'priority'` or `fix: 'normal'` under the dedicated auto-repair terminal interface (`fix: 'priority'` suites execute first):
 
 ```bash
 npm run auditor:fix
@@ -484,24 +498,24 @@ auditor fix
 
 Auto-repair suites include: `validate_audit_config`, `validate_git_config`, `validate_vite_plus_config`, `validate_fallow_config`, `validate_agent_plugin`, `validate_oxlint`, `validate_oxfmt`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene` (Knip dependency fixes), and `validate_z_index`.
 
-### 4.7. Built-In Warning Ratchet (0 errors, 0 new warnings)
+### 4.8. Built-In Warning Ratchet (0 errors, 0 new warnings)
 
 Every full default run (`npm run auditor` / `auditor`) and exhaustive run (`npm run auditor:full`) enforces the warning ratchet. Each warning is fingerprinted by content (suite, rule, file, normalized source line, occurrence index), so moving code does not change it, while new or edited offending lines do. The run fails when any fingerprint is missing from `.auditor/audit-baseline.json` as committed at `ratchet.productionRef` (default `origin/main`), including warnings in files you did not touch.
 
 ```bash
 git fetch origin
-npm run auditor                     # 0 errors + 0 new warnings vs origin/main
-npm run auditor -- init-baseline    # one-time bootstrap when the production ref has no baseline yet
+npm run auditor                  # 0 errors + 0 new warnings vs origin/main
+npm run auditor init-baseline    # one-time bootstrap when the production ref has no baseline yet
 ```
 
 - The baseline only shrinks: clean full runs rewrite it when warnings disappear; commit the updated file.
 - Local fingerprints absent from the production baseline, a missing local baseline, or an unresolvable ref fail loudly. There is no accept-new escape hatch.
-- Virgin repositories (no `HEAD`) and local repositories using the default `origin/main` without an `origin` remote bootstrap cleanly via `--init-baseline` (`local-bootstrap`) until `origin/main` is published; once `origin` exists or an explicit `productionRef` is set, unresolvable refs fail loudly.
+- Virgin repositories (no `HEAD`) and local repositories using the default `origin/main` without an `origin` remote bootstrap cleanly via `init-baseline` (`local-bootstrap`) until `origin/main` is published; once `origin` exists or an explicit `productionRef` is set, unresolvable refs fail loudly.
 - Partial runs (`speed=light`, `only-speed=...`, `preset=md`, families, tasks, rules, `changed-since`, `fix`, `phase=post-build`) skip the ratchet.
 - CI checkouts must expose the production ref (for example `fetch-depth: 0`).
 - The former `audit:for-commit` / `auditor-commit` gate is removed; `validate_audit_config` flags leftover scripts (`audit-config-removed-commit-gate`) and `auditor fix` rewrites them.
 
-### 4.8. Post-Build Artifact Phase (`auditor:post-build` / `phase=post-build` / `auditor-post-build`)
+### 4.9. Post-Build Artifact Phase (`auditor:post-build` / `phase=post-build` / `auditor-post-build`)
 
 Dynamically isolates and executes suites declaring `phase: 'post-build'` against compiled distribution artifacts in `dist/`:
 
@@ -515,9 +529,9 @@ auditor-post-build
 
 Executes `validate_bundle_budget` post-compilation against `dist/` (ATTW and Publint are executed natively by `vp pack`).
 
-### 4.9. Deployment Build Runner (`build:deploy` / `auditor-build-deploy`)
+### 4.10. Deployment Build Runner (`build:deploy` / `auditor-build-deploy`)
 
-In headless deployment environments (Docker builds, deployment scripts, CI containers, GitHub Actions), execute:
+In headless deployment environments (Docker builds, deployment scripts, CI containers, GitHub Actions — never executed locally inside consumer apps), execute:
 
 ```bash
 npm run build:deploy
@@ -532,45 +546,45 @@ Under `AUDITOR_ENV=production` or `CI=true`:
 - Executes all remaining static analysis suites and post-build verification (`auditor:post-build`) at 100% strictness.
 - In case of failure or setup blocking, automatically suppresses interactive local AI remediation hints and directly prints the **Top 10 errors** (`Top Blocking Errors` or `Top Detected Errors`) with file, line, rule, and message for fast headless CI diagnosis.
 
-### 4.10. Remote Project Execution (`--project`, `-p`)
+### 4.11. Remote Project Execution (`project=<path>`, `--project`, `-p`)
 
-During framework development or refactoring of `@francogp/auditor`, you can test changes, auto-fixers, and new sub-auditors against any local repository on the same machine **without publishing, linking (`npm link`), or committing to GitHub**:
+During framework development or refactoring of `@francogp/auditor`, you can test changes, auto-fixers, and new sub-auditors against any local repository on the same machine **without publishing, linking (`npm link`), mutating `node_modules/`, or committing to GitHub**:
 
 ```bash
 # Run full audit against another project on the local disk:
-npm run auditor -- project="../my-app"
+npm run auditor project="../my-app"
 
 # Run quick lint against remote project:
-npm run auditor:lint -- project="../my-app"
+npm run auditor:lint project="../my-app"
 
 # Run auto-fix on remote project:
-npm run auditor:fix -- project="../my-app"
+npm run auditor:fix project="../my-app"
 
 # Inspect findings report from remote project:
-npm run auditor:findings -- project="../my-app"
+npm run auditor:findings project="../my-app"
 ```
 
 #### Supported Flag Formats
 
-- `--project=<path>` or `--project <path>`
 - `project=<path>`
+- `--project=<path>` or `--project <path>`
 - `-p <path>` or `-p=<path>`
 
 #### Architecture & Subprocess Coordination
 
 ```mermaid
 flowchart TD
-  CLI["CLI: npm run auditor -- project='../my-app'"] --> B["bootstrapCliProject() en cliUtils.ts"]
-  B --> C{"¿Bandera de proyecto detectada?"}
-  C -- No --> D["process.cwd() local sin cambios"]
-  C -- Sí --> E["Validar targetDir y package.json con node:path & node:fs"]
+  CLI["CLI: npm run auditor project='../my-app'"] --> B["bootstrapCliProject() in cliUtils.ts"]
+  B --> C{"Project flag detected?"}
+  C -- "No" --> D["Keep local process.cwd() unchanged"]
+  C -- "Yes" --> E["Validate targetDir and package.json with node:path & node:fs"]
   E --> F["AUDITOR_HOME_DIR = cwd() | AUDIT_PROJECT_ROOT = targetDir"]
   F --> G["process.chdir(targetDir)"]
-  G --> H["loadAuditConfig() en el Host (my-app)"]
+  G --> H["loadAuditConfig() in Host (my-app)"]
   D --> H
-  H --> I["Descubrir Suites Oficiales + Extensiones del Host"]
-  I --> J["Ejecutar StreamingRunner & Workers (cwd = Host)"]
-  J --> K["Escribir Resultados en Host/scratch/audits/"]
+  H --> I["Discover Official Suites + Host Extensions"]
+  I --> J["Execute StreamingRunner & Workers (cwd = Host)"]
+  J --> K["Write Results to Host/scratch/audits/"]
 
   style CLI fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
   style B fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc
@@ -583,7 +597,7 @@ flowchart TD
 - **Binary Fallback**: If an external linter binary is not installed in the host's `node_modules/.bin/`, the framework falls back to `AUDITOR_HOME_DIR/node_modules/.bin/`.
 - **Zero Host Pollution**: Runs directly from `@francogp/auditor` in memory and writes reports directly into `host/scratch/audits/`.
 
-### 4.10. Findings & Rule Inspection Tools (`auditor:next`, `auditor:findings`, `auditor:rules`, `auditor:by-file`)
+### 4.12. Findings & Rule Inspection Tools (`auditor:next`, `auditor:findings`, `auditor:rules`, `auditor:by-file`)
 
 Inspect, filter, and drill down into audit findings recorded in `scratch/audits/latest_audit.json` without writing custom inspection scripts:
 
@@ -599,13 +613,13 @@ npm run auditor:rules
 auditor-findings rules
 
 # Filter findings by a specific rule ID:
-npm run auditor:findings -- rule=vue-sfc-lang-ts
+npm run auditor:findings rule=vue-sfc-lang-ts
 
 # Exhaustive un-truncated output (ideal for AI agents and terminals):
-npm run auditor:findings -- flat
+npm run auditor:findings flat
 
 # Filter by multiple files or directories:
-npm run auditor:findings -- file=src/core/version.ts,src/cli/report_findings.ts
+npm run auditor:findings file=src/core/version.ts,src/cli/report_findings.ts
 
 # Hierarchical directory tree view:
 npm run auditor:by-file
@@ -619,8 +633,8 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 
 1. **Unified Configuration (`vite.config.ts`)**:
    - Mandatory Canonical 8-Plugin Suite: `['vitest', 'node', 'promise', 'unicorn', 'typescript', 'vue', 'import', 'jsx-a11y']` active by default across all Node 26+, Vitest, and Vue projects.
-   - `@typescript-eslint/no-explicit-any: 'error'`
-   - `@typescript-eslint/ban-ts-comment: 'error'`
+   - `typescript/no-explicit-any: 'error'` (Oxlint native `typescript/*` rule keys; legacy `@typescript-eslint/*` keys are prohibited).
+   - `typescript/ban-ts-comment: 'error'`
    - Double casting restriction (`as unknown as`) and legacy `new Date()` / `Date.now()` ban.
 2. **Static AST Rule `forbiddenTypeCasts`**:
    - Evaluated by `audit_project.ts` across all source roots.
@@ -635,40 +649,34 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 
 `@francogp/auditor` serves as the Single Source of Truth for static analysis dependencies:
 
-| Tool                           | Integrated Suite                                            | Capability                                                                                                                                                                    |
-| :----------------------------- | :---------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Vite+ Oxlint**               | `validate_oxlint`                                           | Ultra-fast syntax and code hygiene verification via Vite+ engine (`vp lint`) with `--fix`.                                                                                    |
-| **Vite+ Oxfmt**                | `validate_oxfmt`                                            | Source code formatting hygiene validation via Vite+ engine (`vp fmt`) with `--fix`.                                                                                           |
-| **Vite+ Config**               | `validate_vite_plus_config`                                 | Strict Vite+ unified configuration validator in `vite.config.ts`, anti-castration enforcement, and dynamic exclude sync.                                                      |
-| **`fallow`**                   | `validate_fallow`, `report_fallow`, `validate_similar_code` | Refactoring targets, dead code, AST duplicates, Candle CPU vector similarity, CWE security.                                                                                   |
-| **Git**                        | `validate_git_config`                                       | Local repository configuration governance (`core.filemode false`, `core.autocrlf input`, `core.eol lf`) with auto-fix.                                                        |
-| **Auditor Hygiene**            | `validate_auditor_hygiene`                                  | Anti-pattern, single-pass file scanning (`auditor-inefficient-file-scan`), and homebrew helper governance across core sub-auditors and host extensions (`scripts/auditors/`). |
-| **`valibot`**                  | `validate_valibot_parity`                                   | Bidirectional parity between TypeScript interfaces, Valibot schemas, and persistence serializers.                                                                             |
-| **Web Storage & Persistence**  | `validate_persistence_client`                               | Client-side `localStorage`/`sessionStorage` governance, bracket notation, untyped keys, and quota error guards.                                                               |
-| **Vue 3 SFC & Routing**        | `validate_vue_sfc_hygiene`                                  | `<script setup lang="ts">` standards, pure non-mutating template expressions, and SPA routing hygiene.                                                                        |
-| **Domain Data & O(1)**         | `validate_o1_data_structures`, `validate_canonical_domains` | $O(1)$ complexity governance, catalog collision prevention, and domain union deduplication.                                                                                   |
-| **`stylelint`**                | `validate_stylelint`                                        | CSS, SCSS, and Vue SFC style validation, property order, Wallace complexity, `--fix`.                                                                                         |
-| **`html-validate`**            | `validate_html_validate`                                    | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation.                                                                                                  |
-| **Magic Numbers (AST)**        | `validate_magic_numbers`                                    | Native TypeScript Compiler AST magic numbers governance with shared context, universal sentinels, and zero directory ignores.                                                 |
-| **Stylelint Config**           | `validate_stylelint_config`                                 | Stylelint configuration integrity, 13 canonical design token properties, configurable `strictValues`, and auto-repair (`--fix`).                                              |
-| **`knip`**                     | `validate_package_hygiene`                                  | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`.                                                                                   |
-| **Vite+ Pack (`vp pack`)**     | `vp pack` (Rust Native)                                     | Official ATTW type resolution and Publint export map hygiene verified during build.                                                                                           |
-| **`@secretlint/core`**         | `validate_secret_leaks`                                     | High-entropy secret, API key, and cryptographic token leak detection.                                                                                                         |
-| **`npm audit`**                | `validate_dependency_vulnerabilities`                       | Vulnerability scanning and known CVEs across package dependencies.                                                                                                            |
-| **`type-coverage`**            | `validate_type_coverage`                                    | Quantitative TypeScript coverage percentage (≥95%) and untyped symbol discovery.                                                                                              |
-| **WCAG 2.2 Standards**         | `validate_accessibility`                                    | Static WCAG 2.2 accessibility rules for Vue SFC templates via AST template analysis.                                                                                          |
-| **`markdownlint-cli`**         | `validate_markdown_lint`                                    | Markdown style, table formatting, and document hygiene with `--fix`.                                                                                                          |
-| **Mermaid Linter**             | `validate_mermaid_syntax`                                   | Mermaid diagram syntax and special character quoting validator (`speed=light`, `preset=md`).                                                                                  |
-| **Vite+ / Oxlint (`vp lint`)** | `validate_oxlint`                                           | Unified linter and strict compiler type checking (`typeCheck: true`) without emitting files.                                                                                  |
-| **Script Commands (AST)**      | `validate_script_commands`                                  | AST-aware syntax verification for Shell (`unbash`), GitHub Actions (`yaml`), Dockerfiles, PowerShell, and TypeScript scripts (process runners & CLI help logs).               |
-| **Documented Commands**        | `validate_documented_commands`                              | Verifies that every documented `npm run <cmd>` in Markdown and AI skills exists in `package.json.scripts`.                                                                    |
-| **Docker Config**              | `validate_docker_config`                                    | Container configuration governance (`.dockerignore`, `Dockerfile`) with auto-scaffolding in `--fix`.                                                                          |
-| **EditorConfig**               | `validate_editorconfig`                                     | Cross-editor coding style synchronization (`.editorconfig`) with canonical auto-scaffolding in `--fix`.                                                                       |
-| **HTML-Validate Config**       | `validate_html_validate_config`                             | Strict HTML5 linter configuration (`.htmlvalidate.json`) with standard root rules and auto-scaffolding in `--fix`.                                                            |
-| **NPMRC Config**               | `validate_npmrc_config`                                     | Package manager configuration (`.npmrc`, `allow-git=all`, `engine-strict=true`) with auto-scaffolding in `--fix`.                                                             |
-| **Playwright Config**          | `validate_playwright_config`                                | End-to-end browser testing configuration (`playwright.config.ts`) with modern headless presets and auto-scaffolding in `--fix`.                                               |
-| **TypeScript Config**          | `validate_tsconfig`                                         | Strict compiler configuration (`tsconfig.json`) with modern type safety baseline and auto-scaffolding in `--fix`.                                                             |
-| **MarkdownLint Config**        | `validate_markdown_lint_config`                             | Markdown linter configuration (`.markdownlint.json`) with strict documentation hygiene and auto-scaffolding in `--fix`.                                                       |
+| Tool                                 | Integrated Suite                                            | Capability                                                                                                                                                                            |
+| :----------------------------------- | :---------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Vite+ Oxlint (`vp lint`)**         | `validate_oxlint`                                           | Unified TypeScript type-checking (`--type-aware`, `--type-check`), syntax hygiene, and `@francogp/domain-type` AST rules (domain types, Vue SFC, Valibot, storage, secrets, queries). |
+| **Vite+ Oxfmt (`vp fmt`)**           | `validate_oxfmt`                                            | Source code formatting hygiene validation via Vite+ engine (`vp fmt`) with `--fix`.                                                                                                   |
+| **Vite+ Config**                     | `validate_vite_plus_config`                                 | Strict Vite+ unified configuration validator in `vite.config.ts`, modular `vite.plugins.ts` wiring, anti-castration enforcement, and dynamic exclude sync.                            |
+| **`fallow` & `fallow-similar-code`** | `validate_fallow`, `report_fallow`, `validate_similar_code` | Refactoring targets, dead code, AST duplicates, Candle CPU vector similarity, CWE security, architecture boundaries, and mutation testing.                                            |
+| **Git**                              | `validate_git_config`                                       | Local repository configuration governance (`core.filemode false`, `core.autocrlf input`, `core.eol lf`) with auto-fix.                                                                |
+| **Domain Data & O(1)**               | `validate_o1_data_structures`, `validate_oxlint`            | $O(1)$ complexity governance (`Set.has`, `Map.get`), nominal domain typing, catalog collision prevention, and domain union deduplication.                                             |
+| **`stylelint`**                      | `validate_stylelint`                                        | CSS, SCSS, and Vue SFC style validation, property order, Sass collision casing (`sass-traps/collision-casing`), `--fix`.                                                              |
+| **`html-validate`**                  | `validate_html_validate`                                    | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation.                                                                                                          |
+| **Magic Numbers (AST)**              | `validate_magic_numbers`                                    | Native TypeScript Compiler AST magic numbers governance with shared context, universal sentinels, and zero directory ignores.                                                         |
+| **Stylelint Config**                 | `validate_stylelint_config`                                 | Stylelint configuration integrity, 13 canonical design token properties, configurable `strictValues`, and auto-repair (`--fix`).                                                      |
+| **`knip`**                           | `validate_package_hygiene`                                  | Dead dependency, unlisted phantom package, lockfile integrity, and orphan binary script detection with `--fix`.                                                                       |
+| **Vite+ Pack (`vp pack`)**           | `vp pack` (Rust Native)                                     | Official ATTW type resolution and Publint export map hygiene verified during build.                                                                                                   |
+| **`npm audit`**                      | `validate_dependency_vulnerabilities`                       | Vulnerability scanning and known CVEs across package dependencies.                                                                                                                    |
+| **`type-coverage`**                  | `validate_type_coverage`                                    | Quantitative TypeScript coverage percentage (≥95%) and untyped symbol discovery.                                                                                                      |
+| **WCAG 2.2 Standards**               | `validate_accessibility`                                    | Static WCAG 2.2 accessibility, modern form hygiene, and dialog/popover rules via JSDOM + AST analysis with `--fix`.                                                                   |
+| **`markdownlint-cli`**               | `validate_markdown_lint`                                    | Markdown style, table formatting, and document hygiene with `--fix`.                                                                                                                  |
+| **Mermaid Linter**                   | `validate_mermaid_syntax`                                   | Mermaid diagram syntax (`mermaid.parse()`) and special character quoting validator (`speed=light`, `preset=md`).                                                                      |
+| **Script Commands (AST)**            | `validate_script_commands`                                  | AST-aware syntax verification for Shell (`unbash`), GitHub Actions (`yaml`), Dockerfiles, PowerShell, and TypeScript scripts (process runners & CLI help logs).                       |
+| **Documented Commands**              | `validate_documented_commands`                              | Verifies that every documented `npm run <cmd>` in Markdown and AI skills exists in `package.json.scripts`.                                                                            |
+| **Docker Config**                    | `validate_docker_config`                                    | Container configuration governance (`.dockerignore`, `Dockerfile`) with auto-scaffolding in `--fix`.                                                                                  |
+| **EditorConfig**                     | `validate_editorconfig`                                     | Cross-editor coding style synchronization (`.editorconfig`) with canonical auto-scaffolding in `--fix`.                                                                               |
+| **HTML-Validate Config**             | `validate_html_validate_config`                             | Strict HTML5 linter configuration (`.htmlvalidate.json`) with standard root rules and auto-scaffolding in `--fix`.                                                                    |
+| **NPMRC Config**                     | `validate_npmrc_config`                                     | Package manager configuration (`.npmrc`, `allow-git=all`, `engine-strict=true`) with auto-scaffolding in `--fix`.                                                                     |
+| **Playwright Config**                | `validate_playwright_config`                                | End-to-end browser testing configuration (`playwright.config.ts`) with modern headless presets and auto-scaffolding in `--fix`.                                                       |
+| **TypeScript Config**                | `validate_tsconfig`                                         | Strict compiler configuration (`tsconfig.json`, `ES2025`) with modern type safety baseline and auto-scaffolding in `--fix`.                                                           |
+| **MarkdownLint Config**              | `validate_markdown_lint_config`                             | Markdown linter configuration (`.markdownlint.json`) with strict documentation hygiene and auto-scaffolding in `--fix`.                                                               |
 
 ### 6.1. Universal Satellite Configuration Sovereignty & SSoT Governance
 
@@ -705,23 +713,23 @@ npm run build
 
 ### 7.1. Canonical Static Pre-compression Plugin (`vitePrecompressPlugin`)
 
-Centralizes static asset pre-compression across all consumer web applications using Node.js standard library (`node:zlib`) without external dependencies or homebrew scripts:
+Centralizes static asset pre-compression across all consumer web applications using Node.js standard library (`node:zlib`) without external dependencies or manual edits to governed `vite.config.ts` (declare options in `.auditor/audit.config.ts` or wire plugins in developer-owned `vite.plugins.ts`, then run `npm run auditor:fix`):
 
 ```typescript
 import { vitePrecompressPlugin } from '@francogp/auditor';
-// vite.config.ts
-import { defineConfig } from 'vite';
+// vite.plugins.ts (developer-owned modular Vite plugins file, wired into vite.config.ts by auditor:fix)
+import vue from '@vitejs/plugin-vue';
+import type { PluginOption } from 'vite-plus';
 
-export default defineConfig({
-  plugins: [
-    vitePrecompressPlugin({
-      server: 'nginx', // 'nginx' (default) | 'apache' | 'caddy' | 'all'
-      spa: true,
-      report: 'summary', // 'summary' (default single-line) | 'silent' | 'table'
-      threshold: 512
-    })
-  ]
-});
+export const plugins: PluginOption[] = [
+  vue(),
+  vitePrecompressPlugin({
+    server: 'nginx', // 'nginx' (default) | 'apache' | 'caddy' | 'all'
+    spa: true,
+    report: 'summary', // 'summary' (default single-line) | 'silent' | 'table'
+    threshold: 512
+  })
+];
 ```
 
 - **Maximum Compression Quality**: Generates Brotli Q11 (`.br`) and Gzip Level 9 (`.gz`) for static production assets.
@@ -734,9 +742,9 @@ export default defineConfig({
 
 ---
 
-## 8. AI Agent Integration (57 Antigravity Skills)
+## 8. AI Agent Integration (68 Antigravity Skills)
 
-`@francogp/auditor` distributes **57 canonical engineering skills** for Google DeepMind Antigravity AI agents.
+`@francogp/auditor` distributes **68 canonical engineering skills** for Google DeepMind Antigravity AI agents (11 framework-owned governance skills + 57 locked upstream vendor skills tracked in `skills-lock.json`).
 
 ### 8.1. Initialize Plugin in Host Projects
 
@@ -744,27 +752,27 @@ export default defineConfig({
 auditor-init-agent
 ```
 
-Automatically runs on `npm install` (via `postinstall`), or directly via the `auditor-init-agent` CLI.
+Automatically runs during the Pre-Flight Zero-Setup Auto-Bootstrap (`ensureProjectBootstrapped`), during `npm run auditor:update`, or directly via the `auditor-init-agent` CLI (since npm 12+ blocks `postinstall` lifecycle scripts by default).
 Registers `"node_modules/@francogp/auditor"` in `.agents/plugins.json`. Autonomous agents automatically discover and trigger the bundled skills and `AGENTS.md` guidelines.
 
 ### 8.2. Skill Catalog Summary
 
-- **Architecture & Governance**: `auditor`, `architecture`, `clean-code`, `codebase-design`, `domain-modeling`, `domain-type-first`, `improve-codebase-architecture`.
-- **Vue 3, SFC, Styles & Reactivity**: `create-adaptable-composable`, `pinia`, `scss-best-practices`, `vite`, `vue-best-practices`, `vue-debug-guides`, `vue-jsx-best-practices`, `vue-options-api-best-practices`, `vue-pinia-best-practices`, `vue-router-best-practices`, `vue-testing-best-practices`, `vueuse-functions`.
+- **Architecture, Planning & Spec Governance**: `auditor`, `architecture`, `brainstorming`, `clean-code`, `codebase-design`, `context-engineering`, `domain-modeling`, `domain-type-first`, `handoff`, `implement-spec`, `improve-codebase-architecture`, `incremental-implementation`, `to-spec`.
+- **Vue 3, SFC, Styles & UI Craft**: `awesome-design-md`, `create-adaptable-composable`, `design-motion-principles`, `design-taste-frontend`, `frontend-design`, `pinia`, `scss-best-practices`, `vite`, `vue-best-practices`, `vue-debug-guides`, `vue-jsx-best-practices`, `vue-options-api-best-practices`, `vue-pinia-best-practices`, `vue-router-best-practices`, `vue-testing-best-practices`, `vueuse-functions`, `web-design-guidelines`.
 - **GSAP UI Animation**: `gsap-core`, `gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-scrolltrigger`, `gsap-timeline`, `gsap-utils`.
-- **Codebase Intelligence & Optimization**: `code-simplification`, `fallow`, `fallow-review`, `performance-optimization`, `ponytail`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`, `ponytail-review`.
+- **Codebase Intelligence, Review & Optimization**: `code-review`, `code-simplification`, `fallow`, `fallow-review`, `fallow-setup`, `performance-optimization`, `ponytail`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`, `ponytail-review`.
 - **Security, Pentesting & Hardening**: `security-and-hardening`, `security-review`.
 - **Database & Validation**: `database-migrations`, `valibot`.
-- **Documentation & DOX Governance**: `dox-navigator`, `grill-with-docs`, `grilling`, `learn-with-docs`, `to-spec`.
+- **Documentation & DOX Governance**: `dox-navigator`, `grill-with-docs`, `grilling`, `learn-with-docs`.
 - **Testing & QA Automation**: `playwright-cli`, `tdd`, `vitest`.
-- **DevOps, Design, Discovery & Meta-Agent Skills**: `ci-cd-and-automation`, `docker-patterns`, `find-skills`, `frontend-design`, `safe-commit`, `skill-creator`, `systematic-debugging`, `web-design-guidelines`.
+- **DevOps, MCP, Discovery & Meta-Agent Skills**: `ci-cd-and-automation`, `docker-patterns`, `find-skills`, `mcp-builder`, `safe-commit`, `skill-creator`, `systematic-debugging`.
 
 ### 8.3. Dynamic Dual-Language Governance (Zero Hardcoding)
 
-`@francogp/auditor` enforces a strict architectural separation between **chat conversation** and **codebase artifacts**:
+`@francogp/auditor` enforces a strict architectural separation between **chat / brain artifacts** and **codebase files**:
 
-- `config.documentation.chatLanguage`: Governs interactive conversational chat, user interviews, options matrices, and completion reports with the human developer (defaults to `'es'`).
-- `config.documentation.language`: Governs documentation, code comments, commit messages, and repository artifacts (defaults to `'en'`).
+- `config.documentation.chatLanguage`: Governs interactive conversational chat, user interviews, options matrices, and all AI agent brain artifacts (`<appDataDir>/brain/<conversation-id>`, including plans, task lists, walkthroughs, and learning proposals; defaults to `'es'`).
+- `config.documentation.language`: Governs repository documentation, code comments, commit messages, skills, and codebase files (defaults to `'en'`).
 
 All agent skills dynamically consult `.auditor/audit.config.ts` without hardcoding language strings or assuming fixed locales.
 
@@ -772,27 +780,32 @@ All agent skills dynamically consult `.auditor/audit.config.ts` without hardcodi
 
 ## 9. Authoring Custom Sub-Auditors
 
-Host applications can add bespoke domain sub-auditors in `scripts/auditors/<family>/` and register them in `audit.config.ts`. Production-ready blueprints reside in [`.agents/skills/auditor/assets/templates/`](.agents/skills/auditor/assets/templates/):
+Host applications can add bespoke domain sub-auditors in `scripts/auditors/<family>/` and register them in `.auditor/audit.config.ts`. Production-ready blueprints reside in [`.agents/skills/auditor/assets/templates/`](.agents/skills/auditor/assets/templates/):
 
-### Line-by-Line File Scanner (`FileScanAuditor`)
+### AST-Driven File Scanner (`FileScanAuditor`)
 
 ```typescript
-// scripts/auditors/architecture/validate_no_inline_sql.ts
 import {
+  AuditedDocument,
   BaseAuditor,
   FileScanAuditor,
-  createUniformRuleCapabilities,
   createUniformRemediationPhases,
-  resolveFileScanRoots,
+  createUniformRuleCapabilities,
   deriveCoverageFromRoots,
+  isTestFileForCodeAudit,
+  resolveFileScanRoots,
   type FileScanRootsOptions
 } from '@francogp/auditor';
+// scripts/auditors/architecture/validate_no_inline_sql.ts
+import ts from 'typescript';
 
 export const NO_INLINE_SQL_RULES = ['inline-sql-detected'] as const;
 export type NoInlineSqlRuleId = (typeof NO_INLINE_SQL_RULES)[number];
 
+const SQL_VERB_PREFIX_RE = /^\s*(?:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b/i;
+
 export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
       (config) => config.paths?.srcRoots
@@ -803,23 +816,24 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
       id: 'validate_no_inline_sql',
       name: 'No Inline SQL Auditor',
       description: 'Prohibits raw SQL queries inside view or component layers',
-      icon: '💾', // Mandatory thematic emoji
+      icon: '💾',
       family: 'architecture',
       packageName: 'Database',
-      configKey: 'paths.srcRoots',
-      defaultConfig: {},
+      configKey: 'paths',
+      defaultConfig: { enabled: true, srcRoots: ['src'] },
       criticalConfig: {},
       requiredPermissions: [],
       remediationPhase: 'contracts',
       usesThirdPartyTool: false,
+      requiresAst: true,
       ruleIds: NO_INLINE_SQL_RULES,
       ruleDescriptions: {
-        'inline-sql-detected': 'Raw SQL query detected in presentation layer'
+        'inline-sql-detected': 'No raw SQL literals in UI layer'
       },
       ruleRemediations: {
         'inline-sql-detected':
           '1. Root Cause: View components contain direct raw SQL queries, violating architectural decoupling.\n' +
-          '2. Diagnosis: Inspect the reported presentation file and locate the inline SQL statement.\n' +
+          '2. Diagnosis: Inspect the reported presentation file and locate the inline SQL literal AST node.\n' +
           '3. Canonical Solution: Extract the query into a dedicated repository or persistence service.\n' +
           '4. Example / Auto-fix command:\n' +
           '   Move inline SQL queries to src/database/repositories/.'
@@ -829,35 +843,41 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
         speed: 'light',
         phase: 'normal',
         md: false,
-        ast: false,
+        ast: true,
         changedOnly: false,
         critical: false
       }),
+      ruleFixers: {},
       roots: targetRoots,
       allowedExtensions,
       coverage: deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
       projectRoot: effectiveRoot
     });
-  }
 
-  protected override scanFile(relPath: string, content: string): void {
-    if (relPath.includes('.test.') || relPath.includes('.spec.')) return;
+    this.declareFileSubAuditor('inline-sql-detected', (doc: AuditedDocument): void => {
+      if (isTestFileForCodeAudit(doc.filePath, this.projectRoot)) return;
+      const ast = doc.getAst();
+      if (!ast) return;
 
-    // Evaluated and timed individually via runSubAuditorSync
-    this.runSubAuditorSync('inline-sql-detected', () => {
-      const lines = content.split(/\r?\n/);
-      for (let i = 0; i < lines.length; i++) {
-        if (/SELECT\s+.*\s+FROM\s+/i.test(lines[i]!)) {
+      const visit = (node: ts.Node): void => {
+        if (
+          (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
+          SQL_VERB_PREFIX_RE.test(node.text)
+        ) {
+          const pos = ast.getLineAndCharacterOfPosition(node.getStart(ast));
           this.addViolation({
             ruleId: 'inline-sql-detected',
             severity: 'error',
-            file: relPath,
-            line: i + 1,
+            file: doc.filePath,
+            line: pos.line + 1,
+            col: pos.character + 1,
             message: 'Extract inline SQL queries to a dedicated repository or service layer.',
-            context: lines[i]!.trim()
+            context: node.text.trim()
           });
         }
-      }
+        ts.forEachChild(node, visit);
+      };
+      ts.forEachChild(ast, visit);
     });
   }
 }
@@ -900,6 +920,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'My Web Application',
   paths: {
+    enabled: true,
     srcRoots: ['src'],
     testRoots: ['tests'],
     scriptsRoots: ['scripts'],
@@ -927,17 +948,17 @@ export default defineAuditConfig({
     distDir: 'dist/assets',
     maxClientChunkErrorBytes: 2 * 1024 * 1024,
     maxClientChunkWarnBytes: 1.2 * 1024 * 1024,
-    exemptChunkPrefixes: ['worker-vendor-', 'wasm-engine-'],
-    allowMissingDist: true
+    exemptChunkPrefixes: ['worker-vendor-', 'wasm-engine-']
   },
   styles: {
     enabled: true,
+    enforceScss: true,
     zLayersEnabled: true,
     baseScssFile: 'src/styles/_base.scss',
-    zLayersScssFile: 'src/styles/_base.scss',
-    stylelint: {
-      enabled: true
-    }
+    zLayersScssFile: 'src/styles/_base.scss'
+  },
+  stylelint: {
+    enabled: true
   },
   templates: {
     enabled: true,
@@ -951,7 +972,7 @@ export default defineAuditConfig({
   documentation: {
     enabled: true,
     language: 'en', // Primary documentation and file writing language ('en' | 'es', defaults to 'en')
-    chatLanguage: 'es', // AI assistant conversational chat language ('en' | 'es', defaults to 'es')
+    chatLanguage: 'es', // AI assistant chat & brain-artifacts language ('en' | 'es', defaults to 'es')
     knownValidAbstractPaths: ['@docs/architecture.md'],
     languageExemptions: []
   },
@@ -976,8 +997,14 @@ export default defineAuditConfig({
       }
     ]
   },
+  testCoverage: {
+    enabled: true,
+    path: 'scratch/coverage/coverage-final.json',
+    threshold: 80,
+    enforceInAudit: true
+  },
   packageDistribution: {
-    enabled: true
+    enabled: false // Enable (true) for published npm libraries; keep false for web applications
   },
   packageHygiene: {
     enabled: true
@@ -1009,43 +1036,37 @@ export default defineAuditConfig({
     enabled: true,
     targets: [
       {
+        id: 'save-payload',
+        typesFile: 'src/types/saveTypes.ts',
         interfaceName: 'SavePayload',
         schemaFile: 'src/logic/validation/saveSchema.ts',
-        schemaName: 'saveSchema',
-        typeFile: 'src/types/saveTypes.ts',
+        schemaVarName: 'saveSchema',
         serializerFile: 'src/logic/storage/saveSerializer.ts'
       }
     ]
   },
   webPerformance: {
     enabled: true,
-    maxDomDepth: 32,
-    maxInlineSvgBytes: 4096,
-    maxUncompressedVideoBytes: 10485760
+    maxDomDepth: 16,
+    maxInlineSvgSize: 2048
   },
   queryPerformance: {
     enabled: true,
-    enforceSelectStar: true,
-    enforcePagination: true,
-    enforceNPlusOneDetection: true
+    excludeMigrationsDir: true
   },
   securityHardening: {
-    enabled: true,
-    enforceInsecureRandom: true,
-    enforceVulnerableRegex: true,
-    enforceEvalDetection: true
+    enabled: true
   },
   codeSimplification: {
     enabled: true,
     maxNestingDepth: 4,
-    maxBooleanParams: 2,
-    maxSwitchCases: 10
+    allowMatrixLoops: false
   },
   scssArchitecture: {
     enabled: true,
-    maxNestingDepth: 4,
-    enforceThemeTokens: true,
-    bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc']
+    maxNestingDepth: 3,
+    scopedMaxNestingDepth: 3,
+    allowedSpacingUnits: ['rem', 'em', 'px', '%', 'vh', 'vw', 'dvh', 'dvw', 'ch']
   },
   extensions: ['./scripts/auditors/architecture/validate_no_inline_sql.ts']
 });
@@ -1088,24 +1109,24 @@ runAuditorContractConformanceTests();
 
 All binaries execute directly or through native `npm run` scripts. Running tools via `npx` is strictly prohibited.
 
-| Binary Command                  | Script                                     | Description                                                                                                                                                                                                                                                                 |
+| Binary / Package Command        | Script                                     | Description                                                                                                                                                                                                                                                                 |
 | :------------------------------ | :----------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auditor`                       | `src/cli/audit_full.ts`                    | Runs global project audit plus the warning ratchet. Supports `--list`, `--info`, `guide <ruleId\|suiteId>`, `speed=light\|heavy\|full`, `only-speed=light\|heavy\|full`, `phase=post-build`, `preset=md`, `fix`, `--family`, `--task`, `init-baseline` / `--init-baseline`. |
+| `auditor`                       | `src/cli/audit_full.ts`                    | Runs global project audit plus the warning ratchet. Supports `list`, `info=<suiteId>`, `guide <ruleId\|suiteId>`, `speed=light\|heavy\|full`, `only-speed=light\|heavy\|full`, `phase=setup\|post-build`, `preset=md`, `fix`, `family=<id>`, `task=<id>`, `init-baseline`.  |
 | `auditor-post-build`            | `src/cli/audit_post_build.ts`              | Runs post-build compiled artifact audit suites against `dist/` (`phase=post-build`).                                                                                                                                                                                        |
-| `auditor-build-deploy`          | `src/cli/build_deploy.ts`                  | Runs deployment build (`npm run build:deploy`) under `AUDITOR_ENV=production`.                                                                                                                                                                                              |
-| `auditor-findings`              | `src/cli/report_findings.ts`               | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`).                                                                                                                                                                                   |
+| `auditor-build-deploy`          | `src/cli/build_deploy.ts`                  | Runs deployment build (`npm run build:deploy`) under `AUDITOR_ENV=production` in headless CI/CD containers.                                                                                                                                                                 |
+| `auditor-findings`              | `src/cli/report_findings.ts`               | Interactive finding query and filtering tool (`auditor-report-findings`, `severity=error`, `rule=<id>`, `file=<paths>`, `flat`).                                                                                                                                            |
 | `auditor-next`                  | `src/cli/report_findings.ts`               | Focuses findings on the earliest active strategic phase (`setup` -> `prune` -> `dedup` -> `contracts` -> `behavior` -> `hygiene` -> `polish`), postponing downstream errors (`auditor:next`, `auditor:next:human`).                                                         |
 | `auditor-by-file`               | `src/cli/report_findings.ts`               | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`auditor:by-file`).                                                                                                                                                            |
 | `auditor-fallow`                | `src/cli/report_fallow.ts`                 | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`, `category=suppressions`, `category=flags`, `category=viz`, `category=architecture`, `category=shared-state`, `category=mutation`, `category=mutation-tasks`, `category=doctor`). |
-| `auditor:fallow:doctor`         | `src/cli/report_fallow.ts`                 | Runs Fallow environment and configuration health doctor check with structured diagnostics.                                                                                                                                                                                  |
-| `auditor:fallow:architecture`   | `src/cli/report_fallow.ts`                 | Audits and reports architectural boundary violations detected by Fallow across layer boundaries.                                                                                                                                                                            |
-| `auditor:fallow:shared-state`   | `src/cli/report_fallow.ts`                 | Audits and reports mutable shared state (`imported_writes` and `globals`) across application layers.                                                                                                                                                                        |
-| `auditor:fallow:mutation`       | `src/cli/report_fallow.ts`                 | Generates and inspects Fallow mutation testing plan, mutants table, and mutation score.                                                                                                                                                                                     |
-| `auditor:fallow:mutation:tasks` | `src/cli/report_fallow.ts`                 | Generates and inspects atomic Fallow mutation test tasks.                                                                                                                                                                                                                   |
-| `auditor:fallow:suppressions`   | `src/cli/report_fallow.ts`                 | Displays Box-Drawing table of all `// fallow-ignore` code suppressions, rules, and mandatory justifications.                                                                                                                                                                |
-| `auditor:fallow:flags`          | `src/cli/report_fallow.ts`                 | Discovers and reports active feature flags across the codebase.                                                                                                                                                                                                             |
-| `auditor:fallow:viz`            | `src/cli/report_fallow.ts`                 | Generates interactive architecture and dependency HTML map in `scratch/fallow_map.html`.                                                                                                                                                                                    |
-| `auditor:fallow:boundaries`     | `src/cli/report_fallow.ts`                 | Audits and reports architectural boundary violations detected by Fallow across layer boundaries (alias for `auditor:fallow:architecture`).                                                                                                                                  |
+| `auditor:fallow:doctor`         | `src/cli/report_fallow.ts`                 | Package script shortcut running Fallow environment and configuration health doctor check with structured diagnostics.                                                                                                                                                       |
+| `auditor:fallow:architecture`   | `src/cli/report_fallow.ts`                 | Package script shortcut auditing architectural boundary violations detected by Fallow across layer boundaries.                                                                                                                                                              |
+| `auditor:fallow:shared-state`   | `src/cli/report_fallow.ts`                 | Package script shortcut auditing mutable shared state (`imported_writes` and `globals`) across application layers.                                                                                                                                                          |
+| `auditor:fallow:mutation`       | `src/cli/report_fallow.ts`                 | Package script shortcut generating and inspecting Fallow mutation testing plan, mutants table, and mutation score.                                                                                                                                                          |
+| `auditor:fallow:mutation:tasks` | `src/cli/report_fallow.ts`                 | Package script shortcut generating and inspecting atomic Fallow mutation test tasks.                                                                                                                                                                                        |
+| `auditor:fallow:suppressions`   | `src/cli/report_fallow.ts`                 | Package script shortcut displaying Box-Drawing table of all `// fallow-ignore` code suppressions, rules, and mandatory justifications.                                                                                                                                      |
+| `auditor:fallow:flags`          | `src/cli/report_fallow.ts`                 | Package script shortcut discovering and reporting active feature flags across the codebase.                                                                                                                                                                                 |
+| `auditor:fallow:viz`            | `src/cli/report_fallow.ts`                 | Package script shortcut generating interactive architecture and dependency HTML map in `scratch/fallow_map.html`.                                                                                                                                                           |
+| `auditor:fallow:boundaries`     | `src/cli/report_fallow.ts`                 | Package script alias for `auditor:fallow:architecture`.                                                                                                                                                                                                                     |
 | `auditor-complexity`            | `src/cli/report_complexity.ts`             | Fallow refactoring targets and code complexity analysis report.                                                                                                                                                                                                             |
 | `auditor-dupes`                 | `src/cli/refactor_dupes.ts`                | Interactive clone discovery, Dirac micro-context extraction, and safe worktree refactoring CLI (`auditor-dupes`, `npm run auditor:dupes`).                                                                                                                                  |
 | `auditor-magic`                 | `src/cli/refactor_magic.ts`                | Interactive magic numbers discovery, Value-Clustering Super-Dirac compression, and AST span refactoring CLI (`auditor-magic`, `npm run auditor:magic`).                                                                                                                     |
@@ -1117,10 +1138,10 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-similar`               | `src/cli/report_similar_code.ts`           | Semantic clone and function similarity analysis via Fallow vector embeddings.                                                                                                                                                                                               |
 | `auditor-review`                | `src/cli/report_review.ts`                 | Graph-grounded architectural review brief for changed code.                                                                                                                                                                                                                 |
 | `auditor-css`                   | `src/cli/report_css.ts`                    | Stylelint and stylesheet hygiene analysis report.                                                                                                                                                                                                                           |
-| `auditor-update`                | `src/cli/update_package.ts`                | Pulls upstream updates from GitHub, verifies build stamps, and updates skills. Supports `--check` for read-only status and `--help` for manual.                                                                                                                             |
-| `auditor-version`               | `src/cli/bump_version.ts`                  | Inspects version/build stamps, analyzes diff metrics (`analyze`), and applies SemVer bumps (`bump`).                                                                                                                                                                        |
+| `auditor-update`                | `src/cli/update_package.ts`                | Pulls upstream updates from GitHub, verifies build stamps, and updates skills. Supports `check` (`--check`) for read-only status and `help` (`--help`) for manual.                                                                                                          |
+| `auditor-version`               | `src/cli/bump_version.ts`                  | Inspects version/build stamps, analyzes diff metrics (`analyze`), and applies SemVer bumps (`bump <major\|minor\|patch\|build>`).                                                                                                                                           |
 | `auditor-guard`                 | `src/cli/report_guard.ts`                  | Pre-flight architectural boundary and policy inspector for target files (`auditor:guard <files>`).                                                                                                                                                                          |
-| `auditor-flags`                 | `src/cli/report_flags.ts`                  | Feature flag usage and retirement candidates governance tool (`auditor:flags [--retirement]`).                                                                                                                                                                              |
+| `auditor-flags`                 | `src/cli/report_flags.ts`                  | Feature flag usage and retirement candidates governance tool (`auditor:flags`).                                                                                                                                                                                             |
 | `auditor-test-coverage`         | `src/cli/report_test_coverage.ts`          | Canonical test coverage analyzer, metrics calculator, and complexity hotspot correlator (`auditor:test-coverage`).                                                                                                                                                          |
 | `auditor-coverage`              | `src/cli/report_test_coverage.ts`          | Alias for `auditor-test-coverage` (`auditor:coverage`).                                                                                                                                                                                                                     |
 | `auditor-init`                  | `src/cli/init_project.ts`                  | Initializes a fresh zero-defect project with Git, Vite+, root `AGENTS.md`, and `.auditor/audit.config.ts`.                                                                                                                                                                  |
@@ -1129,8 +1150,8 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-rules`                 | `src/cli/report_findings.ts`               | Consolidated Box-Drawing breakdown of audit findings grouped by `ruleId` (`auditor-by-rule`).                                                                                                                                                                               |
 | `auditor-coverage-map`          | `src/cli/report_coverage_map.ts`           | Generates static audit suite file-coverage maps across workspace directories.                                                                                                                                                                                               |
 | `auditor-init-agent`            | `src/cli/init_agent.ts`                    | Registers `@francogp/auditor` in `.agents/plugins.json` for AI agent skill discovery.                                                                                                                                                                                       |
-| `auditor-sync-env`              | `src/cli/sync_env_scripts.ts`              | Synchronizes `setup-linux.sh`, `setup-windows.ps1` and setup plugins into host project.                                                                                                                                                                                     |
-| `auditor-check-env`             | `src/cli/check_environment.ts`             | Validates Node.js and npm version invariants during host `preinstall`.                                                                                                                                                                                                      |
+| `auditor-sync-env`              | `src/cli/sync_env_scripts.ts`              | Synchronizes `setup-linux.sh`, `setup-windows.ps1`, `update-linux.sh`, `update-windows.ps1`, and setup plugins into host project.                                                                                                                                           |
+| `auditor-check-env`             | `src/cli/check_environment.ts`             | Validates Node.js and npm version invariants during host environment checks.                                                                                                                                                                                                |
 | `auditor-setup-env`             | `src/cli/setup_env.ts`                     | Detects host OS and runs appropriate setup script (`setup-linux.sh` / `setup-windows.ps1`).                                                                                                                                                                                 |
 
 ---
@@ -1183,13 +1204,13 @@ flowchart TD
 | :------------------------------------- | :-------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@francogp/auditor/modals`             | Browser, SSR, Web Worker, Node    | Framework-agnostic $O(1)$ LIFO modal stack (`createModalStack`, `ModalStackManager`), customizable Z-layer scales (`resolveModalZLayers`, `CANONICAL_Z_LAYERS`), customizable motion presets & drivers (`DEFAULT_MODAL_MOTION_PRESETS`, `ModalAnimationController`, `createWaapiModalDriver`, `createGsapModalDriver`), structural CSS var helpers (`resolveModalCssVars`, `resolveModalStructuralStyles`, `resolveModalDomIds`), `ModalDomController`, `createBackdropPointerGuard`, and `ModalSequenceQueue`. |
 | `@francogp/auditor/domain`             | Browser, SSR, Web Worker, Node    | `createDomainSet` (with compile-time narrowing `has(value: unknown): value is T`) and `createDomainMap` for strict `/domain-type-first` collections.                                                                                                                                                                                                                                                                                                                                                            |
-| `@francogp/auditor/version`            | Browser, SSR, Node                | `AUDITOR_VERSION` and `AUDITOR_SEMVER` constants.                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `@francogp/auditor/version`            | Browser, SSR, Node                | `AUDITOR_VERSION`, `AUDITOR_BUILD_ID`, and `AUDITOR_BUILD_DATE` constants.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `@francogp/auditor/domain-type-plugin` | Vite+ / Oxlint                    | Native Oxlint AST plugin enforcing domain types, security, and query rules.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `@francogp/auditor/config`             | Node (`.auditor/audit.config.ts`) | `defineAuditConfig` and `AuditEngineConfig` types.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `@francogp/auditor/base`               | Node (Custom Sub-Auditors)        | `BaseAuditor`, `FileScanAuditor`, `createRuleCapabilities`, and `resolveFileScanRoots`.                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `@francogp/auditor/plugin`             | Node (Host Extensions)            | `defineAuditorExtension` helper for modular project extensions.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `@francogp/auditor/contract`           | Node / Tooling                    | `AuditViolation`, `AuditSuiteResult`, `AuditRunMetadata`, and `AuditorManifest`.                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `@francogp/auditor/theme`              | Node CLI                          | `UnifiedTheme`, `renderBoxTable`, `stringWidth`, and `padVisual` for 80-column Box-Drawing tables.                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `@francogp/auditor/contract`           | Node / Tooling                    | `AuditFinding`, `StandardAuditResult`, `AuditRunMetadata`, and `AuditorManifestDTO`.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `@francogp/auditor/theme`              | Node CLI                          | `renderBanner`, `renderBoxTable`, `stringWidth`, `padVisual`, and `truncateVisual` for 80-column Box-Drawing tables.                                                                                                                                                                                                                                                                                                                                                                                            |
 | `@francogp/auditor`                    | Node (Full Barrel)                | Complete framework SDK including `vitePrecompressPlugin`, `BaseEntityRegistry`, `COMMON_CLI_ARGS`, `safeResolve`, `tryCatchSync`, `parseVueSfc`, and `runAuditorContractConformanceTests`.                                                                                                                                                                                                                                                                                                                      |
 
 ---
@@ -1359,8 +1380,8 @@ export const inspectPluginsCmd = defineCommand({
     const raw = safeReadFileSync(manifestPath);
     if (raw !== null) {
       const parsed = safeJsonParse<{ readonly name: string }>(raw);
-      if (parsed.ok) {
-        process.stdout.write(`${parsed.value.name}: ${PluginRegistry.size} plugin(s)\n`);
+      if (parsed !== undefined) {
+        process.stdout.write(`${parsed.name}: ${PluginRegistry.size} plugin(s)\n`);
       }
     }
   }
@@ -1372,7 +1393,7 @@ export const inspectPluginsCmd = defineCommand({
 ```mermaid
 flowchart LR
     INIT["auditor init / npm run auditor:setup"] --> ITER["npm run auditor:lint (Fast Iteration)"]
-    ITER -->|"Errors"| TRIAGE["npm run auditor:next & npm run auditor:guide -- <ruleId>"]
+    ITER -->|"Errors"| TRIAGE["npm run auditor:next & npm run auditor:guide <ruleId>"]
     TRIAGE -->|"Auto-Fixable"| AUTOFIX["npm run auditor:fix"]
     AUTOFIX --> ITER
     ITER -->|"Clean"| GATE["npm run auditor (Full Gate + Ratchet)"]
@@ -1404,17 +1425,16 @@ See [`LICENSE`](LICENSE) for complete details.
 | **Stylelint Order**                    | [`hudochenkov/stylelint-order`](https://github.com/hudochenkov/stylelint-order)                               | [MIT License](https://github.com/hudochenkov/stylelint-order/blob/master/LICENSE)                  |
 | **Stylelint Declaration Strict Value** | [`AndyOGo/stylelint-declaration-strict-value`](https://github.com/AndyOGo/stylelint-declaration-strict-value) | [MIT License](https://github.com/AndyOGo/stylelint-declaration-strict-value/blob/master/LICENSE)   |
 | **postcss-html**                       | [`ota-meshi/postcss-html`](https://github.com/ota-meshi/postcss-html)                                         | [MIT License](https://github.com/ota-meshi/postcss-html/blob/master/LICENSE)                       |
-| **postcss-scss**                       | [`postcss/postcss-scss`](https://github.com/postcss/postcss-scss)                                             | [MIT License](https://github.com/postcss/postcss-scss/blob/main/LICENSE)                           |
 | **postcss-value-parser**               | [`TrySound/postcss-value-parser`](https://github.com/TrySound/postcss-value-parser)                           | [MIT License](https://github.com/TrySound/postcss-value-parser/blob/master/LICENSE)                |
 | **HTML-Validate**                      | [`html-validate/html-validate`](https://gitlab.com/html-validate/html-validate)                               | [MIT License](https://gitlab.com/html-validate/html-validate/-/blob/master/LICENSE)                |
 | **HTML-Validate Vue**                  | [`html-validate/html-validate-vue`](https://gitlab.com/html-validate/html-validate-vue)                       | [MIT License](https://gitlab.com/html-validate/html-validate-vue/-/blob/master/LICENSE)            |
 | **Markdownlint CLI**                   | [`igorshubovych/markdownlint-cli`](https://github.com/igorshubovych/markdownlint-cli)                         | [MIT License](https://github.com/igorshubovych/markdownlint-cli/blob/master/LICENSE)               |
 | **Markdownlint**                       | [`DavidAnson/markdownlint`](https://github.com/DavidAnson/markdownlint)                                       | [MIT License](https://github.com/DavidAnson/markdownlint/blob/main/LICENSE.txt)                    |
-| **Fallow**                             | [`fallow-rs/fallow`](https://git.mitgai.net/fallow-rs/fallow)                                                 | [Apache-2.0 / MIT Dual License](https://git.mitgai.net/fallow-rs/fallow/blob/main/LICENSE)         |
+| **Mermaid**                            | [`mermaid-js/mermaid`](https://github.com/mermaid-js/mermaid)                                                 | [MIT License](https://github.com/mermaid-js/mermaid/blob/develop/LICENSE)                          |
+| **Fallow & Fallow Similar Code**       | [`fallow-rs/fallow`](https://git.mitgai.net/fallow-rs/fallow)                                                 | [Apache-2.0 / MIT Dual License](https://git.mitgai.net/fallow-rs/fallow/blob/main/LICENSE)         |
 | **Knip**                               | [`webpro-nl/knip`](https://github.com/webpro-nl/knip)                                                         | [ISC License](https://github.com/webpro-nl/knip/blob/main/LICENSE)                                 |
 | **Publint**                            | [`bluwy/publint`](https://github.com/bluwy/publint)                                                           | [MIT License](https://github.com/bluwy/publint/blob/master/LICENSE)                                |
 | **@arethetypeswrong/core**             | [`arethetypeswrong/arethetypeswrong`](https://github.com/arethetypeswrong/arethetypeswrong)                   | [MIT License](https://github.com/arethetypeswrong/arethetypeswrong/blob/main/LICENSE)              |
-| **@secretlint/core**                   | [`secretlint/secretlint`](https://github.com/secretlint/secretlint)                                           | [MIT License](https://github.com/secretlint/secretlint/blob/master/LICENSE)                        |
 | **Type-Coverage**                      | [`plantain-00/type-coverage`](https://github.com/plantain-00/type-coverage)                                   | [MIT License](https://github.com/plantain-00/type-coverage/blob/master/LICENSE)                    |
 | **TypeScript**                         | [`microsoft/TypeScript`](https://github.com/microsoft/TypeScript)                                             | [Apache-2.0 License](https://github.com/microsoft/TypeScript/blob/main/LICENSE.txt)                |
 | **Vitest**                             | [`vitest-dev/vitest`](https://github.com/vitest-dev/vitest)                                                   | [MIT License](https://github.com/vitest-dev/vitest/blob/main/LICENSE)                              |

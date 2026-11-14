@@ -38,8 +38,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run constant analyzer unit tests: `vp test tests/oxlint_constant_hygiene_migration.test.ts` (or `npm test -- tests/oxlint_constant_hygiene_migration.test.ts`)
-- Run DOX analyzer unit tests: `vp test tests/validate_dox_integrity.test.ts` (or `npm test -- tests/validate_dox_integrity.test.ts`)
+- Run constant analyzer unit tests: `vp test run tests/oxlint_constant_hygiene_migration.test.ts` (or `npm test -- tests/oxlint_constant_hygiene_migration.test.ts`)
+- Run DOX analyzer unit tests: `vp test run tests/validate_dox_integrity.test.ts` (or `npm test -- tests/validate_dox_integrity.test.ts`)
 
 ## Child DOX Index
 

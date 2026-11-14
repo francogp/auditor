@@ -59,8 +59,7 @@ runMain(command);
 > If a file exports helper functions, constants, or types that might be imported elsewhere, `runMain` must execute **ONLY** when the module is the direct CLI entrypoint.
 
 ```typescript
-import { isMainModule } from '@francogp/auditor'; // or './cliUtils.ts' in auditor core
-import { defineCommand, runMain } from 'citty';
+import { defineCommand, isMainModule, runNormalizedMain } from '@francogp/auditor';
 
 export const command = defineCommand({
   meta: {
@@ -75,7 +74,7 @@ export const command = defineCommand({
 
 // ✅ MANDATORY GUARD: Executes ONLY when run directly from terminal
 if (isMainModule(import.meta.url)) {
-  runMain(command);
+  runNormalizedMain(command);
 }
 ```
 
@@ -89,8 +88,7 @@ A maintenance or testing script accepting flags, options, and positional paramet
 
 ```typescript
 // scripts/maintenance/repair_account.ts
-import { isMainModule } from '@francogp/auditor';
-import { defineCommand, runMain } from 'citty';
+import { defineCommand, isMainModule, runNormalizedMain } from '@francogp/auditor';
 
 export interface RepairOptions {
   readonly user?: string;
@@ -145,7 +143,7 @@ export const command = defineCommand({
 });
 
 if (isMainModule(import.meta.url)) {
-  runMain(command);
+  runNormalizedMain(command);
 }
 ```
 
@@ -155,8 +153,7 @@ When a script supports multiple distinct operational modes (e.g. `list`, `table`
 
 ```typescript
 // scripts/e2e/manage_simulations.ts
-import { isMainModule } from '@francogp/auditor';
-import { defineCommand, runMain } from 'citty';
+import { defineCommand, isMainModule, runNormalizedMain } from '@francogp/auditor';
 
 const listCommand = defineCommand({
   meta: {
@@ -213,7 +210,7 @@ export const mainCommand = defineCommand({
 });
 
 if (isMainModule(import.meta.url)) {
-  runMain(mainCommand);
+  runNormalizedMain(mainCommand);
 }
 ```
 
@@ -235,22 +232,30 @@ await BaseAuditor.runCliIfMain(import.meta.url, new CustomRulesAuditor());
 
 ### Example 4: Interactive Refactoring CLI Entrypoint
 
-Engines extending `BaseRefactorEngine` use `createRefactorCli`:
+Engines extending `BaseRefactorEngine` pass a `RefactorCliDefinition<TFinding, TPlan>` into `createRefactorCli`:
 
 ```typescript
+// src/cli/refactor_motion.ts
 import { MotionRefactorEngine } from '../core/refactor/motionRefactorEngine.ts';
 import { createRefactorCli } from '../core/refactor/refactorCliHarness.ts';
-// src/cli/refactor_motion.ts
 import { isMainModule } from './cliUtils.ts';
 
 if (isMainModule(import.meta.url)) {
   await createRefactorCli({
     toolName: 'auditor-motion',
+    toolDescription: 'Interactive UI motion and GSAP timer refactoring engine',
     bannerTitle: 'UI MOTION & GSAP REFACTOR ENGINE',
-    helpText: HELP_TEXT,
-    createEngine: (projectRoot) => new MotionRefactorEngine({ projectRoot }),
-    renderDiscoverHuman,
-    renderInspectHuman
+    bannerSubtitle: 'Elective Dirac-guided animation & timer modernization',
+    scanningMessage: 'Scanning UI components for motion candidates...',
+    zeroFindingsMessage: 'Zero motion refactoring candidates found.',
+    tableColumns: MOTION_COLUMNS,
+    engineFactory: (projectRoot) => new MotionRefactorEngine({ projectRoot }),
+    discoverInFile: (filePath) => discoverMotionFindings(filePath),
+    buildTableRow,
+    buildSummaryMessage,
+    toDiracItem,
+    createPlan,
+    applyPlan
   });
 }
 ```
@@ -358,7 +363,7 @@ import minimist from 'minimist';
 import yargs from 'yargs';
 ```
 
-**Canonical Solution**: Remove third-party parser dependencies and standardize on `defineCommand` from `citty`.
+**Canonical Solution**: Remove third-party parser dependencies and standardize on `defineCommand` and `runNormalizedMain` from `@francogp/auditor`.
 
 ---
 
@@ -366,9 +371,9 @@ import yargs from 'yargs';
 
 Before committing any CLI script or maintenance tool, verify:
 
-1. [ ] **`isMainModule` Guard**: Is `runMain(command)` guarded by `if (isMainModule(import.meta.url))`?
+1. [ ] **`isMainModule` Guard**: Is `runNormalizedMain(command)` guarded by `if (isMainModule(import.meta.url))`?
 2. [ ] **Zero `process.argv` Access**: Are all flags and options accessed via `run({ args })`?
 3. [ ] **Zero Homebrew Parsing**: Are there zero `.startsWith('--')`, `.includes('--')`, or `.split('=')` checks?
 4. [ ] **Positional Declarations**: Are positional parameters declared as `type: 'positional'` rather than extracted from raw arrays?
 5. [ ] **Subcommands Declared**: Are subcommands structured via `subCommands: { ... }` rather than manual `switch (args[0])`?
-6. [ ] **Hermetic Verification**: Does `npm run auditor phase=setup` (or `task=validate_cli_contracts`) pass cleanly with 0 errors?
+6. [ ] **Hermetic Verification**: Does `npm run auditor:setup` (or `npm run auditor:cli-contracts`) pass cleanly with 0 errors?

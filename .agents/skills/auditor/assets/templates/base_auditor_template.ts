@@ -99,7 +99,7 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       name: 'My Composite Auditor',
       description: 'Validates cross-dataset parity and registry integrity',
       icon: '🏛️', // Mandatory thematic emoji representing this auditor
-      family: 'domain_data', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
+      family: 'domain_data', // 'architecture' | 'domain_data' | 'performance' | 'security' | 'persistence' | 'documentation'
       ruleIds: MY_COMPOSITE_RULES,
       packageName: 'Data',
       // Mandatory: SSoT configuration key inspected by the dynamic suite gating engine:
@@ -136,7 +136,7 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
         'composite-missing-config':
           '1. Root Cause: The configuration file required by the subsystem is missing from the project root.\n' +
           '2. Diagnosis: Check whether the file specified in configFiles exists on disk.\n' +
-          '3. Canonical Solution: Run "npm run auditor:fix" or "auditor fix" to scaffold it automatically, or create it with the canonical structure.\n' +
+          '3. Canonical Solution: Run "npm run auditor:fix" to scaffold and synchronize it automatically from .auditor/audit.config.ts.\n' +
           '4. Example / Command: npm run auditor:fix'
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases

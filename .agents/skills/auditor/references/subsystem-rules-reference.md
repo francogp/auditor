@@ -25,6 +25,7 @@ This reference documents the detailed technical specifications, edge-case handli
 17. [TypeScript Compiler Baseline & ES2025 Standard Mandate (`validate_tsconfig`)](#17-typescript-compiler-baseline--es2025-standard-mandate-validate_tsconfig)
 18. [Serial Fix Execution & Pure TypeScript Compiler AST Configuration Sync](#18-serial-fix-execution-concurrency--1--pure-typescript-compiler-ast-configuration-sync)
 19. [Canonical CLI Contracts & Citty Governance Mandate (`validate_cli_contracts`)](#19-canonical-cli-contracts--citty-governance-mandate-validate_cli_contracts)
+20. [Canonical Domain Governance & Zero Escape Hatches (`validate_oxlint`)](#20-canonical-domain-governance--zero-escape-hatches-validate_oxlint)
 
 ---
 
@@ -35,7 +36,7 @@ This reference documents the detailed technical specifications, edge-case handli
 Standard CSS functions sharing names with Dart Sass built-in color and math functions (`scale`, `scaleX`, `scaleY`, `scaleZ`, `scale3d`, `saturate`, `grayscale`, `invert`, `alpha`, `brightness`, `contrast`, `drop-shadow`, `hue-rotate`, `translateX`, `translateY`, `translateZ`, `translate3d`, `radial-gradient`, `linear-gradient`) MUST be written with PascalCase/CamelCase initials (e.g. `Scale(1.1)`, `Saturate(0.9)`, `Drop-Shadow(...)`, `hue-Rotate(...)`) inside SCSS and Vue SFC `<style>` blocks.
 
 - **Root Cause**: Writing them in lowercase causes Dart Sass compiler crashes (`[sass] $color: 1.1 is not a color.`, `[sass] Missing argument $amount.`).
-- **Stylelint Configuration**: `.stylelintrc.json` MUST keep:
+- **Stylelint Satellite Projection (`.stylelintrc.json`)**: Generated automatically by `npm run auditor:fix` from `.auditor/audit.config.ts` (never edited manually) with:
   - `function-name-case: ['lower', { ignoreFunctions: ['/^[A-Z]/', 'Drop-Shadow', 'Drop-shadow', 'hue-Rotate', 'Hue-Rotate'] }]`
   - `value-keyword-case: ['lower', { camelCaseSvgKeywords: true, ignoreProperties: ['/--.*/'], ignoreFunctions: ['v-bind'] }]`
 - **Auto-Repair**: In `--fix` mode, `validate_stylelint` automatically repairs colliding lowercase functions to capitalized casing on the PostCSS AST.
@@ -65,7 +66,7 @@ The `validate_magic_numbers` suite inspects the TypeScript Compiler AST using `S
 - **Built-in Sentinels**: Built-in base, calendar, and geometry sentinels (`-1, 0, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024`) and next-tick delay `0` are permitted without false alarms.
 - **Timer Delays**: Named constants are required for all positive timer delays (`setTimeout`, `setInterval`, `delayedCall`, `gsapSleep`). Host projects declare domain sentinels in `config.constants.exemptMagicNumbers` without comment escape hatches.
 - **Vue Template Safeguard (`vue-template-magic-calculation`)**: Flags inline calculations (`*`, `/`, `%`) and comparisons involving numbers inside Vue `<template>` expressions while allowing markup props (`:span="12"`), index offsets (`+ 1`), and bounds checks (`.length === 0`).
-- **AST Unwrapping Invariance**: In `validate_duplicate_constants`, constant declaration initializers are unwrapped through `ts.isAsExpression`, `ts.isTypeAssertionExpression`, and `ts.isParenthesizedExpression` before comparative evaluation to prevent false divergent alarms between typed and untyped literals.
+- **AST Unwrapping Invariance**: In `validate_oxlint` (`@francogp/domain-type/no-duplicate-constants`), constant declaration initializers are unwrapped through TypeScript type assertions and parenthesized expressions before comparative evaluation to prevent false divergent alarms between typed and untyped literals.
 
 ---
 
@@ -76,10 +77,10 @@ All audit findings in `latest_audit.json` (`allFindings`) are stably sorted by r
 The framework exposes `npm run auditor:by-file` (binary `auditor-by-file`), rendering a Box-Drawing tree:
 
 ```text
-src/example.ts (3 incidencias)
-  ├── L12: [Oxlint] Parámetro no tipado
-  ├── L45: [Estilos] Valor mágico de color
-  └── L89: [Simplify] Else redundante tras return
+src/example.ts (3 findings)
+  ├── L12: [Oxlint] Untyped parameter
+  ├── L45: [Styles] Magic color literal
+  └── L89: [Simplify] Redundant else after return
 ```
 
 Supports filters: `file=<path>`, `category=<cat>`, `severity=<sev>`, `top=<n>`, `json`.
@@ -90,7 +91,7 @@ Supports filters: `file=<path>`, `category=<cat>`, `severity=<sev>`, `top=<n>`, 
 
 Ambiguous symbols with Unicode variation selectors (e.g. `⏭️` / `\u23ED\uFE0F`) are treated as width 2 by Node's `string-width` but render as width 1 in many Linux monospace fonts, causing closed Box-Drawing borders (`boxen`, `cli-table3`) to misalign.
 
-Inside closed Box-Drawing frames, terminal themes MUST use clean ASCII text (e.g. `(3 Omitidas)`) or standard universally supported wide emojis, avoiding ambiguous symbols with optional variation selectors.
+Inside closed Box-Drawing frames, terminal themes MUST use clean ASCII text (e.g. `(3 Skipped)`) or standard universally supported wide emojis, avoiding ambiguous symbols with optional variation selectors.
 
 ---
 
@@ -115,7 +116,7 @@ Auto-repair analyzers (`agentsMandateAnalyzer.ts`, `validate_agents_config_manda
 
 ## 7. Local Git Repository Configuration Governance
 
-Governed by `validate_git_config` declaring `fix: 'priority'`:
+Governed by `validate_git_config` declaring derived `fix: 'priority'` (`phase: 'setup'`):
 
 - Enforces `core.filemode = false`, `core.autocrlf = input`, and `core.eol = lf` locally across all workspaces in `.git/config`.
 - Prevents cross-platform line ending corruption and phantom executable bit changes across Linux and Windows.
@@ -125,7 +126,7 @@ Governed by `validate_git_config` declaring `fix: 'priority'`:
 
 ## 8. Zero False-Fix Mandate & Grounded Fixability Contract
 
-- **Capability vs Finding**: A sub-auditor or rule MUST be 100% automatically fixable via mechanical code mutation, or NOT be classified as fixable at all. A sub-auditor declaring `capabilities.fix === true` signals that the suite possesses auto-repair logic for specific rules, NOT that every finding emitted by the suite is mechanically fixable.
+- **Capability vs Finding**: A sub-auditor or rule MUST be 100% automatically fixable via mechanical code mutation, or NOT be classified as fixable at all. A sub-auditor with derived `fix: 'normal' | 'priority'` signals that the suite possesses auto-repair logic (`applyFixes` / `verifyAndFixConfigFiles`) for specific rules, NOT that every finding emitted by the suite is mechanically fixable.
 - **Explicit Finding Fixability**: Each finding MUST report `fixable: true` ONLY when a dedicated, automated programmatic fixer exists that mechanically resolves that exact violation on disk with zero human intervention. Rules emitting suggestions (`💡`), dangerous fixes (`⚠️`), or help-only diagnostics MUST be mapped to `fixable: false`. In third-party linters (e.g. Oxlint, Stylelint), only verified mechanical fixes (such as Oxlint rules designated with `🛠️`) are included in fixable sets.
 - **Mandatory Automated Integrity Canaries (`fixable_integrity_canary.test.ts`)**: Every suite declaring `fix: 'normal' | 'priority'` must be covered by automated end-to-end canary tests verifying:
   1. Positive canary: A seeded violation is physically repaired on disk, producing a clean post-fix audit pass (`fixableErrors === 0`).
@@ -150,17 +151,15 @@ Governed by `validate_script_extensions` when `scriptExtensions.enabled !== fals
 ## 10. Dynamic Exemption Architecture & Anti-Hardcoding Invariant (`isPathExempt`, `auditor-hardcoded-config`)
 
 - **Zero Hardcoded Paths Invariant**: Sub-auditors and extensions are strictly prohibited from declaring hardcoded candidate file arrays (e.g. `['visuals.ts', 'constants.ts']`), local directory ignore lists, or arbitrary fallback filenames. All file targets, search roots, migration paths, and exclusion patterns MUST resolve dynamically from `.auditor/audit.config.ts`.
-- **Auditor Hygiene Detector (`auditor-hardcoded-config`)**: Enforced at build and audit time by `validate_auditor_hygiene` via `hardcodedConfigDetector.ts`. It statically scans all sub-auditors and extensions in `src/suites/**/*.ts` and `scripts/auditors/**/*.ts`, flagging any hardcoded candidate arrays or ignore lists with `severity: 'error'`.
+- **Auditor Hygiene Detector (`auditor-hardcoded-config`)**: Enforced at build and audit time by `validate_oxlint` via `@francogp/domain-type/auditor-hardcoded-config`. It statically inspects ASTs across sub-auditors and extensions, flagging any hardcoded candidate arrays or ignore lists with `severity: 'error'`.
 - **`FileScanAuditor` Native Exemption (`options.exemptPaths`)**:
   - `FileScanAuditor` accepts `exemptPaths?: readonly (string | RegExp)[]` in its constructor options.
   - Subclasses pass `config.<section>?.exemptPaths` directly to `super({ ... })`.
   - The base class automatically invokes `isPathExempt(doc.relPath, this.exemptPaths)` before dispatching to `scanDocument` or `scanFile`, eliminating manual loop boilerplate and duplicate code across suites.
 - **Configurable Suite Exemptions**:
   - `webPerformance`: `exemptPaths`, `exemptSvgPaths`, `exemptImgClasses`
-  - `queryPerformance`: `exemptPaths`, `exemptSelectStarPaths`
-  - `securityHardening`: `exemptPaths` (and natively allows empty string `.innerHTML = ''`)
-  - `codeSimplification`: `exemptPaths`, `allowMatrixLoops`
   - `scssArchitecture`: `exemptPaths`, `scopedMaxNestingDepth`, `allowPixelArtSpacing`, `allowedSpacingUnits`, `allowScopedColors`
+  - Oxlint rule families (query performance, security hardening, code simplification, GSAP, domain types): scoped dynamically via `paths.*` (`testRoots`, `scriptsRoots`, `cliRoots`, `demoRoots`) and `oxlint.*` in `.auditor/audit.config.ts`, projected into `vite.config.ts` (`lint.overrides`) by `npm run auditor:fix`.
 
 ---
 
@@ -174,76 +173,75 @@ Governed by `validate_script_extensions` when `scriptExtensions.enabled !== fals
   2. **Level 2 (Hermetic Subsystem Isolation)**: Custom ignores and exemptions configured in a subsystem section in `.auditor/audit.config.ts` (e.g. `constants.ignoreGlobs`, `animation.ignoreGlobs`, `domain.ignoreGlobs`, `styles.ignoreGlobs`, `styles.exemptCssFiles`) apply EXCLUSIVELY to that sub-auditor. They never leak, affect, or mute any other sub-auditor.
   3. **Level 3 (Extension Isolation)**: Extra patterns passed to an extension (`options.extraIgnorePatterns`, `options.exemptPaths`) apply solely to that instance.
   4. **Level 4 (Specialized Subsystem Contracts)**:
-     - `coverage.acknowledgedDegradations` and `testCoverage.exemptGlobs` are strictly testing and test-coverage metrics contracts. They MUST NEVER contaminate or be projected into `lint.ignorePatterns` or `fmt.ignorePatterns`. Excluded testing coverage does NOT exempt application code from lint hygiene, syntax checks, or code formatting.
+     - `coverage.acknowledgedDegradations` (`validate_audit_coverage`) and `testCoverage.exemptGlobs` (`validate_test_coverage`) are strictly testing and test-coverage metrics contracts. They MUST NEVER contaminate or be projected into `lint.ignorePatterns` or `fmt.ignorePatterns`. Excluded testing coverage does NOT exempt application code from lint hygiene, syntax checks, or code formatting.
      - Source code folders (`src/cli/**`, `src/core/**`, `src/analyzers/**`, `src/suites/**`) MUST NEVER be placed in `lint.ignorePatterns`.
-     - The AST synchronizer (`syncLintSectionAst` / `syncFmtSectionAst`) executes exact synchronization: any unauthorized or obsolete ignore pattern detected in `vite.config.ts` triggers `vite-plus-config-ts` and is automatically purged upon running `npm run auditor:fix` or `auditor fix`.
+     - The AST synchronizer (`syncLintSectionAst` / `syncFmtSectionAst`) executes exact synchronization: any unauthorized or obsolete ignore pattern detected in `vite.config.ts` triggers `vite-plus-undeclared-config-entry` / `vite-plus-config-ts` and is automatically purged upon running `npm run auditor:fix` or `auditor fix`.
   - Tested comprehensively against cross-contamination via `tests/auditor_subsystem_ignore_isolation.test.ts`.
 - **Mandatory Oxlint Injected Rules & Anti-Castration**:
   `validate_vite_plus_config` enforces that `vite.config.ts` declares:
   - `typescript/no-explicit-any: 'error'`
   - `typescript/ban-ts-comment: 'error'`
   - `typescript/consistent-type-assertions: ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]`
-  - Casting rules banning double unknown casts (`as unknown as`) and legacy `new Date()` / `Date.now()`.
-    Silencing or setting any rule to `'off'`, `0`, or `'warn'` is strictly prohibited and fails under canonical thematic rules (`vite-plus-config-lint`, `vite-plus-config-core`). In `--fix` mode, the orchestrator automatically re-injects the mandatory baseline. Developers and AI agents must elevate source code to satisfy all strict rules rather than relaxing configurations.
+  - `@francogp/domain-type` rules banning double unknown casts (`@francogp/domain-type/no-double-cast-unknown`) and legacy `new Date()` / `Date.now()`.
+    Silencing or setting any rule to `'off'`, `0`, or `'warn'` is strictly prohibited and fails under canonical thematic rules (`vite-plus-config-lint`, `vite-plus-config-core`, `vite-plus-undeclared-config-entry`). In `--fix` mode, the orchestrator automatically re-injects the mandatory baseline. Developers and AI agents must elevate source code to satisfy all strict rules rather than relaxing configurations.
 - **Source Code Formatting Hygiene (`validate_oxfmt`)**:
   `validate_oxfmt` validates project-wide code formatting using Oxfmt (`vp fmt --check` in check mode, and `vp fmt` in `--fix` mode), mapping diffs directly to actionable `AuditFinding` items with `fixable: true`.
 - **Mandatory Canary Verification**:
   All mandatory injected rules and configuration toggles must have active automated canary tests asserting positive detection, negative compliance, and active vs disabled behavior.
 - **Canonical Static Pre-compression Governance & Homebrew Plugin Ban (`vitePrecompressPlugin`, `vite-plus-config-core`)**:
-  Static asset pre-compression is centralized in `@francogp/auditor` via `vitePrecompressPlugin`, using native `node:zlib` (Brotli Q11 & Gzip L9) and multi-server config scaffolding (`nginx`, `apache`, `caddy`, `all`). Ad-hoc homebrew compression scripts (`scripts/**/vite-plugin-precompress*.ts`) and obsolete external compression libraries (`vite-plugin-compression`, `vite-plugin-compression2`) are strictly prohibited and flagged as `severity: 'error'` by `validate_vite_plus_config`. In `--fix` mode (`auditor fix`), the engine automatically cleans up the local script and rewrites `vite.config.ts` to import and call `vitePrecompressPlugin`. Web application projects enable it by default in `audit.config.ts` (`vitePlusConfig.precompress`), while non-web/CLI packages explicitly deactivate it (`precompress: { enabled: false }`).
+  Static asset pre-compression is centralized in `@francogp/auditor` via `vitePrecompressPlugin`, using native `node:zlib` (Brotli Q11 & Gzip L9) and multi-server config scaffolding (`nginx`, `apache`, `caddy`, `all`). Ad-hoc homebrew compression scripts (`scripts/**/vite-plugin-precompress*.ts`) and obsolete external compression libraries (`vite-plugin-compression`, `vite-plugin-compression2`) are strictly prohibited and flagged as `severity: 'error'` by `validate_vite_plus_config`. In `--fix` mode (`auditor fix`), the engine automatically cleans up the local script and wires `vitePrecompressPlugin` via `vite.plugins.ts` / `vite.config.ts`. Web application projects enable it by default in `audit.config.ts` (`vitePlusConfig.precompress`), while non-web/CLI packages explicitly deactivate it (`precompress: { enabled: false }`).
 
 ---
 
 ## 12. GSAP UI Animation Governance & Anti-Destruction Mandate
 
-Governed by `validate_gsap_animations.ts`:
+Governed by `validate_oxlint` (`@francogp/domain-type` GSAP rules) and `validate_scss_architecture`:
 
-- **Scope of Manual Timers (`manualTimersFrontend`)**: Timer enforcement (`setTimeout`, `setInterval`) is strictly scoped to frontend UI components and views (`.vue` or files within `componentsRoots` and `viewsRoots`). Legitimate Node.js CLI tools and runner scripts are permitted to use standard timers.
+- **Scope of Manual Timers (`@francogp/domain-type/no-gsap-banned-ui-timers`)**: Timer enforcement (`setTimeout`, `setInterval`) is strictly scoped to frontend UI components and views (`.vue` or files outside test/script/CLI overrides configured in `paths.*`). Legitimate Node.js CLI tools and runner scripts receive dynamic `lint.overrides` from `npm run auditor:fix`.
 - **Universal GSAP Standard**: `gsapSleep` and `delayedCall` are universal standards for UI delays and animation timing across all projects, scaling deterministically with `timeScale(100)` during automated tests.
-- **GPU Transforms vs Layout Properties (`gsap-no-layout-properties`)**: UI animations must use GPU transforms (`scaleX`, `scaleY`, `x`, `y`, `Flip`). Static style applications are configured via `gsap.set()`, and variable collapsible content uses recognized zero-to-auto height transitions without escape hatches.
+- **GPU Transforms vs Layout Properties (`@francogp/domain-type/gsap-no-layout-properties`)**: UI animations must use GPU transforms (`scaleX`, `scaleY`, `x`, `y`, `Flip`). Static style applications are configured via `gsap.set()`, and variable collapsible content uses recognized zero-to-auto height transitions without escape hatches.
 - **Anti-Destruction Mandate for CSS/SCSS Transitions**: Developers and AI agents are strictly prohibited from deleting CSS/SCSS transitions (`transition: ...`) to pass audits or silence `gsap-banned-css-animations`. Interactive UI transitions must be cleanly migrated to GSAP tweens (`gsap.to`, `gsap.fromTo`, `useGSAP`). Deleting transitions without migration degrades UX and is treated as architectural sabotage.
 
 ---
 
-## 13. Modern Performance, Security & Architecture Expansion Suites
+## 13. Modern Performance, Security & Architecture Rule Families
 
-1. **`validate_web_performance.ts`** (`performance` family, 7 rules):
+1. **`validate_web_performance.ts`** (`performance` suite, 7 rules):
    - Enforces modern image compression (WebP/AVIF).
    - Enforces `@font-face` `font-display: swap`.
-   - Restricts inline SVG payload bounds (<=2KB).
+   - Restricts inline SVG payload bounds (`<= 2048` bytes default).
    - Prohibits render-blocking CSS/script resources in `<head>`.
-   - Restricts DOM depth limits (<=16 levels).
+   - Restricts DOM depth limits (`<= 16` levels default).
    - Mandates explicit layout dimensions (`width` and `height`) on media.
    - Enforces compressed streaming video codecs (`webm` / `preload="none"`).
-2. **`validate_query_performance.ts`** (`performance` family, 6 rules):
+2. **Query Performance Rules (consolidated into `validate_oxlint` via `@francogp/domain-type`)**:
    - Enforces foreign key secondary indexing in relational schemas.
    - Prohibits unbounded `SELECT *` in SQL/ORM queries.
    - Flags unpaginated collection queries missing `.limit` or `.range`.
    - Detects N+1 async database queries inside iterative loops.
    - Blocks full-table `SELECT COUNT(*)`.
    - Mandates cursor pagination over high `OFFSET`.
-3. **`validate_security_hardening.ts`** (`security` family, 8 rules):
+3. **Security Hardening & Secret Detection Rules (consolidated into `validate_oxlint` via `@francogp/domain-type`)**:
    - Prohibits hardcoded credentials, API keys, and sensitive tokens.
    - Prohibits insecure PRNG (`Math.random()`) for sensitive values.
-   - Flags ReDoS-vulnerable regular expressions.
    - Prohibits raw HTML injection (`v-html`, `innerHTML`).
    - Mandates CSRF tokens in HTML mutation forms.
    - Prohibits dynamic evaluation (`eval`, `new Function`).
    - Bars permissive wildcard CORS headers (`Access-Control-Allow-Origin: *`).
    - Detects unvalidated open redirects.
-4. **`validate_code_simplification.ts`** (`architecture` family, 6 rules):
+4. **Code Simplification Rules (consolidated into `validate_oxlint` via `@francogp/domain-type`)**:
    - Detects accumulated dead code and unreachable branches.
    - Flags boolean trap parameters.
    - Restricts excessive control flow nesting (>4 levels).
    - Flags redundant else branches after `return` or `throw`.
    - Flags premature abstraction wrappers.
    - Restricts massive switch branching (>10 cases).
-5. **`validate_scss_architecture.ts`** (`architecture` family, 5 rules):
+5. **`validate_scss_architecture.ts`** (`architecture` suite, 5 rules):
    - Enforces SCSS preprocessor architecture across Single File Components.
    - Governs `:deep()` selector scope.
    - Prohibits obsolete non-standard spacing units (`pt`, `in`, `cm`, `mm`).
    - Mandates design system theme token usage.
-   - Limits SCSS selector nesting depth (<=4 levels).
+   - Limits SCSS selector nesting depth (`<= 3` global, `<= 4` scoped).
 
 ---
 
@@ -271,7 +269,7 @@ Every sub-auditor and host extension must be covered by a dedicated Vitest unit 
 1. **Instantiation & Metadata**: Validated via `validateAuditorConstruction(auditor)`.
 2. **Clean Path Testing**: Asserts `errors === 0`, `status === 'passed'`, and `findings.length === 0`.
 3. **Violation Detection**: Asserts `errors > 0`, `status === 'failed'`, and `severity === 'error'`.
-4. **Warning Path Verification**: Where applicable, asserts `warnings > 0`, `status === 'warned'`, and `severity === 'warning'`.
+4. **Warning Path Verification**: Where applicable, asserts `warnings > 0`, `errors === 0`, `status === 'passed'`, and `severity === 'warning'` (`AUDIT_STATUSES` are strictly `'passed' | 'failed' | 'skipped'`).
 5. **100% Rule Coverage**: Asserts that 100% of declared rule IDs are explicitly tested.
 6. **Fixer Verification (`checkFixVerification`)**: Every sub-auditor declaring `fix: 'normal' | 'priority'` must include a dedicated unit test invoking its fixer (`fix: true` or `fixMode: true`) and asserting `errors === 0` or `status === 'passed'` after remediation.
 
@@ -310,7 +308,7 @@ Governed by `src/suites/architecture/validate_tsconfig.ts`:
 Governed by `src/cli/audit_full.ts`, `src/core/viteConfigAst.ts`, and `src/core/vitePlusConfigSync.ts`:
 
 - **100% Serial Execution in Auto-Fix Mode (`concurrency = 1`)**: When running `auditor fix` (`--fix`), `audit_full.ts` enforces `effectiveConcurrency = 1`, disables `sharedAstContext` to ensure fresh disk reads between fixers, clears stale subprocess JSON files prior to each execution, and runs fix-enabled suites in deterministic 4-phase order (`FIX_MODE_EXPLICIT_ORDER`).
-- **Pure AST & Native JSON Configuration Governance**: Configuration files (`vite.config.ts`, `playwright.config.ts`, `tsconfig.json`, `package.json`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`) and Vite+ import specifier migrations (`rewriteModuleSpecifiersToVitePlusAst`) are parsed, inspected, and mutated exclusively via the TypeScript Compiler AST (`ts.createSourceFile`, `ts.factory`, `ts.transform`, `ts.createPrinter()`) or native JSON parsing (`JSON.parse` / `ts.readConfigFile` + `JSON.stringify`), eradicating manual string manipulation and regex brace-counting.
+- **Pure AST & Native JSON Configuration Governance**: Configuration files (`vite.config.ts`, `playwright.config.ts`, `tsconfig.json`, `package.json`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`, `.markdownlint.json`) and Vite+ import specifier migrations (`rewriteModuleSpecifiersToVitePlusAst`) are parsed, inspected, and mutated exclusively via the TypeScript Compiler AST (`ts.createSourceFile`, `ts.factory`, `ts.transform`, `ts.createPrinter()`) or native JSON parsing (`JSON.parse` / `ts.readConfigFile` + `JSON.stringify`), eradicating manual string manipulation and regex brace-counting.
 - **Vitest Workspace Projects & Runner Isolation (`vitePlusConfig.test.projects`)**: Governs multi-environment testing suites. In `audit.config.ts`, `vitePlusConfig.test.projects` acts as the SSoT mapping project identifiers to test roots. `validate_vite_plus_config` strictly prohibits root `test.include` alongside `test.projects` to prevent runner cross-contamination (e.g. running backend/database tests under JSDOM unit runners). In auto-fix mode, the AST engine purges root `test.include` and synchronizes project includes while preserving custom environment options and setup files.
 
 ---
@@ -319,7 +317,7 @@ Governed by `src/cli/audit_full.ts`, `src/core/viteConfigAst.ts`, and `src/core/
 
 Governed by `src/suites/architecture/validate_cli_contracts.ts`:
 
-- **Universal Citty Standard (`citty@^0.2.2`)**: All standalone CLI tools, sub-auditors, reporters, refactoring utilities, and host scripts across the framework and consumer host repositories MUST parse command-line arguments declaratively using `citty` via `src/core/cli/cittyHarness.ts` (`defineCommand`, `runMain`, `runCommand`, `COMMON_CLI_ARGS`, `createRefactorCli`, `parseCittyArgs`).
+- **Universal Citty Standard (`citty@^0.2.2`)**: All standalone CLI tools, sub-auditors, reporters, refactoring utilities, and host scripts across the framework and consumer host repositories MUST parse command-line arguments declaratively using `citty` via `src/core/cli/cittyHarness.ts` (`defineCommand`, `runNormalizedMain`, `runMain`, `runCommand`, `COMMON_CLI_ARGS`, `createRefactorCli`, `parseCittyArgs`).
 - **7 Non-Negotiable Contract Rules**:
   1. `cli-contracts-direct-argv-access`: Banning direct access to `process.argv` (or runtime equivalents like `Deno.args`, `Bun.argv`).
   2. `cli-contracts-banned-parser-library`: Banning unauthorized CLI argument parsers (`node:util.parseArgs`, `yargs`, `commander`, `minimist`, `cac`, `arg`, `mri`, `sade`, `meow`, `clipanion`, `oclif`).
@@ -333,12 +331,12 @@ Governed by `src/suites/architecture/validate_cli_contracts.ts`:
 
 ---
 
-## 20. Canonical Domain Governance & Zero Escape Hatches (`validate_canonical_domains`, `validate_oxlint`)
+## 20. Canonical Domain Governance & Zero Escape Hatches (`validate_oxlint`)
 
-Governed by `src/suites/domain_data/validate_canonical_domains.ts` and `src/suites/architecture/validate_oxlint.ts` (via native and `@francogp/domain-type` rules):
+Governed by `src/suites/architecture/validate_oxlint.ts` (via native Oxlint rules and `@francogp/domain-type` AST plugin rules):
 
-- **Pure AST Architecture (`ast: true`)**: Operates exclusively under TypeScript AST / Oxlint AST parsing, eradicating fragile regex pattern matching.
-- **SSoT Domain Deduplication (`validate_canonical_domains`)**:
+- **Pure AST Architecture (`ast: true`)**: Operates exclusively under Oxlint / TypeScript AST parsing, eradicating fragile regex pattern matching.
+- **SSoT Domain Deduplication (`@francogp/domain-type`)**:
   - `canonical-domain-repeated-union`: Enforces extracting repeated string unions into canonical SSoT domain type aliases.
   - `canonical-domain-collision`: Prevents multiple disparate modules from declaring identical domain catalogs.
   - `canonical-domain-subset-mismatch`: Prevents loose sub-collections or redundant duplicate domain arrays; sub-collections must be derived via TypeScript utility types (`Extract<Master, ...>`).

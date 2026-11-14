@@ -1,6 +1,6 @@
 # Purpose
 
-Modular static analysis and architecture verification suites for `@francogp/auditor`. Contains 91 domain-agnostic suites organized across 6 canonical families: `architecture/`, `domain_data/`, `persistence/`, `performance/`, `security/`, and `documentation/`.
+Modular static analysis and architecture verification suites for `@francogp/auditor`. Contains 55 domain-agnostic suites organized across 6 canonical families: `architecture/`, `domain_data/`, `persistence/`, `performance/`, `security/`, and `documentation/`.
 
 ## Ownership
 
@@ -22,12 +22,12 @@ Architecture & Tooling Engineers.
 
 - Ensure all sub-auditors implement `toManifest()` accurately with description `<= 60` characters.
 - Maintain pure English `packageName` and `ruleDescriptions` composed as `${packageName}: ${ruleDescription}` under `<= 50` characters.
-- Use explicit 7-field orthogonal `ruleCapabilities` (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`) via `createUniformRuleCapabilities` or `createRuleCapabilities`, and use `this.scanFilesSinglePass(files, handlers)` backed by `WorkspaceFileCache` in multi-rule `BaseAuditor` suites.
+- Use explicit 6-field orthogonal `ruleCapabilities` (`speed`, `phase`, `md`, `ast`, `changedOnly`, `critical`) via `createUniformRuleCapabilities` or `createRuleCapabilities` (never pass manual `fix` booleans or strings; `fix` is derived automatically from `ruleFixers` and `configFiles`), and use `this.scanFilesSinglePass(files, handlers)` backed by `WorkspaceFileCache` in multi-rule `BaseAuditor` suites.
 
 ## Verification
 
-- Run all family suites: `vp test tests/validate_*.test.ts` (or `npm test -- tests/validate_*.test.ts`)
-- Run light speed suites: `npm run auditor -- speed=light`
+- Run all family suites: `vp test run tests/validate_*.test.ts` (or `npm test -- tests/validate_*.test.ts`)
+- Run light speed suites: `npm run auditor:lint` (or `npm run auditor speed=light`)
 
 ## Child DOX Index
 

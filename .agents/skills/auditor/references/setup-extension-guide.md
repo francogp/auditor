@@ -84,8 +84,8 @@ In `package.json`, host projects can declare an `env:post-setup` script:
   "scripts": {
     "setup": "bash scripts/setup/setup-linux.sh",
     "setup:win": "powershell -ExecutionPolicy Bypass -File scripts/setup/setup-windows.ps1",
-    "env:post-setup": "node --experimental-strip-types scripts/setup/init-project-state.ts",
-    "tools:validate": "node --experimental-strip-types scripts/setup/validate-tools.ts"
+    "env:post-setup": "node --permission --allow-fs-read=* --allow-fs-write=. scripts/setup/init-project-state.ts",
+    "tools:validate": "node --permission --allow-fs-read=* --allow-child-process scripts/setup/validate-tools.ts"
   }
 }
 ```
@@ -94,7 +94,7 @@ The base setup script executes `npm run env:post-setup --if-present` upon comple
 
 ---
 
-## 3. Reference Implementation Templates
+## 3. Reference Implementation Templates (Strict 7-Bit ASCII)
 
 ### Plugin 1: Local Docker Database Container
 
@@ -108,28 +108,28 @@ CONTAINER_NAME="app-postgres"
 IMAGE="postgres:16-alpine"
 DB_PORT="5432"
 
-echo "🐘 [Plugin 01] Verifying Docker Database container ($CONTAINER_NAME)..."
+echo "[INFO] [Plugin 01] Verifying Docker Database container ($CONTAINER_NAME)..."
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "⚠️ Docker is not installed on this system. Skipping database launch."
+  echo "[WARN] Docker is not installed on this system. Skipping database launch."
   exit 0
 fi
 
 if [ "$(docker ps -q -f name=^/${CONTAINER_NAME}$)" ]; then
-  echo "  ✅ Container $CONTAINER_NAME is already running."
+  echo "  [OK] Container $CONTAINER_NAME is already running."
 elif [ "$(docker ps -aq -f status=exited -f name=^/${CONTAINER_NAME}$)" ]; then
-  echo "  🔄 Starting existing container $CONTAINER_NAME..."
+  echo "  [INFO] Starting existing container $CONTAINER_NAME..."
   docker start "$CONTAINER_NAME" >/dev/null
-  echo "  ✅ Container started."
+  echo "  [OK] Container started."
 else
-  echo "  🚀 Creating and starting new container $CONTAINER_NAME..."
+  echo "  [INFO] Creating and starting new container $CONTAINER_NAME..."
   docker run -d \
     --name "$CONTAINER_NAME" \
     -e POSTGRES_PASSWORD=postgres \
     -e POSTGRES_DB=app_db \
     -p "${DB_PORT}:5432" \
     "$IMAGE" >/dev/null
-  echo "  ✅ Container $CONTAINER_NAME created and listening on port $DB_PORT."
+  echo "  [OK] Container $CONTAINER_NAME created and listening on port $DB_PORT."
 fi
 ```
 
@@ -143,28 +143,28 @@ $containerName = "app-postgres"
 $image = "postgres:16-alpine"
 $dbPort = "5432"
 
-Write-Host "🐘 [Plugin 01] Verifying Docker Database container ($containerName)..." -ForegroundColor Cyan
+Write-Host "[INFO] [Plugin 01] Verifying Docker Database container ($containerName)..." -ForegroundColor Cyan
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    Write-Warning "Docker is not installed on this system. Skipping database launch."
+    Write-Warning "[WARN] Docker is not installed on this system. Skipping database launch."
     exit 0
 }
 
 $running = docker ps -q -f "name=^/${containerName}$"
 if ($running) {
-    Write-Host "  ✅ Container $containerName is already running." -ForegroundColor Green
+    Write-Host "  [OK] Container $containerName is already running." -ForegroundColor Green
     exit 0
 }
 
 $exited = docker ps -aq -f "status=exited" -f "name=^/${containerName}$"
 if ($exited) {
-    Write-Host "  🔄 Starting existing container $containerName..." -ForegroundColor Yellow
+    Write-Host "  [INFO] Starting existing container $containerName..." -ForegroundColor Yellow
     docker start $containerName | Out-Null
-    Write-Host "  ✅ Container started." -ForegroundColor Green
+    Write-Host "  [OK] Container started." -ForegroundColor Green
     exit 0
 }
 
-Write-Host "  🚀 Creating and starting new container $containerName..." -ForegroundColor Yellow
+Write-Host "  [INFO] Creating and starting new container $containerName..." -ForegroundColor Yellow
 docker run -d `
   --name $containerName `
   -e POSTGRES_PASSWORD=postgres `
@@ -172,7 +172,7 @@ docker run -d `
   -p "${dbPort}:5432" `
   $image | Out-Null
 
-Write-Host "  ✅ Container $containerName created and listening on port $dbPort." -ForegroundColor Green
+Write-Host "  [OK] Container $containerName created and listening on port $dbPort." -ForegroundColor Green
 ```
 
 ---
@@ -189,23 +189,23 @@ CERT_DIR="certs"
 KEY_FILE="$CERT_DIR/localhost-key.pem"
 CERT_FILE="$CERT_DIR/localhost.pem"
 
-echo "🔐 [Plugin 02] Verifying local development SSL certificates..."
+echo "[INFO] [Plugin 02] Verifying local development SSL certificates..."
 
 if [ -f "$KEY_FILE" ] && [ -f "$CERT_FILE" ]; then
-  echo "  ✅ Local SSL certificates already exist in $CERT_DIR/."
+  echo "  [OK] Local SSL certificates already exist in $CERT_DIR/."
   exit 0
 fi
 
 mkdir -p "$CERT_DIR"
 
 if command -v mkcert >/dev/null 2>&1; then
-  echo "  🔑 Generating certificates with mkcert..."
+  echo "  [INFO] Generating certificates with mkcert..."
   mkcert -install
   mkcert -key-file "$KEY_FILE" -cert-file "$CERT_FILE" localhost 127.0.0.1 ::1
-  echo "  ✅ Certificates successfully generated."
+  echo "  [OK] Certificates successfully generated."
 else
-  echo "  ⚠️ mkcert not found. Skipping automatic SSL generation."
-  echo "     For local HTTPS, install mkcert: https://github.com/FiloSottile/mkcert"
+  echo "  [WARN] mkcert not found. Skipping automatic SSL generation."
+  echo "         For local HTTPS, install mkcert: https://github.com/FiloSottile/mkcert"
 fi
 ```
 
@@ -219,23 +219,23 @@ $certDir = "certs"
 $keyFile = Join-Path $certDir "localhost-key.pem"
 $certFile = Join-Path $certDir "localhost.pem"
 
-Write-Host "🔐 [Plugin 02] Verifying local development SSL certificates..." -ForegroundColor Cyan
+Write-Host "[INFO] [Plugin 02] Verifying local development SSL certificates..." -ForegroundColor Cyan
 
 if ((Test-Path $keyFile) -and (Test-Path $certFile)) {
-    Write-Host "  ✅ Local SSL certificates already exist in $certDir/." -ForegroundColor Green
+    Write-Host "  [OK] Local SSL certificates already exist in $certDir/." -ForegroundColor Green
     exit 0
 }
 
 New-Item -ItemType Directory -Force -Path $certDir | Out-Null
 
 if (Get-Command mkcert -ErrorAction SilentlyContinue) {
-    Write-Host "  🔑 Generating certificates with mkcert..." -ForegroundColor Yellow
+    Write-Host "  [INFO] Generating certificates with mkcert..." -ForegroundColor Yellow
     mkcert -install
     mkcert -key-file $keyFile -cert-file $certFile localhost 127.0.0.1 ::1
-    Write-Host "  ✅ Certificates successfully generated." -ForegroundColor Green
+    Write-Host "  [OK] Certificates successfully generated." -ForegroundColor Green
 } else {
-    Write-Warning "mkcert not found. Skipping automatic SSL generation."
-    Write-Host "     For local HTTPS, install mkcert: choco install mkcert" -ForegroundColor Gray
+    Write-Warning "[WARN] mkcert not found. Skipping automatic SSL generation."
+    Write-Host "         For local HTTPS, install mkcert: choco install mkcert" -ForegroundColor Gray
 }
 ```
 

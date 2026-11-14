@@ -46,10 +46,10 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **No optional phases**                                                                                                | Phases 0–4 are mandatory. Skipping phases is STRICTLY FORBIDDEN.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **Config Ratchet & Setup Pre-Flight Integrity Gate (`auditor:setup`)**                                                | BEFORE initiating Phase 0 (prior to creating `task.md` or running version bumps), the agent MUST execute `npm run auditor:setup` (or `npm run auditor phase=setup`). All setup phase suites run to validate the online configuration ratchet against `ratchet.productionRef` (default `origin/main`) and verify that 100% of satellite configurations (.fallowrc.json, .stylelintrc.json, vite.config.ts, tsconfig.json, .htmlvalidate.json, .markdownlint.json) are synchronized with zero undeclared exemptions or relaxations. If ANY rule relaxation, satellite desynchronization, or unauthorized configuration tampering is detected without verified Antigravity user authorization (`RELAX-<8hex>`), **SAFE-COMMIT MUST NOT START**. The process halts immediately in pre-flight.                                                                                                                                                                                                     |
 | **Update `task.md` continuously**                                                                                     | Update `<appDataDir>/brain/<conversation-id>/task.md` after each step.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| **Unbroken Repair Loop**                                                                                              | You MUST NEVER exit Phase 2 until all 3 validation gates exit cleanly with code 0 on the final code.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Unbroken Repair Loop**                                                                                              | You MUST NEVER exit Phase 2 until both Phase 2 validation gates (Gates 2.1 and 2.2) exit cleanly with code 0 on the final code.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **Zero Gatekeeper Tampering & Proactive Evolution**                                                                   | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, ratchet logic (`auditRatchet.ts`), `audit_bundle.ts`, or any quality gatekeeper to make checks pass. Hand-editing `.auditor/audit-baseline.json` to add fingerprints, re-running `--init-baseline`, or disabling `ratchet.enabled` to absorb new warnings is gross misconduct. All errors and NEW warnings must be resolved at the code source.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | **Categorical Prohibition on Modifying or Turning Off Audit Configurations (`audit.config.ts`, Linters, Subsystems)** | During `/safe-commit`, agents are STRICTLY AND CATEGORICALLY FORBIDDEN from disabling, turning off, reverting, or tampering with `.auditor/audit.config.ts` (such as setting `domain.enabled: false`, `bundle.enabled: false`, `enforceTargets: false`, neutering thresholds, or adding ad-hoc whitelist entries), Vite+ configurations, Stylelint configurations, or Fallow configurations to make gates pass or silence findings. If an audit gate reveals errors or warnings (even hundreds or thousands), THEY ARE REAL DEFECTS. The agent MUST NOT touch configuration to fake a clean pass. If issues cannot be legitimately resolved in the source code or via canonical auto-fix (`npm run auditor:fix`), the agent MUST STOP the safe-commit immediately, halt Phase 2, report the exact defects to the user, and ask how they wish to proceed. Silencing rules or flipping config toggles during safe-commit is considered a critical architectural violation and gross misconduct. |
-| **Dynamic Modules & Domain Exports Analysis**                                                                         | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Dynamic Modules & Domain Exports Analysis**                                                                         | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. If an export is a legitimate public contract, consult the human programmer to declare it in `.auditor/audit.config.ts` under `fallow.ignoreExports` and synchronize `.fallowrc.json` via `npm run auditor:fix` (NEVER manually edit `.fallowrc.json`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | **Strict Single Build Mandate**                                                                                       | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.2). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.2 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | **Mandatory User Consultation for SemVer Bump Gate & Ban on Unilateral Bump Selection**                               | AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from unilaterally deciding or selecting a SemVer bump (`major`, `minor`, `patch`, `build`) during safe-commit when the user requested a commit without specifying the bump type (e.g. "hace commit", "safe-commit"). If the user's initial prompt explicitly specifies the bump type (e.g. "hace commit como fix", "commit patch", "commit como minor", "commit major", "commit build"), the agent applies that type directly (`fix` maps canonically to `patch`). If unspecified or ambiguous (e.g. "refactor", "docs", "chore"), the agent MUST display the candidate version analysis table in visible chat and invoke `ask_question` in Step 1.4, pausing execution until the user chooses. Autonomous version bumping in unspecified commits is considered a critical operational violation.                                                                                                                                         |
 | **Mandatory Atomic Tag Mandate**                                                                                      | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs.                                                                                                                                                                                                                                                                                                                                                                      |
@@ -73,19 +73,18 @@ graph TD
 
     subgraph LOOP ["🔁 Phase 2 — Active Repair Loop (Workspace)"]
         direction TB
-        T["2.1 Tests & Coverage\n(npm run test:coverage / test / Skip)"] -->|"Pass or Coverage Skip"| B["2.2 The Master Build Gate\nnpm run build\n(auditor:full + tsc + auditor:post-build)"]
-        B -->|"Exit 0 ✅"| F["2.3 Fallow Health Gate\nnpm run auditor:fallow"]
+        T["2.1 Tests & Coverage\n(npm run test:coverage / test / Skip)"] -->|"Pass or Coverage Skip"| B["2.2 The Master Build Gate\nnpm run build\n(auditor:full [incl. fallow, md, lint] + compile + post-build)"]
 
         T -->|"Tests Fail / Low Coverage"| REPAIR["🛠️ Repair:\n1. npm run auditor:fix\n2. Code & test edits"]
         B -->|"Exit Code != 0 / Error"| REPAIR
-        F -->|"Score < 85 / New Defects"| REPAIR
-        REPAIR -->|"Re-verify full cycle"| T
+        REPAIR -->|"src/ or tests/ changed"| T
+        REPAIR -->|"Only docs/styles/config changed"| B
     end
 
-    F -->|"Exit 0 & Score >= 85"| EXIT_GATE["✅ Loop Exit"]
+    B -->|"Exit 0 ✅"| EXIT_GATE["✅ Loop Exit"]
     EXIT_GATE --> A3["Phase 3\nDocumentation Alignment\n+ Lessons (learn-with-docs)"]
     A3 -->|"Updates / Lessons Identified"| STOP1{"🛑 USER APPROVES\nlearning_proposal.md?"}
-    STOP1 -->|Approved| A4["Phase 4\nSingle Atomic Certified Commit\n+ Pre-commit npm run auditor:md\n+ Tag & Push"]
+    STOP1 -->|Approved| A4["Phase 4\nSingle Atomic Certified Commit\n+ Conditional auditor:md\n+ Atomic Tag (No Auto-Push)"]
     A3 -->|"Zero Lessons & Zero Updates (Skip Stop)"| A4
 
     style PRE fill:#e94560,stroke:#fff,stroke-width:2px,color:#fff
@@ -93,7 +92,6 @@ graph TD
     style LOOP fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
     style T fill:#1f4068,stroke:#00b4d8,stroke-width:2px,color:#fff
     style B fill:#e94560,stroke:#fff,stroke-width:2px,color:#fff
-    style F fill:#162447,stroke:#00b4d8,stroke-width:2px,color:#fff
     style EXIT_GATE fill:#0f3460,stroke:#00b4d8,stroke-width:2px,color:#fff
     style STOP1 fill:#533483,stroke:#fff,stroke-width:2px,color:#fff
 ```
@@ -151,18 +149,21 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 - Verify if any non-trivial logic was modified in `src/` without corresponding unit tests.
 - If gaps exist, write the unit tests immediately in `tests/` before moving forward.
 
-**Step 1.3** — Record Baseline Health & Create Code-Only Safety Patch
+**Step 1.3** — Create Code-Only Safety Patch
 
-- Run `npm run auditor:fallow` (or `fallow health --format json --quiet`) to record `BASELINE_HEALTH`.
-- Create the safety patch:
+- Create a UTF-8 code-only backup patch before auto-fixes or version bumps run (do NOT run `npm run auditor:fallow` separately here, as Gate 2.2 `npm run build` already executes `validate_fallow`):
 
   ```bash
-  mkdir -p scratch/backups && git diff HEAD -- '*.ts' '*.vue' '*.js' '*.scss' '*.css' '*.sql' ':!*.json' > scratch/backups/pre_audit_backup.patch
+  # Windows PowerShell:
+  New-Item -ItemType Directory -Force -Path scratch/backups | Out-Null ; git diff HEAD --output=scratch/backups/pre_audit_backup.patch -- "*.ts" "*.vue" "*.js" "*.scss" "*.css" "*.sql" ":!*.json"
+
+  # Linux / macOS / Bash:
+  mkdir -p scratch/backups && git diff HEAD --output=scratch/backups/pre_audit_backup.patch -- '*.ts' '*.vue' '*.js' '*.scss' '*.css' '*.sql' ':!*.json'
   ```
 
 **Step 1.4** — Version Bump Analysis & User Decision (`ask_question`)
 
-- **Clean Base Version Invariant**: Prior to executing `version:analyze`, the agent MUST verify that `package.json` and `src/core/version.ts` do not contain uncommitted, unapproved version alterations from failed or aborted earlier turns. The base SemVer version evaluated MUST strictly reflect the current repository state at HEAD. If intermediate unapproved version modifications are present in the working tree, restore them to HEAD before running `version:analyze` to prevent distorted candidates.
+- **Clean Base Version Invariant**: Prior to executing `version:analyze`, the agent MUST verify via `git show HEAD:package.json` that `package.json` and `src/core/version.ts` do not contain uncommitted, unapproved version alterations from aborted turns in the current session. The base SemVer version evaluated MUST strictly reflect `HEAD`. NEVER invoke `git checkout` or `git restore` (blocked by safety hooks), and NEVER revert pre-existing user changes; if an aborted version stamp from the current session exists, restore only the `version` string using standard file editing tools.
 - **User Intent & Explicit vs Unspecified Bump Evaluation**:
   - **Branch A — Explicit Bump Type in User Prompt**:
     If the user explicitly specified the canonical bump type in their initial prompt (e.g. `"hace commit como fix"`, `"commit patch"`, `"commit como minor"`, `"commit major"`, `"commit build"`):
@@ -182,12 +183,12 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
          - **Foundational Rationale**: The build and timestamp ALWAYS change on every build/commit (`generateBuildId()`), whereas the base SemVer version (major, minor, bugfix) may change or not depending on the commit scope.
          - **Strict Prohibition on Naked Versions**: Presenting bare base versions without the updated build timestamp (e.g. `(1.0.0)`, `(0.7.0)`, `(0.6.3)`) or preserving stale build timestamps across options is STRICTLY AND CATEGORICALLY PROHIBITED.
          - The agent MUST retrieve the freshly computed candidate strings from the `npm run version:analyze -- json` output (`candidates.major`, `candidates.minor`, `candidates.patch`, `candidates.build`).
-       - **Canonical Options Structure for `ask_question`**:
-         1. `(Recommended) Aplicar salto SemVer: <RECOMENDADO> (<candidates.recommended>) - <justificación de analyze>`
-         2. `Aplicar salto SemVer: <OTRA_OPCIÓN_1> (<candidates.otra_1>) - <descripción de alcance>`
-         3. `Aplicar salto SemVer: <OTRA_OPCIÓN_2> (<candidates.otra_2>) - <descripción de alcance>`
-         4. `Solo actualizar build y timestamp: BUILD (<candidates.build>) - Mantener versión base <baseVersion> sin salto en mayor, menor ni bugfix, estampando nueva build y timestamp`
-         5. `Mantener versión actual intacta (<currentVersion>) sin actualizar build ni versión base (solo para ramas de trabajo intermedias)`
+       - **Canonical Options Structure for `ask_question` (translate labels dynamically into `config.documentation.chatLanguage`)**:
+         1. `(Recommended) Apply SemVer bump: <RECOMMENDED> (<candidates.recommended>) - <analyze rationale>`
+         2. `Apply SemVer bump: <OTHER_OPTION_1> (<candidates.other_1>) - <scope summary>`
+         3. `Apply SemVer bump: <OTHER_OPTION_2> (<candidates.other_2>) - <scope summary>`
+         4. `Update build and timestamp only: BUILD (<candidates.build>) - Keep base version <baseVersion> unchanged and stamp a fresh build and timestamp`
+         5. `Keep current version intact (<currentVersion>) without updating build or base version (intermediate feature branches only)`
        - **🛑 MANDATORY STOP**: Categorical prohibition on autonomously assuming the recommendation. The agent MUST pause and wait for user interaction.
     5. If the user approves a bump, execute immediately with clean positional syntax:
 
@@ -200,7 +201,7 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
        # npm run version:bump -- build
        ```
 
-       _(This ensures that `package.json` has the definitive release version BEFORE Phase 2 runs, allowing Gate 2.3 to compile the final stamped version in a single pass without needing a redundant second build!)_
+       _(This ensures that `package.json` has the definitive release version BEFORE Phase 2 runs, allowing Gate 2.2 (`npm run build`) to compile the final stamped version in a single pass without needing a redundant second build!)_
 
 **Step 1.5** — Pre-Draft Commit Message
 
@@ -212,13 +213,13 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 
 ## Phase 2: Active Verification & Repair Loop 🔁
 
-You must execute the 3 gates sequentially. If ANY gate fails, execute the repair protocol and restart the loop from Gate 2.1 until all pass consecutively.
+You must execute the 2 sequential gates without redundant sub-commands. (`validate_fallow`, `validate_similar_code`, `auditor:md`, `oxfmt`, and `oxlint` all run inside `npm run build` via `auditor:full`; do NOT run them separately before or after `npm run build`.)
 
 ### 2.1 Dynamic Test Suite & Coverage Gate (`npm run test:coverage` / `npm test` / Skip)
 
 - **Dynamic Configuration Check**: Consult `.auditor/audit.config.ts` (`config.testCoverage`):
   - **Coverage Active (`testCoverage.enabled !== false && testCoverage.enforceInAudit !== false`)**:
-    Run `npm run test:coverage` (or `vp test --coverage` / `npm test -- --coverage`). 100% of automated unit and integration suites must pass AND emit a freshly updated `coverage/coverage-final.json` artifact for the upstream auditor.
+    Run `npm run test:coverage` (or `vp test run --coverage`) **once** (never run `npm test` beforehand). 100% of automated unit and integration suites must pass AND emit a freshly updated `scratch/coverage/coverage-final.json` (or configured `testCoverage.path`) artifact for the upstream auditor.
   - **Coverage Inactive / Disabled (`testCoverage.enabled === false || testCoverage.enforceInAudit === false`)**:
     The coverage reporting requirement is dynamically marked as **`[SKIPPED]`**. Run `npm run test` (or `npm test`) to verify that 100% of test suites pass without coverage instrumentation overhead.
   - **No Tests Declared / Deactivated**:
@@ -226,25 +227,22 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
 
 ### 2.2 The Master Build & Audit Gate (`npm run build`)
 
-- Run `npm run build`.
-- **Strict Single Build & Atomic Verification**: This is the ONLY time `npm run build` executes in the workflow. Because `validate_package_scripts` mandates that `"build"` chains `"npm run auditor:full && <compile> && npm run auditor:post-build"`:
-  1. **Pre-build Exhaustive Source Audit & Ratchet (`auditor:full` / `speed=full` `🐘`)**: `npm run auditor:full` runs first, evaluating source code against 0 errors and 0 new warnings vs `ratchet.productionRef`, verifying freshly generated test coverage (if active) or skipping it cleanly (if disabled), and executing the full speed ceiling (`🐘`, including dead-code cascades, vector duplication, complete AST, and heavy invariants).
+- Run `npm run build` **once**.
+- **Strict Single Build & Atomic Verification**: Because `validate_package_scripts` mandates that `"build"` chains `"npm run auditor:full && <compile> && npm run auditor:post-build"`:
+  1. **Pre-build Exhaustive Source Audit & Ratchet (`auditor:full` / `speed=full` `🐘`)**: Runs all suites including `validate_test_coverage` (reading Gate 2.1 coverage), `validate_fallow` (health, dead code, complexity, refactor targets, boundaries), `validate_similar_code`, `oxlint`, `oxfmt`, and all `auditor:md` suites, enforcing 0 errors and 0 new warnings vs `ratchet.productionRef`.
   2. **Production Compilation**: TypeScript / bundler compiles the stamped code into `dist/` with strict exit code 0.
-  3. **Post-build Artifact Audit (`auditor:post-build` / `phase=post-build`)**: `npm run auditor:post-build` executes immediately post-compilation, evaluating chunk budgets, entrypoint types, and distribution hygiene in `dist/`.
-- Strict exit code 0. Zero bypasses.
-
-### 2.3 Fallow Health & Quality Gate (`npm run auditor:fallow`)
-
-- Run `npm run auditor:fallow`.
-- Score must be >= 85 and >= `BASELINE_HEALTH`, with zero unaddressed high-severity issues.
+  3. **Post-build Artifact Audit (`auditor:post-build` / `phase=post-build`)**: Evaluates chunk budgets, entrypoint types, and distribution hygiene in `dist/`.
+- Strict exit code 0. Zero bypasses. (Only run `npm run auditor:fallow` as a diagnostic drill-down if `validate_fallow` fails during `build`.)
 
 ### Repair Protocol (on ANY Gate Failure)
 
-1. **Auto-Repair**: Run `npm run auditor:fix` (or `auditor fix`) to automatically repair fixable lint/style/import/config issues.
-2. **Manual Repair**: Manually resolve remaining source code, test, build, or DOX defects.
-3. **Loop Restart**: Always re-start the loop from **Gate 2.1**, ensuring all 3 gates pass consecutively on the final code.
+1. **Inspect & Auto-Repair**: Use `npm run auditor:next` / `npm run auditor:findings` on `scratch/audits/latest_audit.json`, then run `npm run auditor:fix` for auto-fixable issues.
+2. **Manual Repair & Targeted Re-check**: Fix remaining defects and verify the failed suite (`npm run auditor task=<id>`) before re-running the heavy gate.
+3. **Zero-Redundancy Loop Restart**:
+   - If the repair modified `src/` or `tests/`, restart from **Gate 2.1** (`test:coverage` -> `build`).
+   - If the repair ONLY touched docs, styles, or configs (and Gate 2.1 already passed on the current `src/`/`tests/`), resume directly at **Gate 2.2** (`npm run build`).
 
-**✓ Completion gate**: All 3 gates passed consecutively on the final code. Mark Phase 2 `[x]` in `task.md`. Proceed to Phase 3.
+**✓ Completion gate**: Gates 2.1 and 2.2 passed consecutively on the final code. Mark Phase 2 `[x]` in `task.md`. Proceed to Phase 3.
 
 ---
 
@@ -293,7 +291,7 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
     AI agents and developers are **STRICTLY AND CATEGORICALLY PROHIBITED** from declaring "zero updates exist", skipping Phase 3, or advancing to Phase 4 whenever the session modified, added, or deleted:
     1. Functional code, suites, or analyzers (`src/**`)
     2. Package scripts or CLI entrypoints (`package.json`, `src/cli/**`, `scripts/**`)
-    3. Configuration defaults, schemas, or templates (`.auditor/audit.config.ts`, `.fallowrc.json`, `.stylelintrc.json`, `auditConfigDefaults.ts`, etc.)
+    3. Configuration SSoT, defaults, schemas, or AST projections (`.auditor/audit.config.ts`, `auditConfigDefaults.ts`, `vite.plugins.ts`, etc.)
     4. Architectural policies, user directives, or bug resolutions.
   - **Mandatory Generation of `learning_proposal.md`**:
     Whenever ANY non-documentation file was changed and the corresponding documentation updates are not ALREADY applied and staged on disk across all 3 pillars (`README.md`, target `AGENTS.md`, and affected skills), `learn-with-docs` **MUST ALWAYS** generate `<appDataDir>/brain/<conversation-id>/learning_proposal.md` detailing:
@@ -320,7 +318,7 @@ Once the user approves:
 
 - **Step 4.1**: Apply approved lessons and modernizations across targeted `AGENTS.md` files and affected documentation.
 - **Step 4.2**: Run pre-commit sanity checks:
-  1. Documentation hygiene: `npm run auditor:md`.
+  1. Documentation hygiene: **only if Step 4.1 modified any `.md` files**, run `npm run auditor:md` (otherwise skip, as Gate 2.2 `npm run build` -> `auditor:full` already verified 100% of Markdown suites).
   2. Staged secret leak check: `git diff --cached -i -G'password|secret|api_key|token' --name-only` (prints exclusively matching file names without leaking raw secrets or tokens into terminal logs or agent histories; if any file name is printed, inspect and unstage/clean before committing).
 - **Step 4.3**: Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
 - **Step 4.4**: **Single Atomic Commit & Tag**:
@@ -356,42 +354,7 @@ Once the user approves:
 
 ## Mandatory Safe-Commit Completion Template
 
-Every completed safe-commit run MUST finish with a standardized Markdown template rendered dynamically in the language resolved from `config.documentation.chatLanguage`. The agent MUST NEVER hardcode the template language, but select the appropriate canonical variant matching the resolved `chatLanguage`:
-
-### Spanish Variant (`chatLanguage: 'es'`)
-
-````markdown
-# ✅ SAFE-COMMIT COMPLETADO CON ÉXITO
-
-### Resumen de la Operación
-
-- **Commit Hash**: `<commit-hash>`
-- **Tag Creado**: `v<version>` (o `Ninguno - Versión mantenida`)
-- **Mensaje**: `<commit-title>`
-- **Archivos Modificados**: `<count>` archivos
-
-### Puertas de Calidad Verificadas (3/3)
-
-| Puerta | Descripción                                                          |          Estado          |
-| :----- | :------------------------------------------------------------------- | :----------------------: |
-| 2.1    | `npm run test:coverage` (Tests & Cobertura Dinámica)                 |    ✅ Aprobado / Skip    |
-| 2.2    | `npm run build` (Master Build: Auditoría + Compilación + Post-Build) |   ✅ Aprobado (Exit 0)   |
-| 2.3    | `npm run auditor:fallow` (Salud y Arquitectura)                      | ✅ Aprobado (Score ≥ 85) |
-
-### Publicación Remota (Git Push)
-
-> ⚠️ **Control de Seguridad**: Por gobernanza del repositorio, el agente **NO** realiza push automático a ramas remotas sin petición explícita previa.
-
-Para publicar los cambios y tags en el repositorio remoto, ejecuta manualmente:
-
-```bash
-git push origin <branch> --follow-tags
-```
-
-_O indícame explícitamente "hace push" si deseas que lo ejecute por ti._
-````
-
-### English Variant (`chatLanguage: 'en'`)
+Every completed safe-commit run MUST finish with the standardized Markdown report structure below, dynamically translated and rendered in the language resolved from `config.documentation.chatLanguage` (never hardcoding a fixed chat language):
 
 ````markdown
 # ✅ SAFE-COMMIT SUCCESSFULLY COMPLETED
@@ -405,11 +368,11 @@ _O indícame explícitamente "hace push" si deseas que lo ejecute por ti._
 
 ### Quality Gates Verified (3/3)
 
-| Gate | Description                                                      |         Status         |
-| :--- | :--------------------------------------------------------------- | :--------------------: |
-| 2.1  | `npm run test:coverage` (Automated Tests & Dynamic Coverage)     |    ✅ Passed / Skip    |
-| 2.2  | `npm run build` (Master Build: Pre-Audit + Compile + Post-Audit) |   ✅ Passed (Exit 0)   |
-| 2.3  | `npm run auditor:fallow` (Architecture & Health)                 | ✅ Passed (Score ≥ 85) |
+| Gate | Description                                                                        |        Status        |
+| :--- | :--------------------------------------------------------------------------------- | :------------------: |
+| 0.0  | `npm run auditor:setup` (Pre-Flight Setup, Config Ratchet & Satellites)            | ✅ Passed (Exit 0)   |
+| 2.1  | `npm run test:coverage` (Automated Tests & Dynamic Coverage)                       |  ✅ Passed / Skip    |
+| 2.2  | `npm run build` (Master Build: `auditor:full` [incl. Fallow] + Compile + Post-Build) | ✅ Passed (Exit 0)   |
 
 ### Remote Publishing (Git Push)
 
@@ -421,5 +384,5 @@ To publish commits and tags to the remote repository, execute manually:
 git push origin <branch> --follow-tags
 ```
 
-_Or explicitly tell me "push" if you want me to execute it for you._
+_Or explicitly instruct me to push if you want me to execute it for you._
 ````

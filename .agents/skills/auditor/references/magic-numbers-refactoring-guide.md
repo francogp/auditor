@@ -12,9 +12,9 @@
 Naked magic numbers and hardcoded design literals appear across 3 architectural layers:
 
 1. **TypeScript & Vue `<script setup>` (`validate_magic_numbers`)**: Naked numbers in timers, multipliers, thresholds, coordinates (`magic-number-naked`).
-2. **Constant Hygiene & Naming (`validate_constant_hygiene`)**: Uncontrolled extraction creates new regressions:
-   - Suffix with numeric value (`TIMEOUT_5000` $\rightarrow$ `constant-no-literal-suffix`, `constant-bad-names`).
-   - Duplicate constants across files (`duplicate-constant-identical`).
+2. **Constant Hygiene & Naming (`validate_oxlint` via `@francogp/domain-type`)**: Uncontrolled extraction creates new regressions:
+   - Suffix with numeric value (`TIMEOUT_5000` $\rightarrow$ `@francogp/domain-type/no-literal-suffix-constant`).
+   - Redundant constant aliases (`@francogp/domain-type/no-redundant-constant-alias`).
    - Banned generic names (`VALUE`, `MAX`, `DEFAULT`, `COUNT`).
 3. **SCSS Stylesheets & Vue `<style lang="scss">` (`validate_scss_architecture`, `validate_z_index`)**:
    - `z-index-hardcoded-literal`: Naked numbers instead of `var(--z-modal)` bound to `Z_LAYERS`.
@@ -28,8 +28,8 @@ Naked magic numbers and hardcoded design literals appear across 3 architectural 
 ```mermaid
 flowchart LR
     Step1["1. Scan & Index<br/><code>auditor:magic discover</code>"] --> Step2["2. Super-Dirac Packet<br/><code>auditor:magic inspect &lt;file&gt;</code>"]
-    Step2 --> Step3["3. Hygiene Gate & Apply<br/><code>auditor:magic apply --worktree</code>"]
-    Step3 --> Step4["4. Hermetic Verification<br/><code>npm run typecheck</code>"]
+    Step2 --> Step3["3. Hygiene Gate & Apply<br/><code>auditor:magic apply &lt;plan.json&gt; worktree</code>"]
+    Step3 --> Step4["4. Hermetic Verification<br/><code>npm run auditor:lint</code>"]
 ```
 
 ### Tier 1: Zero-Token Deterministic Inference (~65% of cases)
@@ -82,14 +82,14 @@ Emits the compact cluster packet with line references, line snippets, and inferr
 Formulate a `magic_plan.json` conforming to `magic_plan_blueprint.json` and execute:
 
 ```bash
-npm run auditor:magic apply magic_plan.json --worktree
+npm run auditor:magic apply magic_plan.json worktree
 ```
 
-The `--worktree` flag automatically:
+The `worktree` option (`--worktree`) automatically:
 
 1. Spawns an isolated Git worktree in `scratch/refactor-sandbox/`.
 2. Applies bottom-up surgical span replacements (`MagicString`) and hoists constants into local file headers or Vue `<script setup>`.
-3. Validates the build with `npm run typecheck`.
+3. Validates the build with `vp check`.
 4. Merges changes into the working tree on success, or executes an instant rollback on error.
 
 ---
@@ -101,13 +101,13 @@ The `--worktree` flag automatically:
 - **Trigger**: `npm run auditor` reports `magic-number-naked` in TypeScript business logic.
 - **Strategic Phase**: Phase 6 (`hygiene`).
 - **Action**: Formulate a **Correction Plan**. Hoist domain constants to file headers or shared config modules. Never touch CSS/SCSS files for this violation.
-- **Verification**: `npm run auditor -- suite=validate_magic_numbers` -> Green.
+- **Verification**: `npm run auditor suite=validate_magic_numbers` -> Green.
 
 ### Scenario B: Elective Token Extraction (`auditor:magic`)
 
 - **Trigger**: User requests _"extract colors to tokens"_, _"clean up CSS literals"_, or _"optimize design tokens"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before starting.
-- **Action**: Formulate an **Improvement Plan**. Run `auditor:magic discover`, inspect candidates with `auditor:magic inspect <file>`, propose semantic token names (e.g. `$color-gold-border`), generate `magic_plan.json`, and apply with `--worktree`.
+- **Action**: Formulate an **Improvement Plan**. Run `npm run auditor:magic discover`, inspect candidates with `npm run auditor:magic inspect <file>`, propose semantic token names (e.g. `$color-gold-border`), generate `magic_plan.json`, and apply with `npm run auditor:magic apply magic_plan.json worktree`.
 
 ---
 
@@ -135,7 +135,7 @@ const CRITICAL_HIT_DAMAGE_MULTIPLIER = 1.75;
 
 ## 3. Verification
 
-`npm run auditor -- suite=validate_magic_numbers`
+`npm run auditor suite=validate_magic_numbers`
 ````
 
 ### Improvement Plan (Elective: `auditor:magic`)
@@ -188,5 +188,5 @@ const CRITICAL_HIT_DAMAGE_MULTIPLIER = 1.75;
 
 ## 4. Sandbox Execution
 
-`npm run auditor:magic apply scratch/magic_plan.json --worktree`
+`npm run auditor:magic apply scratch/magic_plan.json worktree`
 ````

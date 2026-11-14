@@ -1,6 +1,6 @@
 # Critical Thinking Lenses & Socratic Questioning Playbook
 
-Comprehensive reference for **Phase 2 (Interactive Discovery & Critical Thinking)** and **Phase 5 (Exploring Design Approaches)** of the [`brainstorming`](../SKILL.md) skill.
+Comprehensive reference for **Stage 2 (Interactive Discovery & Critical Thinking)** and **Stage 5 (Exploring Design Approaches)** of the [`brainstorming`](../SKILL.md) skill.
 
 ## Table of Contents
 
@@ -133,11 +133,11 @@ Evaluate the emerging concept from four specialized engineering viewpoints befor
 
 ## 7. Lens 6: Radical Simplification & YAGNI
 
-Before finalizing your 2–3 design approaches in Phase 5, ruthlessly apply **YAGNI** (_You Ain't Gonna Need It_) and [`/ponytail`](../../ponytail/SKILL.md) principles:
+Before finalizing your 2–3 design approaches in Stage 5, ruthlessly apply **YAGNI** (_You Ain't Gonna Need It_) and [`/ponytail`](../../ponytail/SKILL.md) principles:
 
 1. **The 80/20 Cut**: Identify the 20% of the design that delivers 80% of the concrete value. What happens if we delete the remaining 80%?
 2. **Speculative Extension Ban**: Remove plugin hooks, generic strategy interfaces with only one implementation, and configuration toggles nobody asked for.
-3. **Always Include a "Do-Least / Minimal Viable Architecture" Option**: Among your 2–3 proposed approaches in Phase 5, Option 1 or Option 2 should represent the leanest architectural path that satisfies all strict invariants without introducing new subsystems.
+3. **Always Include a "Do-Least / Minimal Viable Architecture" Option**: Among your 2–3 proposed approaches in Stage 5, Option 1 or Option 2 should represent the leanest architectural path that satisfies all strict invariants without introducing new subsystems.
 
 ---
 

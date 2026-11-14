@@ -19,6 +19,7 @@ import {
   BaseAuditor,
   SharedAstContext,
   getEffectiveIgnoreGlobs,
+  isTestFileForCodeAudit,
   resolveFileScanRoots,
   createUniformRuleCapabilities,
   type FileScanRootsOptions
@@ -66,7 +67,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       name: 'My AST Validator',
       description: 'Validates AST contracts across TypeScript and Vue SFCs',
       icon: '🌳', // Mandatory thematic emoji representing this auditor
-      family: 'architecture', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
+      family: 'architecture', // 'architecture' | 'domain_data' | 'performance' | 'security' | 'persistence' | 'documentation'
       ruleIds: MY_AST_RULES,
       packageName: 'AST',
       // Mandatory: SSoT configuration key inspected by the dynamic suite gating engine:
@@ -83,10 +84,10 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       usesThirdPartyTool: false,
       // Mandatory sub-auditor cache paths contract:
       cachePaths: MyAstAuditor.cachePaths,
+      // Composed "${packageName}: ${desc}" MUST stay <= 50 chars:
       ruleDescriptions: {
-        'my-ast-forbidden-pattern':
-          'Forbidden syntactic pattern in AST (e.g. direct eval or forbidden token)',
-        'my-ast-missing-contract': 'Missing required declaration contract in exported functions'
+        'my-ast-forbidden-pattern': 'Forbidden syntactic pattern in AST',
+        'my-ast-missing-contract': 'Missing exported function contract'
       },
       // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure in English):
       ruleRemediations: {
@@ -125,7 +126,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
 
     const relFiles = this.context.collectFiles(this.targetRoots, new Set(['.ts', '.vue']));
     const targetFiles = relFiles.filter(
-      (f) => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts')
+      (f) => !isTestFileForCodeAudit(f, this.projectRoot) && !f.endsWith('.d.ts')
     );
 
     for (const relFile of targetFiles) {

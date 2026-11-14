@@ -18,7 +18,7 @@ In the canonical 7-Phase Strategic Remediation Order (`RemediationPhaseId`), clo
 Before executing any refactoring, **always triage for dead code**:
 Empirical analysis demonstrates that **~25% of clone groups reside in unreferenced files or unused exports**. Attempting to extract shared functions from dead files wastes engineering tokens and induces phantom dependencies.
 
-- **Rule:** If a clone instance is flagged by `fallow-unused-files` or `fallow-unused-exports`, run `fallow fix --yes` (or delete the file) before refactoring the remaining active instances.
+- **Rule:** If a clone instance is flagged by `fallow-unused-file` or `fallow-unused-export`, prune the dead file/export first (and run `npm run auditor:fix` for auto-fixable hygiene) before refactoring the remaining active instances.
 
 ---
 
@@ -57,13 +57,13 @@ auditor-dupes inspect <fingerprint>
 ```mermaid
 flowchart LR
     Step1["1. Inspect Clone<br/><code>auditor:dupes inspect &lt;id&gt;</code>"] --> Step2["2. Formulate Plan<br/><code>refactor_plan.json</code>"]
-    Step2 --> Step3["3. Apply in Worktree<br/><code>auditor:dupes apply --worktree</code>"]
-    Step3 --> Step4["4. Verify & Merge<br/><code>vp check && vp test</code>"]
+    Step2 --> Step3["3. Apply in Worktree<br/><code>auditor:dupes apply ... worktree</code>"]
+    Step3 --> Step4["4. Verify &amp; Merge<br/><code>vp check / vp test run</code>"]
 ```
 
 ### Step 1: Inspect Clone Group
 
-Run `auditor:dupes inspect <fingerprint>` to obtain the structured JSON report containing:
+Run `npm run auditor:dupes inspect <fingerprint>` to obtain the structured JSON report containing:
 
 - All file paths and exact line ranges.
 - Surrounding code snippets with line numbers.
@@ -78,17 +78,17 @@ Create a `refactor_plan.json` conforming to `refactor_plan_blueprint.json`:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "version": 1,
-  "planId": "refactor-format-date",
+  "planId": "refactor-format-iso-date",
   "fingerprint": "group-042",
   "action": "extract-shared-function",
   "sharedModulePath": "src/utils/dateFormatter.ts",
-  "functionName": "formatIsoDate",
-  "parameters": [{ "name": "date", "type": "Date" }],
-  "returnType": "string",
-  "sharedFunctionCode": "function formatIsoDate(date: Date): string {\n  return date.toISOString().split('T')[0];\n}",
+  "functionName": "extractCalendarDate",
+  "parameters": [{ "name": "isoTimestamp", "type": "IsoDateString" }],
+  "returnType": "DisplayText",
+  "sharedFunctionCode": "export function extractCalendarDate(isoTimestamp: IsoDateString): DisplayText {\n  return (isoTimestamp.split('T')[0] ?? '') as DisplayText;\n}",
   "targetFiles": ["src/components/UserProfile.vue", "src/services/billingService.ts"],
-  "astPattern": "$DATE.toISOString().split('T')[0]",
-  "astRewrite": "formatIsoDate($DATE)"
+  "astPattern": "$ISO.split('T')[0]",
+  "astRewrite": "extractCalendarDate($ISO)"
 }
 ```
 
@@ -97,10 +97,10 @@ Create a `refactor_plan.json` conforming to `refactor_plan_blueprint.json`:
 Apply the plan using the hybrid transformation harness:
 
 ```bash
-npm run auditor:dupes apply refactor_plan.json --worktree
+npm run auditor:dupes apply refactor_plan.json worktree
 ```
 
-The `--worktree` flag automatically:
+The `worktree` option (`--worktree`) automatically:
 
 1. Spawns an isolated git worktree in `.git-worktrees/refactor-sandbox`.
 2. Creates an ephemeral junction to the root `node_modules` (0 disk cost).
@@ -186,22 +186,22 @@ The `ClassHierarchyHoister` (`action: 'hoist-to-base-class'`):
 
 ### Scenario A: CI Quality Gate Error (`validate_similar_code`)
 
-- **Trigger**: `npm run auditor` reports `similar-code-vector-duplicate` or `fallow-duplicate-code`.
+- **Trigger**: `npm run auditor` reports `fallow-similar-code` or `fallow-duplicate-code`.
 - **Strategic Phase**: Phase 3 (`dedup`).
-- **Action**: Follow the **Dead-Code Triage Rule** first (`fallow fix --yes`). If the code is alive, formulate a **Correction Plan**. Extract the shared function to a common module in `src/utils/` or `src/shared/`.
-- **Verification**: `npm run auditor -- suite=validate_similar_code` -> Green.
+- **Action**: Follow the **Dead-Code Triage Rule** first (`vp exec fallow fix --yes`). If the code is alive, formulate a **Correction Plan**. Extract the shared function to a common module in `src/utils/` or `src/shared/`.
+- **Verification**: `npm run auditor task=validate_similar_code` -> Green.
 
 ### Scenario B: Elective Deduplication (`auditor:dupes`)
 
 - **Trigger**: User requests _"eliminate duplicate code"_, _"deduplicate logic"_, or _"reduce clones"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before initiating refactoring.
-- **Action**: Formulate an **Improvement Plan**. Run `auditor:dupes discover`, inspect clone candidates with `auditor:dupes inspect <fingerprint>` (Dirac Micro-Context), draft `refactor_plan.json`, and apply with `--worktree`.
+- **Action**: Formulate an **Improvement Plan**. Run `npm run auditor:dupes discover`, inspect clone candidates with `npm run auditor:dupes inspect <fingerprint>` (Dirac Micro-Context), draft `scratch/refactor_plan.json`, and apply with `npm run auditor:dupes apply scratch/refactor_plan.json worktree`.
 
 ---
 
 ## 8. Concrete Plan Blueprints
 
-### Correction Plan (CI Error: `similar-code-vector-duplicate`)
+### Correction Plan (CI Error: `fallow-similar-code`)
 
 ```markdown
 # Correction Plan: Semantic Clone in orderService.ts and checkoutService.ts
@@ -222,13 +222,13 @@ The `ClassHierarchyHoister` (`action: 'hoist-to-base-class'`):
 
 ## 3. Verification
 
-`npm run auditor -- suite=validate_similar_code`
+`npm run auditor task=validate_similar_code`
 ```
 
 ### Improvement Plan (Elective: `auditor:dupes`)
 
 ````markdown
-# Improvement Plan: Date Formatting Deduplication Across Components
+# Improvement Plan: ISO Timestamp Calendar Extraction Across Components
 
 ## 1. Scope & Motivation
 
@@ -238,33 +238,33 @@ The `ClassHierarchyHoister` (`action: 'hoist-to-base-class'`):
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
 
-| File                        | Lines | Local Function | Proposed Extraction         |
-| :-------------------------- | :---- | :------------- | :-------------------------- |
-| `src/views/ProfileView.vue` | 42-46 | `formatDate()` | `formatIsoDate(date: Date)` |
-| `src/views/InvoiceView.vue` | 78-82 | `formatDate()` | `formatIsoDate(date: Date)` |
+| File                        | Lines | Local Function | Proposed Extraction                          |
+| :-------------------------- | :---- | :------------- | :------------------------------------------- |
+| `src/views/ProfileView.vue` | 42-46 | `formatDate()` | `extractCalendarDate(iso: IsoDateString)`    |
+| `src/views/InvoiceView.vue` | 78-82 | `formatDate()` | `extractCalendarDate(iso: IsoDateString)`    |
 
 ## 3. Declarative Plan (`scratch/refactor_plan.json`)
 
 ```json
 {
   "version": 1,
-  "planId": "refactor-date-formatter",
+  "planId": "refactor-calendar-date-extractor",
   "fingerprint": "grp_date_iso_split_402",
   "action": "extract-shared-function",
   "sharedModulePath": "src/utils/dateFormatter.ts",
-  "functionName": "formatIsoDate",
-  "parameters": [{ "name": "date", "type": "Date" }],
+  "functionName": "extractCalendarDate",
+  "parameters": [{ "name": "isoTimestamp", "type": "IsoDateString" }],
   "returnType": "string",
-  "sharedFunctionCode": "export function formatIsoDate(date: Date): string {\n  return date.toISOString().split('T')[0];\n}",
+  "sharedFunctionCode": "export function extractCalendarDate(isoTimestamp: IsoDateString): string {\n  return isoTimestamp.split('T')[0] ?? '';\n}",
   "targetFiles": ["src/views/ProfileView.vue", "src/views/InvoiceView.vue"],
-  "astPattern": "$DATE.toISOString().split('T')[0]",
-  "astRewrite": "formatIsoDate($DATE)"
+  "astPattern": "$ISO.split('T')[0]",
+  "astRewrite": "extractCalendarDate($ISO)"
 }
 ```
 
 ## 4. Sandbox Execution
 
-`npm run auditor:dupes apply scratch/refactor_plan.json --worktree`
+`npm run auditor:dupes apply scratch/refactor_plan.json worktree`
 ````
 
 ---
@@ -298,12 +298,12 @@ npm run auditor:dupes inspect grp_date_iso_split_402
 
 Output emits the ultra-compact JSON packet without flooding the LLM context.
 
-### Step 3: Formulate & Apply Plan with `--worktree`
+### Step 3: Formulate & Apply Plan with `worktree`
 
 Save plan to `scratch/refactor_plan.json` and execute:
 
 ```bash
-npm run auditor:dupes apply scratch/refactor_plan.json --worktree
+npm run auditor:dupes apply scratch/refactor_plan.json worktree
 ```
 
 The worktree sandbox builds the project and runs tests. If all pass, changes are safely applied to your working directory.

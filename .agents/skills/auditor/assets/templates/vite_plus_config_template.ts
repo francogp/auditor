@@ -1,21 +1,17 @@
 import { defineConfig } from 'vite-plus';
 
 /**
- * Canonical Vite+ Unified Configuration Template
+ * READ-ONLY DERIVED PROJECTION REFERENCE (`vite.config.ts`)
  *
- * Governs lint (Oxlint), format (Oxfmt), test (Vitest), staged git hooks, and packaging (Vite+ Pack).
- * Required by `validate_vite_plus_config` and @francogp/auditor standards.
- *
- * For Web Applications (Vue / React / Vanilla):
- * - Declare plugins array as `PluginOption[]` outside defineConfig to avoid TypeScript recursion.
- * - Cast third-party Rollup/Vite plugins with `as PluginOption` when typing conflicts occur.
- * - If using Oxlint typeAware: true with Vue SFCs, declare `declare module '*.vue'` in `src/env.d.ts`.
+ * IMPORTANT (Satellite Sovereignty):
+ * `vite.config.ts` is an auditor-owned derived artifact synchronized via AST by `npm run auditor:fix`.
+ * NEVER edit `vite.config.ts` manually:
+ * - Declare custom rules, overrides, test projects, or ignores in `.auditor/audit.config.ts`.
+ * - Declare Vite plugins in developer-owned `vite.plugins.ts` (`export const plugins: PluginOption[] = [...]`),
+ *   which `npm run auditor:fix` wires into `vite.config.ts` automatically.
+ * - Note: `tests/**` is NEVER placed in `lint.ignorePatterns`; test files remain visible to Oxlint
+ *   and receive scoped `lint.overrides` derived dynamically from `config.paths.testRoots`.
  */
-
-// Example: Plugin array for web applications:
-// const plugins: PluginOption[] = [
-//   vue()
-// ];
 
 export default defineConfig({
   pack: {
@@ -27,7 +23,7 @@ export default defineConfig({
     clean: true,
     publint: true,
     attw: { profile: 'esm-only' },
-    outExtensions: () => ({ js: '.js', dts: '.d.ts' })
+    outExtensions: (): { js: string; dts: string } => ({ js: '.js', dts: '.d.ts' })
   },
   lint: {
     plugins: ['vitest', 'node', 'promise', 'unicorn', 'typescript', 'vue', 'import', 'jsx-a11y'],
@@ -41,13 +37,13 @@ export default defineConfig({
       'node_modules/**',
       'scratch/**',
       'tmp/**',
-      '.agents/**',
-      'tests/**'
+      '.agents/**'
     ],
     rules: {
       'typescript/no-explicit-any': 'error',
       'typescript/ban-ts-comment': 'error',
       'no-unused-vars': 'error',
+      'typescript/explicit-function-return-type': ['error', { allowExpressions: true }],
       'typescript/consistent-type-assertions': [
         'error',
         { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }
@@ -68,27 +64,8 @@ export default defineConfig({
       'package-lock.json'
     ]
   },
-  // 1. Standard Flat Testing Mode (Default):
-  // test: {
-  //   globals: true,
-  //   pool: 'forks',
-  //   environment: 'node',
-  //   include: ['tests/**/*.test.ts'],
-  //   testTimeout: 30000,
-  //   hookTimeout: 30000,
-  //   css: false,
-  //   coverage: {
-  //     provider: 'v8',
-  //     reporter: ['text', 'json', 'json-summary'],
-  //     reportsDirectory: 'coverage',
-  //     include: ['src/**/*.ts'],
-  //     exclude: ['src/**/*.d.ts', 'dist/**']
-  //   }
-  // },
-  //
-  // 2. Vitest Workspace Projects Mode (Multi-Environment SSoT):
-  // Governed by `vitePlusConfig.test.projects` in .auditor/audit.config.ts.
-  // Note: Root `include` is strictly prohibited alongside `projects` to prevent runner cross-contamination.
+  // Vitest Workspace Projects Mode is governed via `vitePlusConfig.test.projects` in `.auditor/audit.config.ts`.
+  // Root `include` is strictly prohibited alongside `projects` to prevent runner cross-contamination.
   test: {
     globals: true,
     pool: 'forks',
@@ -100,7 +77,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'json-summary'],
-      reportsDirectory: 'coverage',
+      reportsDirectory: 'scratch/coverage',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.d.ts', 'dist/**']
     }

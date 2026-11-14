@@ -4,13 +4,13 @@ This guide establishes the mandatory testing contract and verification standards
 
 ---
 
-## 🏛️ The 5-Point Conformance Contract
+## 🏛️ The 6-Point Conformance Contract
 
-Every sub-auditor and host extension MUST be covered by a dedicated Vitest unit test adhering strictly to the 5-point contract enforced by `tests/all_auditors_contract_conformance.test.ts` and `runAuditorContractConformanceTests`:
+Every sub-auditor and host extension MUST be covered by a dedicated Vitest unit test adhering strictly to the 6-point contract enforced by `tests/all_auditors_contract_conformance.test.ts` and `runAuditorContractConformanceTests`:
 
 1. **Instantiation & Metadata Verification**:
    - Verify construction through `validateAuditorConstruction(auditor)`.
-   - Validate that `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `ruleRemediations`, `ruleCapabilities`, `configKey`, `defaultConfig`, and `criticalConfig` are explicitly defined and non-empty. Omission of `ruleRemediations` throws an immediate, loud contract violation error.
+   - Validate that `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `ruleRemediations`, `ruleRemediationPhases`, `ruleCapabilities` (6-field), `configKey`, `defaultConfig`, and `criticalConfig` are explicitly defined and non-empty. Omission of `ruleRemediations` or `ruleRemediationPhases` throws an immediate, loud contract violation error.
 
 2. **Clean Workspace / Negative Verification**:
    - Every test suite MUST include a test asserting that valid, compliant code produces **zero errors and passed status**:
@@ -33,11 +33,14 @@ Every sub-auditor and host extension MUST be covered by a dedicated Vitest unit 
      ```
 
 4. **Warning Verification (Where Declared)**:
-   - For rules configured or categorized as warnings, verify that the condition produces `status: 'warned'`, `severity: 'warning'`, and `summary.warnings > 0`.
+   - For rules configured or categorized as warnings, verify that the condition produces `status: 'passed'` (when `summary.errors === 0`), `severity: 'warning'`, and `summary.warnings > 0` (`AUDIT_STATUSES` are strictly `'passed' | 'failed' | 'skipped'`).
 
 5. **100% Rule ID Coverage**:
    - Every single declared `ruleId` in `ruleDescriptions` MUST have at least one dedicated test assertion verifying its behavior.
    - Leaving any declared rule ID unasserted triggers contract failure.
+
+6. **Fixer Verification (`checkFixVerification`)**:
+   - Every sub-auditor with derived `fix: 'normal' | 'priority'` MUST include a dedicated test running in fix mode (`fix: true`) and asserting `summary.errors === 0` and `status === 'passed'` post-remediation.
 
 ---
 
@@ -102,8 +105,8 @@ Every rule injected or mandated by the framework MUST be verified through automa
    - `typescript/no-explicit-any`: Verified by canary asserting failure on `: any` or `as any`.
    - `typescript/ban-ts-comment`: Verified by canary asserting failure on `@ts-ignore` and auto-repair to `@ts-expect-error`.
    - `typescript/consistent-type-assertions`: Verified by canary asserting failure on `<T>value` and auto-repair to `value as T`.
-   - `@francogp/domain-type(no-double-cast-unknown)`: Verified by canary asserting failure on `as unknown as T`.
-   - `@francogp/domain-type(no-legacy-date)`: Verified by canary asserting failure on `new Date()` and `Date.now()` without Temporal API.
+   - `@francogp/domain-type/no-double-cast-unknown`: Verified by canary asserting failure on `as unknown as T`.
+   - `@francogp/domain-type/no-legacy-date`: Verified by canary asserting failure on `new Date()` and `Date.now()` without Temporal API.
 2. **Stylelint Strict Properties Minimum Baseline**:
    - Verified by asserting that all 13 canonical properties cannot be omitted or castrated in `.stylelintrc.json`.
 3. **Active vs Inactive Configuration Canaries**:

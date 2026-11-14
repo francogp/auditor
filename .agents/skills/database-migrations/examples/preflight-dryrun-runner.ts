@@ -7,6 +7,7 @@
  */
 
 import process from 'node:process';
+import { isMainModule } from '@francogp/auditor';
 
 export interface SqlExecutionDriver {
   execSql: (sql: string) => { status: number; output: string };

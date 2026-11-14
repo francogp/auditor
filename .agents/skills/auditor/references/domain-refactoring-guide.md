@@ -3,11 +3,11 @@
 > [!IMPORTANT]
 > **Distinction Between CI Quality Gate & Interactive Refactor Tool**:
 >
-> - **`validate_domain_types` & `validate_canonical_domains` (`npm run auditor`)**: CI static verification suites. Audits mandatory domain invariants in Phase 4 (`contracts`): duplicate string unions across files, unconfigured non-catalog collections, and domain collisions. If CI passes with 0 errors, repository domain contracts are sound.
+> - **`validate_oxlint` (`@francogp/domain-type` rules in `npm run auditor`)**: CI static verification suite. Audits mandatory domain invariants in Phase 4 (`contracts`): naked string unions, open `Record<string, T>`, unbranded IDs, and untyped collections. If CI passes with 0 errors, repository domain contracts are sound.
 > - **`auditor-domain` (`npm run auditor:domain`)**: Interactive domain refactoring engine (`BaseRefactorEngine`). Discovers opportunities across the entire repository to freeze mutable catalog arrays with `as const`, upgrade plain string IDs to nominal `Brand<string, 'Id'>`, and replace naked string function parameters (`heroId: string`) with domain-branded types.
 > - `npm run auditor` **NEVER** runs `auditor:domain`. Finding candidates in `auditor:domain discover` does not mean CI is failing. See [quality-gates-vs-refactor-engines.md](./quality-gates-vs-refactor-engines.md).
 
-The `auditor-domain` CLI and `DomainRefactorEngine` provide automated discovery, Dirac micro-context extraction, and deterministic plan-based remediation for naked string parameters, mutable catalog arrays/objects, and unbranded entity IDs governed by `validate_domain_types` and the `/domain-type-first` architectural mandate.
+The `auditor-domain` CLI and `DomainRefactorEngine` provide automated discovery, Dirac micro-context extraction, and deterministic plan-based remediation for naked string parameters, mutable catalog arrays/objects, and unbranded entity IDs governed by `validate_oxlint` (`@francogp/domain-type`) and the `/domain-type-first` architectural mandate.
 
 ---
 
@@ -56,8 +56,8 @@ The `auditor-domain` CLI and `DomainRefactorEngine` provide automated discovery,
    - `IsoDateString` for ISO date/time strings
    - `DomElementId` / `UserUuid` for IDs
 
-5. **Canonical Domain Catalog & Union Deduplication (`validate_canonical_domains`)**:
-   Repeated string unions across code files (`canonical-domain-repeated-union`) and duplicate catalog arrays (`canonical-domain-collision`, `canonical-domain-subset-mismatch`) are detected via AST.
+5. **Canonical Domain Catalog & Union Deduplication (`validate_oxlint`)**:
+   Repeated string unions across code files and loose string arrays (`@francogp/domain-type/no-naked-string-union`, `@francogp/domain-type/no-broad-string-array`) are detected via AST.
    - Refactor repeated unions into a single SSoT type alias (e.g. `export type OrderMode = 'pickup' | 'delivery';`).
    - Derive sub-collections or partial unions using TypeScript utility types (`Extract<MasterCatalog, ...>`) instead of re-declaring string literals.
 
@@ -102,16 +102,16 @@ The `auditor-domain` CLI and `DomainRefactorEngine` provide automated discovery,
 # Direct CLI invocation (bin in node_modules/.bin)
 auditor-domain <command> [options]
 
-# Via package scripts
-npm run auditor:domain <command>
-npm run auditor:domain -- <command> [options]
+# Via package scripts (pass positional subcommands, key=value, and bare booleans without --)
+npm run auditor:domain help
+npm run auditor:domain <command> [options]
 ```
 
 ### 1. `discover`: Scan Project for Domain Anti-Patterns
 
 ```bash
 npm run auditor:domain discover
-npm run auditor:domain -- discover project=../my-app
+npm run auditor:domain discover project=../my-app
 ```
 
 Renders a dynamic 80-column Box-Drawing table with breakdown counts for `NakedStr` (naked string parameters), `Unfrozen` (catalogs lacking `as const`), and `Unbranded` (IDs lacking `Brand`).
@@ -120,7 +120,7 @@ Renders a dynamic 80-column Box-Drawing table with breakdown counts for `NakedSt
 
 ```bash
 npm run auditor:domain inspect src/engine/heroCreator.ts
-npm run auditor:domain -- inspect src/engine/heroCreator.ts project=../my-app
+npm run auditor:domain inspect src/engine/heroCreator.ts project=../my-app
 ```
 
 Extracts only the affected lines with precise line numbers, current violation snippets, recommended replacement code, explanation, and a ready-to-use declarative refactoring plan.
@@ -132,7 +132,7 @@ Extracts only the affected lines with precise line numbers, current violation sn
 npm run auditor:domain apply scratch/domain-plan.json
 
 # Safe execution inside an isolated Git Worktree (verifies compilation and tests before applying)
-npm run auditor:domain apply scratch/domain-plan.json --worktree
+npm run auditor:domain apply scratch/domain-plan.json worktree
 ```
 
 ---
@@ -184,24 +184,24 @@ npm run auditor:domain apply scratch/domain-plan.json --worktree
 
 ## 4. Reaction Protocol: CI Error vs. Elective Domain Modernization
 
-### Scenario A: CI Quality Gate Error (`validate_canonical_domains` / `validate_domain_types`)
+### Scenario A: CI Quality Gate Error (`validate_oxlint`)
 
-- **Trigger**: `npm run auditor` reports `canonical-domain-repeated-union` or `domain-unfrozen-catalog`.
+- **Trigger**: `npm run auditor` reports `@francogp/domain-type/no-naked-string-union` or `@francogp/domain-type/no-broad-string-array`.
 - **Strategic Phase**: Phase 4 (`contracts`).
-- **Action**: Formulate a **Correction Plan**. If an ad-hoc union is repeated across files, extract it to a single SSoT type alias in `src/types/` or freeze the catalog array with `as const`.
-- **Verification**: `npm run auditor -- suite=validate_canonical_domains` -> Green.
+- **Action**: Formulate a **Correction Plan**. Extract inline unions to a single SSoT type alias in `src/types/` or freeze the catalog array with `as const`.
+- **Verification**: `npm run auditor suite=validate_oxlint` -> Green.
 
 ### Scenario B: Elective Domain Modernization (`auditor:domain`)
 
 - **Trigger**: User requests _"brand identifiers with Brand"_, _"eliminate naked strings in functions"_, or _"modernize domain model"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before proceeding.
-- **Action**: Formulate an **Improvement Plan**. Run `auditor:domain discover`, inspect candidate files via `auditor:domain inspect <file>`, generate `scratch/domain-plan.json`, and apply with `--worktree`.
+- **Action**: Formulate an **Improvement Plan**. Run `npm run auditor:domain discover`, inspect candidate files via `npm run auditor:domain inspect <file>`, generate `scratch/domain-plan.json`, and apply with `npm run auditor:domain apply scratch/domain-plan.json worktree`.
 
 ---
 
 ## 5. Concrete Plan Blueprints
 
-### Correction Plan (CI Error: `canonical-domain-repeated-union`)
+### Correction Plan (CI Error: `@francogp/domain-type/no-naked-string-union`)
 
 ````markdown
 # Correction Plan: Repeated String Union in player.ts and match.ts
@@ -209,7 +209,7 @@ npm run auditor:domain apply scratch/domain-plan.json --worktree
 ## 1. Diagnosis & Strategic Phase
 
 - **Active Phase (`auditor:next`)**: `contracts` (Phase 4)
-- **Suite**: `validate_canonical_domains`
+- **Suite**: `validate_oxlint`
 - **Affected Files**:
   - `src/models/player.ts:L14` (`'active' | 'suspended' | 'banned'`)
   - `src/models/match.ts:L22` (`'active' | 'suspended' | 'banned'`)
@@ -228,7 +228,7 @@ export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 ## 3. Verification
 
-`npm run auditor -- suite=validate_canonical_domains`
+`npm run auditor suite=validate_oxlint`
 ````
 
 ### Improvement Plan (Elective: `auditor:domain`)
@@ -240,7 +240,7 @@ export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 - **Tool**: `auditor-domain`
 - **Objective**: Introduce nominal type safety for `HeroId` and prevent arbitrary strings from reaching `fetchHeroDetails`.
-- **Pre-flight CI Baseline**: 100% Green (0 errors, 0 warnings).
+- **Pre-flight CI Baseline**: 100% Green (0 errors, 0 new warnings).
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
 
@@ -277,7 +277,7 @@ export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 ## 4. Sandbox Execution
 
-`npm run auditor:domain apply scratch/domain-plan.json --worktree`
+`npm run auditor:domain apply scratch/domain-plan.json worktree`
 ````
 
 ---
@@ -314,7 +314,7 @@ Emits targeted Dirac micro-context with exact lines, proposed replacements, and 
 ### Step 3: Apply Declarative Plan via Worktree Sandbox
 
 ```bash
-npm run auditor:domain apply scratch/domain-plan.json --worktree
+npm run auditor:domain apply scratch/domain-plan.json worktree
 ```
 
 The engine executes in an ephemeral worktree, verifies type safety (`tsc --noEmit`), and safely merges changes upon green verification.

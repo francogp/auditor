@@ -108,42 +108,42 @@ In projects where migration lists must be known statically at compile time (such
 1. **Quote-Aware Comment Stripping**:
    Naive stripping of `--` comments corrupts strings containing dashes, CSS variables (e.g., `var(--color)`), or URLs. The compiler must tokenize strings to preserve quotes:
 
-```typescript
-export function stripInlineComment(line: string): string {
-  let inSingle = false;
-  let inDouble = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === "'" && !inDouble) {
-      if (line[i + 1] === "'") {
-        i++; // skip escaped quote ''
-      } else {
-        inSingle = !inSingle;
-      }
-    } else if (ch === '"' && !inSingle) {
-      if (line[i + 1] === '"') {
-        i++; // skip escaped quote ""
-      } else {
-        inDouble = !inDouble;
-      }
-    } else if (ch === '-' && line[i + 1] === '-' && !inSingle && !inDouble) {
-      return line.substring(0, i);
-    }
-  }
-  return line;
-}
-```
+   ```typescript
+   export function stripInlineComment(line: string): string {
+     let inSingle = false;
+     let inDouble = false;
+     for (let i = 0; i < line.length; i++) {
+       const ch = line[i];
+       if (ch === "'" && !inDouble) {
+         if (line[i + 1] === "'") {
+           i++; // skip escaped quote ''
+         } else {
+           inSingle = !inSingle;
+         }
+       } else if (ch === '"' && !inSingle) {
+         if (line[i + 1] === '"') {
+           i++; // skip escaped quote ""
+         } else {
+           inDouble = !inDouble;
+         }
+       } else if (ch === '-' && line[i + 1] === '-' && !inSingle && !inDouble) {
+         return line.substring(0, i);
+       }
+     }
+     return line;
+   }
+   ```
 
-1. **Decoupled Lightweight Version Metadata**:
+2. **Decoupled Lightweight Version Metadata**:
    Separating metadata (`migrations_version.ts`) from the heavy SQL content (`migrations_data.ts`):
    - `migrations_version.ts` exports `CLIENT_DB_VERSION` (a simple integer) and `LATEST_MIGRATION_ID`. Client apps import this to check version status in $O(1)$ without importing megabytes of SQL text into the initial JavaScript bundle.
    - `migrations_data.ts` exports `DATABASE_MIGRATIONS`, which is only loaded lazily when migrations actually need to run.
 
-2. **Client Bundle SQL Purge**:
+3. **Client Bundle SQL Purge**:
    When a companion `.sqlite.sql` exists, the PostgreSQL `sql` string is set to `''` in the client manifest. Because browser clients run WebAssembly SQLite, shipping PL/pgSQL functions or PostgreSQL triggers into browser bundles is dead weight.
 
-3. **Two-Step Pre-Commit Certification Pipeline**:
-   When executed via CLI (e.g. `node scripts/database/generate_migrations.ts`), the runner must automatically trigger:
+4. **Two-Step Pre-Commit Certification Pipeline**:
+   When executed via its canonical `package.json` script (e.g. `npm run <db-generate-migrations>`), the runner must automatically trigger:
    - Step 1: Static syntax, monotonicity, and comment audit (running the project's static SQL validator).
    - Step 2: Compatibility testing against the latest production backup fixture (running the real backup migration test suite).
      If either fails, the migration is rejected with exit code 1.

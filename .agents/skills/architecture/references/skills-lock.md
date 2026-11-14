@@ -33,7 +33,7 @@ Vendor skills are tracked declaratively in `skills-lock.json`. The framework sea
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "grill-with-docs": {
       "source": "mattpocock/skills",
@@ -110,7 +110,7 @@ Any attempt by a tool, subagent, or auto-fixer to mutate files under `.agents/sk
 
 During repository audits, `isPathIgnored()` checks `isLockedSkillPath()`. Files belonging to locked skills are cleanly skipped during file collection, preventing wasteful I/O and false positives.
 
-### 3.3 Finding & Violation Suppression (`BaseAuditor.ts`)
+### 3.3 Finding & Violation Suppression (`src/core/auditorBase.ts`)
 
 If an external tool or holistic AST scanner processes a file that resolves into a locked skill directory, `BaseAuditor` drops the finding before recording metrics:
 
@@ -214,7 +214,7 @@ git status --short skills-lock.json .agents/skills
 git diff skills-lock.json
 
 # 3. Verify framework isolation tests pass 100%
-vp test tests/locked_skills.test.ts
+vp test run tests/locked_skills.test.ts
 ```
 
 ### 6.4 Reporting Template
@@ -257,7 +257,7 @@ When the user asks to update dependencies (e.g. _"actualizar dependencias"_, _"u
 2. **Check Skill Ownership Scope**:
    - If running in **`@francogp/auditor`** (or if the upgraded dependency corresponds to a skill owned locally by the current project's `.agents/skills/`): run `npm exec --yes -- skills update <skill-name> -p -y` and verify `skills-lock.json`.
    - If running in a **consumer host project** and the skill belongs to `@francogp/auditor`: **DO NOT run `skills update` and DO NOT propose syncing the skill locally**. If relevant, mention that the user can ask the `@francogp/auditor` programmer to update the skill in `@francogp/auditor`.
-3. **Verify Lockfile & Tests**: Ensure `skills-lock.json` (in the owner repository) reflects the new hashes and run `vp test`.
+3. **Verify Lockfile & Tests**: Ensure `skills-lock.json` (in the owner repository) reflects the new hashes and run `vp test run` (or `npm test`).
 
 ---
 

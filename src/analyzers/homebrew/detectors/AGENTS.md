@@ -38,7 +38,7 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run hygiene tests: `vp test tests/oxlint_auditor_hygiene_migration.test.ts` (or `npm test -- tests/oxlint_auditor_hygiene_migration.test.ts`)
+- Run hygiene tests: `vp test run tests/oxlint_auditor_hygiene_migration.test.ts` (or `npm test -- tests/oxlint_auditor_hygiene_migration.test.ts`)
 - Execute standalone suite: `auditor task=validate_oxlint`
 
 ## Child DOX Index

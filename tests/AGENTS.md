@@ -109,8 +109,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run full test suite: `vp test` (or `npm test`)
-- Run architecture conformance tests: `vp test tests/auditor_architecture_conformance.test.ts` (or `npm test -- tests/auditor_architecture_conformance.test.ts`)
+- Run full test suite (single-run mode): `vp test run` (or `npm test`)
+- Run architecture conformance tests: `vp test run tests/auditor_architecture_conformance.test.ts` (or `npm test -- tests/auditor_architecture_conformance.test.ts`)
 
 ## Child DOX Index
 

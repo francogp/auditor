@@ -5,21 +5,21 @@ CERT_DIR="certs"
 KEY_FILE="$CERT_DIR/localhost-key.pem"
 CERT_FILE="$CERT_DIR/localhost.pem"
 
-echo "[Plugin 02] Verificando certificados SSL locales para desarrollo..."
+echo "[Plugin 02] Verifying local development SSL certificates..."
 
 if [ -f "$KEY_FILE" ] && [ -f "$CERT_FILE" ]; then
-  echo "  [OK] Certificados SSL locales ya existen en $CERT_DIR/."
+  echo "  [OK] Local SSL certificates already exist in $CERT_DIR/."
   exit 0
 fi
 
 mkdir -p "$CERT_DIR"
 
 if command -v mkcert >/dev/null 2>&1; then
-  echo "  [GEN] Generando certificados con mkcert..."
+  echo "  [GEN] Generating certificates with mkcert..."
   mkcert -install
   mkcert -key-file "$KEY_FILE" -cert-file "$CERT_FILE" localhost 127.0.0.1 ::1
-  echo "  [OK] Certificados generados correctamente."
+  echo "  [OK] Certificates successfully generated."
 else
-  echo "  [WARN] mkcert no encontrado. Omitiendo generacion automatica de SSL."
-  echo "     Para HTTPS local, instala mkcert: https://github.com/FiloSottile/mkcert"
+  echo "  [WARN] mkcert not found. Skipping automatic SSL generation."
+  echo "     For local HTTPS, install mkcert: https://github.com/FiloSottile/mkcert"
 fi

@@ -11,7 +11,7 @@ The vector semantic duplication engine (`validate_similar_code.ts`) verifies sem
 - **Model**: `jina-embeddings-v2-base-code` (8192 token context window, specialized for multi-language code similarity).
 - **Sensitivity Threshold**: Strict similarity threshold of `0.95`.
 - **Exclusion Policy**: Self-file duplication is excluded by default (`ignoreSameFile: true`) to prevent reporting overloaded functions or internal helper variants.
-- **Reporting**: Detected semantic clones are reported as actionable violations (`similar-code-detected`), complete with similarity percentage, source line mappings, and refactoring guidance.
+- **Reporting**: Detected semantic clones are reported as actionable violations (`fallow-similar-code`), complete with similarity percentage, source line mappings, and refactoring guidance.
 
 ---
 
@@ -82,10 +82,10 @@ This mode is invoked via `npm run build:deploy` (or CLI `auditor-build-deploy`) 
 
 When executed on a clean machine where model weights have not yet been cached:
 
-1. **Automatic Initialization**: The auditor attempts to download the companion model automatically via:
+1. **Automatic Initialization**: The auditor attempts to download the companion model automatically via the resolved Fallow binary (`vp exec fallow similar-code setup --local --yes`):
 
    ```bash
-   fallow similar-code setup --local --yes
+   vp exec fallow similar-code setup --local --yes
    ```
 
 2. **Resilient Non-Fatal Banner**: If automatic network download is blocked (e.g. strict firewall or offline container):

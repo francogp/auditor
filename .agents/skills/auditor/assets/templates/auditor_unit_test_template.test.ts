@@ -6,11 +6,11 @@
  *   1. Construction & Metadata Integrity: Instantiation with hermetic options and validateAuditorConstruction()
  *   2. Clean Path Verification: Zero violations cleanly passes (errors = 0, warnings = 0, status = 'passed')
  *   3. Violation Path Verification: Violation triggers in RED (errors > 0, status = 'failed', severity = 'error')
- *   4. Warning Path Verification: Warnings trigger in YELLOW (warnings > 0, status = 'warned', severity = 'warning')
+ *   4. Warning Path Verification: Warnings trigger in YELLOW (warnings > 0, errors = 0, status = 'passed', severity = 'warning')
  *   5. 100% Rule Coverage: Every declared ruleId is asserted in tests
  *
- * StandardAuditResult v6+ Contract:
- *   - result.status === 'passed' | 'failed' | 'warned' | 'skipped'
+ * StandardAuditResult Contract (`AUDIT_STATUSES`):
+ *   - result.status === 'passed' | 'failed' | 'skipped' (Note: 'warned' does NOT exist!)
  *   - result.summary.errors === 0
  *   - result.summary.warnings === 0
  *   - result.findings (structured array of AuditFinding objects)
@@ -47,8 +47,8 @@ describe('MyFeatureAuditor', () => {
     validateAuditorConstruction(auditor);
 
     const manifest = auditor.toManifest();
-    expect(manifest.id).toBe('validate_my_feature');
-    expect(manifest.family).toBe('architecture');
+    expect(manifest.id).toBe('validate_my_doc');
+    expect(manifest.family).toBe('documentation');
     expect(manifest.rules['my-feature-forbidden-pattern']).toBeDefined();
     expect(manifest.rules['my-feature-missing-attribute']).toBeDefined();
     expect(manifest.remediationPhases).toBeDefined();
@@ -57,8 +57,8 @@ describe('MyFeatureAuditor', () => {
   });
 
   it('passes cleanly when no violations are present', async () => {
-    const cleanFile = path.join(TEST_DIR, 'clean.ts');
-    fs.writeFileSync(cleanFile, 'export const valid = true;\n', 'utf-8');
+    const cleanFile = path.join(TEST_DIR, 'clean.md');
+    fs.writeFileSync(cleanFile, '# Purpose\n\nValid documentation content.\n', 'utf-8');
 
     const auditor = new MyFeatureAuditor({
       projectRoot: TEST_DIR,
@@ -77,8 +77,8 @@ describe('MyFeatureAuditor', () => {
   });
 
   it('detects violations and records structured ruleId and error severity', async () => {
-    const dirtyFile = path.join(TEST_DIR, 'dirty.ts');
-    fs.writeFileSync(dirtyFile, 'const bad = forbiddenToken;\n', 'utf-8');
+    const dirtyFile = path.join(TEST_DIR, 'dirty.md');
+    fs.writeFileSync(dirtyFile, '# Purpose\n\nContains forbiddenPattern here.\n', 'utf-8');
 
     const auditor = new MyFeatureAuditor({
       projectRoot: TEST_DIR,
@@ -96,13 +96,13 @@ describe('MyFeatureAuditor', () => {
   });
 
   it('respects canonical configuration exemptions', async () => {
-    const ignoredFile = path.join(TEST_DIR, 'exempt.ts');
-    fs.writeFileSync(ignoredFile, 'const bad = forbiddenToken;\n', 'utf-8');
+    const ignoredFile = path.join(TEST_DIR, 'exempt.md');
+    fs.writeFileSync(ignoredFile, 'Contains forbiddenPattern without header.\n', 'utf-8');
 
     const auditor = new MyFeatureAuditor({
       projectRoot: TEST_DIR,
       roots: [TEST_DIR],
-      exemptPaths: ['exempt.ts']
+      exemptPaths: ['exempt.md']
     });
     const result = await auditor.audit();
 
@@ -121,7 +121,7 @@ describe('MyFeatureAuditor', () => {
 
   it('guarantees 100% of declared rules record individual empirical durations', async () => {
     const auditor = new MyFeatureAuditor({ projectRoot: TEST_DIR });
-    await auditor.testScanFile('clean.ts', 'export const valid = true;\n');
+    await auditor.testScanFile('clean.md', '# Purpose\n\nValid content.\n');
     await auditor.finishAudit();
 
     for (const ruleId of auditor.ruleIds) {

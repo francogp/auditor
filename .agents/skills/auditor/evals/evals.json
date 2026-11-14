@@ -16,7 +16,7 @@
     {
       "id": 1,
       "prompt": "Inspeccioná latest_audit.json y mostrame qué errores de tipo salieron en src/cli/report_fallow.ts.",
-      "expected_output": "The agent activates /auditor and uses 'npm run auditor:findings -- file=src/cli/report_fallow.ts flat' or 'npm run auditor:findings -- rule=ts-compiler-error' to retrieve the exact violations from latest_audit.json.",
+      "expected_output": "The agent activates /auditor and uses 'npm run auditor:findings file=src/cli/report_fallow.ts flat' or 'npm run auditor:findings rule=ts-compiler-error' to retrieve the exact violations from latest_audit.json.",
       "files": ["scratch/audits/latest_audit.json"],
       "expectations": [
         "Uses npm run auditor:findings with file or rule filtering",

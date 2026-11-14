@@ -35,7 +35,7 @@ flowchart TD
 | **3** | `## Local Contracts` | **Mandatory** | Inviolable architectural invariants, domain rules, naming conventions, and constraints governing code inside this directory.                  |
 | _opt_ | `## Key Files`       |  _Optional_   | Bidirectional file inventory mapping every non-test source code file in this directory to its architectural role.                             |
 | **4** | `## Work Guidance`   | **Mandatory** | Actionable instructions for developers and AI agents on how to modify, extend, or refactor code in this folder.                               |
-| **5** | `## Verification`    | **Mandatory** | Real, runnable terminal commands (e.g. `vp test tests/...` or `npm test -- tests/...`, `npm run auditor:...`) to verify changes hermetically. |
+| **5** | `## Verification`    | **Mandatory** | Real, runnable terminal commands (e.g. `vp test run tests/...` or `npm test -- tests/...`, `npm run auditor:...`) to verify changes hermetically. |
 | **6** | `## Child DOX Index` | **Mandatory** | Relative links to child `AGENTS.md` files, or an explicit note stating that no subdirectories exist.                                          |
 
 > [!NOTE]
@@ -91,7 +91,7 @@ flowchart TD
   ```markdown
   ## Verification
 
-  - Run unit tests: `vp test tests/parser.test.ts` (or `npm test -- tests/parser.test.ts`)
+  - Run unit tests: `vp test run tests/parser.test.ts` (or `npm test -- tests/parser.test.ts`)
   - Run lint suite: `npm run auditor:lint`
   ```
 
@@ -155,8 +155,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run constant analyzer unit tests: `vp test tests/validate_duplicate_constants.test.ts` (or `npm test -- tests/validate_duplicate_constants.test.ts`)
-- Run DOX analyzer unit tests: `vp test tests/validate_dox_integrity.test.ts` (or `npm test -- tests/validate_dox_integrity.test.ts`)
+- Run constant hygiene unit tests: `vp test run tests/oxlint_constant_hygiene_migration.test.ts` (or `npm test -- tests/oxlint_constant_hygiene_migration.test.ts`)
+- Run DOX analyzer unit tests: `vp test run tests/validate_dox_integrity.test.ts` (or `npm test -- tests/validate_dox_integrity.test.ts`)
 
 ## Child DOX Index
 
@@ -183,12 +183,12 @@ Architecture & Tooling Engineers.
 ## Work Guidance
 
 - Ensure all sub-auditors implement `toManifest()` accurately with description `<= 60` characters.
-- Maintain pure Spanish `ruleDescriptions` composed as `${packageName}: ${ruleDescription}` under `<= 50` characters.
-- Use explicit capabilities (`fix`, `lint`, `md`, `ast`) and avoid repeating default false flags.
+- Maintain pure English `ruleDescriptions` composed as `${packageName}: ${ruleDescription}` under `<= 50` characters.
+- Declare all 6 `AuditorRuleCapabilities` fields (`speed`, `phase`, `md`, `ast`, `changedOnly`, `critical`) explicitly; never declare manual `fix` inside `ruleCapabilities` (`BaseAuditor` derives `fix` automatically).
 
 ## Verification
 
-- Run all family suites: `vp test tests/validate_*.test.ts` (or `npm test -- tests/validate_*.test.ts`)
+- Run all family suites: `vp test run tests/validate_*.test.ts` (or `npm test -- tests/validate_*.test.ts`)
 - Run lint preset suites: `npm run auditor:lint`
 
 ## Child DOX Index
@@ -203,41 +203,41 @@ Architecture & Tooling Engineers.
 
 ## 5. Audit Rules & Troubleshooting
 
-The DOX integrity auditor ([`validate_dox_integrity.ts`](../../../../src/suites/documentation/validate_dox_integrity.ts)) enforces 9 distinct static rules:
+The DOX integrity auditor ([`validate_dox_integrity.ts`](../../../../src/suites/documentation/validate_dox_integrity.ts)) enforces 6 distinct static rules:
 
 ### 1. `dox-missing-section`
 
-- **Symptom**: `Falta la sección obligatoria '## Work Guidance' en 'src/module/AGENTS.md'.`
+- **Symptom**: `Missing mandatory section '## Work Guidance' in 'src/module/AGENTS.md'.`
 - **Cause**: One of the 6 canonical sections is missing.
 - **Resolution**: Add the missing heading and populate it with substantive content.
 
 ### 2. `dox-section-order`
 
-- **Symptom**: `Orden incorrecto de secciones en 'src/module/AGENTS.md': '## Verification' no debe aparecer después de '## Child DOX Index'.`
+- **Symptom**: `Invalid section order in 'src/module/AGENTS.md': '## Verification' must not appear after '## Child DOX Index'.`
 - **Cause**: Headings appear out of canonical order, are duplicated, or use non-standard H1/H2 titles.
 - **Resolution**: Reorder headings to match `# Purpose` ➔ `## Ownership` ➔ `## Local Contracts` ➔ `## Work Guidance` ➔ `## Verification` ➔ `## Child DOX Index`.
 
 ### 3. `dox-empty-section`
 
-- **Symptom**: `La sección obligatoria '## Work Guidance' está vacía o contiene texto de relleno/basura.`
+- **Symptom**: `Mandatory section '## Work Guidance' is empty or contains placeholder/garbage text.`
 - **Cause**: The section body has 0 non-whitespace lines, contains only HTML comments, or has placeholder tokens (`TODO`, `TBD`, `N/A`, `None`, `< 10` chars).
 - **Resolution**: Replace the placeholder with genuine operational standards, constraints, or commands.
 
 ### 4. `dox-missing-agents-md`
 
-- **Symptom**: `Falta el archivo obligatorio de documentación 'AGENTS.md' en el directorio 'src/new-feature'.`
+- **Symptom**: `Missing mandatory documentation file 'AGENTS.md' in directory 'src/new-feature'.`
 - **Cause**: A directory containing source code files (`.ts`, `.vue`, `.js`, etc.) lacks an `AGENTS.md`.
 - **Resolution**: Create an `AGENTS.md` following Template A.
 
 ### 5. `dox-unregistered-child`
 
-- **Symptom**: `El archivo 'src/feature/AGENTS.md' no está registrado en el índice DOX de 'src/AGENTS.md'.`
+- **Symptom**: `File 'src/feature/AGENTS.md' is not registered in the Child DOX Index of 'src/AGENTS.md'.`
 - **Cause**: A child `AGENTS.md` was created but not linked in its nearest parent's `## Child DOX Index`.
 - **Resolution**: Add a relative link to the child file in the parent's `## Child DOX Index`.
 
 ### 6. `dox-unindexed-file`
 
-- **Symptom**: `El archivo de código 'src/feature/helper.ts' no está indexado en el AGENTS.md local.`
+- **Symptom**: `Code file 'src/feature/helper.ts' is not indexed in its local AGENTS.md.`
 - **Cause**: A source code file is not listed under `## Key Files` in the directory's `AGENTS.md`.
 - **Resolution**: Document `helper.ts` under `## Key Files`.
 
@@ -251,7 +251,7 @@ To check DOX integrity across the entire workspace:
 
 ```bash
 # Run standalone DOX suite:
-node --experimental-strip-types src/suites/documentation/validate_dox_integrity.ts
+npm run auditor:dox-integrity
 
 # Run general Markdown and DOX preset:
 npm run auditor:md

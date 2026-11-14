@@ -27,9 +27,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run TypeScript syntax and lint check: `vp check` (or `npm run check`)
-- Run core unit tests: `vp test` (or `npm test`)
-- Run source linter and auditors: `npm run auditor:lint`
+- Run core unit tests (single-run mode): `vp test run` (or `npm test`)
+- Run fast source linter, type-check, and light auditors (`npm run check` is an alias for `npm run auditor:lint`; do not run both): `npm run auditor:lint`
 
 ## Child DOX Index
 

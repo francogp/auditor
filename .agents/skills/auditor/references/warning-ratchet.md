@@ -46,7 +46,7 @@ On existing repositories with pre-existing legacy warnings:
 - Initialize the baseline once with:
 
   ```bash
-  npm run auditor -- init-baseline
+  npm run auditor init-baseline
   ```
 
 - Positional `init-baseline` avoids npm CLI flag interception (`Unknown cli flag: --init-baseline`), while direct binary invocations also accept `--init-baseline`.

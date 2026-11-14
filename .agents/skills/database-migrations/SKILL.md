@@ -71,7 +71,7 @@ Migrations MUST NEVER swallow, catch, ignore, or mask database errors using empt
 Whenever migration logic or data backfills depend on application constants (whitelists, roles, catalogs, tariff structures):
 
 - NEVER copy-paste arrays into SQL manually.
-- Author a generator script (`scripts/database/generate_<name>_migration.ts`) importing the TypeScript SSoT and emitting coordinated PostgreSQL and SQLite migration pairs.
+- Author a generator script under the configured script roots (`config.paths.scriptsRoots`) targeting `config.paths.migrationsDir`, importing the TypeScript SSoT and emitting coordinated PostgreSQL and SQLite migration pairs.
 
 ### 5. Multi-Protocol Dual-Engine Decoupling (`DBRouter`)
 
@@ -115,6 +115,6 @@ Choose the appropriate testing harness based on the execution context:
 ## 🌐 Dynamic Language Governance (Zero Hardcoding)
 
 - The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
-  - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all interactive chat communication, user interviews, options matrices, `ask_question` dialogs. The agent converses strictly in the language resolved from `config.documentation.chatLanguage`.
-  - **Documentation & File Writing Language (`config.documentation.language`)**: Governs code, code comments, commit messages, git tags, documentation files, markdown files, brain artifacts (`walkthrough.md`, `task.md`, `plan_safe_commit.md`), and DOX indices (`AGENTS.md`). The agent writes files strictly in the language resolved from `config.documentation.language`.
+  - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all interactive chat communication, user interviews, options matrices, `ask_question` dialogs, and AI brain artifacts (`walkthrough.md`, `task.md`, `implementation_plan.md`). The agent converses and writes brain artifacts strictly in the language resolved from `config.documentation.chatLanguage`.
+  - **Documentation & File Writing Language (`config.documentation.language`)**: Governs code, code comments, commit messages, git tags, documentation files, markdown files, and DOX indices (`AGENTS.md`). The agent writes repository files strictly in the language resolved from `config.documentation.language`.
 - **Zero Language Mixing & Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages. The AI agent must dynamically resolve these settings from configuration and never confuse or conflate the chat communication language with the repository file writing language.

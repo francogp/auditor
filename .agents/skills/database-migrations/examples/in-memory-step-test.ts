@@ -13,11 +13,7 @@ import assert from 'node:assert/strict';
 import process from 'node:process';
 import { DatabaseSync } from 'node:sqlite';
 
-declare const Temporal: {
-  Now: {
-    instant(): { toString(): string };
-  };
-};
+const HERMETIC_APPLIED_AT_ISO = '2026-08-15T18:00:00Z';
 
 interface MigrationEntry {
   readonly id: string;
@@ -140,7 +136,7 @@ function runInMemoryMigrationTest(): void {
         db.exec(migration.sql);
         db.prepare('INSERT INTO _migrations (id, applied_at) VALUES (?, ?);').run(
           migration.id,
-          Temporal.Now.instant().toString()
+          HERMETIC_APPLIED_AT_ISO
         );
         db.exec('COMMIT;');
 

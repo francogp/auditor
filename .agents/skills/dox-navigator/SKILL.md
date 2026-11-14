@@ -34,7 +34,7 @@ Consult this skill whenever you need to:
 - **Audit DOX integrity & detect missing/unindexed AGENTS.md files**: Run `npm run auditor:md` to discover missing indices or broken DOX hierarchy links.
 - **Perform refactorings or major structural changes** to the codebase (which require refreshing and updating DOX indices and `AGENTS.md` files).
 - Run the `/learn` command to persist new rules, preferences, or lessons.
-- Perform the **Lessons Extraction** (Phase 3, Step 3.1) or **DOX Maintenance** (Phase 4, Step 4.1) during `/safe-commit`.
+- Perform the **Lessons Extraction** (Phase 3, Step 3.3) or **DOX Maintenance** (Phase 4, Step 4.1) during `/safe-commit`.
 
 ---
 
@@ -43,7 +43,7 @@ Consult this skill whenever you need to:
 - **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)**:
   - The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
     - **Documentation & File Writing Language (`config.documentation.language`)**: All DOX indices, `AGENTS.md` files, and `.agents/` configuration files MUST be written in the configured language resolved from `config.documentation.language`.
-    - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Interactive chat searches, context explanations, and developer dialogues in the chat interface MUST strictly use the resolved chat language from `config.documentation.chatLanguage`.
+    - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Interactive chat searches, context explanations, developer dialogues, and AI brain artifacts (`walkthrough.md`, `task.md`, `implementation_plan.md`) MUST strictly use the resolved chat language from `config.documentation.chatLanguage`.
   - **Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages without consulting `.auditor/audit.config.ts`.
 - **Zero Language Mixing**: It is strictly forbidden to mix languages within a single file. Within each DOX index or documentation file, the chosen language must be maintained consistently without mixed-language paragraphs. The AI agent must never confuse or conflate the chat communication language with the repository file writing language.
 - **Relative Paths Mandate**: All links to other files and indices in all `AGENTS.md` files MUST use relative paths (e.g. `./database/AGENTS.md` or `../database/AGENTS.md`). Absolute paths (e.g., `file:///C:/...` or `/home/...`) are strictly forbidden to ensure portability across different development environments.
@@ -106,7 +106,7 @@ Update the closest owning `AGENTS.md` when a change affects:
 Create a child `AGENTS.md` when a folder becomes a durable boundary with its own purpose, rules, responsibilities, workflow, materials, or quality standards.
 
 - **Work Guidance**: Must reflect the current operational standards of the project, subsystem practices, or development instructions. Leaving it empty, whitespace-only, or filled with placeholder/garbage text (`TODO`, `TBD`, `N/A`, `...`) is strictly prohibited (`dox-empty-section`).
-- **Verification**: Must document concrete verification checks and execution commands (e.g. `vp test ...`, `npm test -- ...`, `npm run auditor:...`). Leaving it empty or using placeholder stubs is strictly prohibited (`dox-empty-section`).
+- **Verification**: Must document concrete verification checks and execution commands (e.g. `vp test run ...`, `npm test -- ...`, `npm run auditor:...`). Leaving it empty or using placeholder stubs is strictly prohibited (`dox-empty-section`).
 
 **Default section order:**
 
@@ -164,7 +164,7 @@ Whenever persisting new knowledge, rules, lessons, or constraints:
 
 - **NO Arbitrary Placements**: Do NOT dump local lessons, subsystem rules, or module guidelines into the root `AGENTS.md` file unless they represent project-wide behavioral preferences.
 - **Target Child `AGENTS.md`**: You MUST target the most specific child `AGENTS.md` file that matches the folder tree of the modified code files, mapping each rule to its proper domain boundary.
-- **Governed by `learn-with-docs`**: During safe-commit (Phase 3, Step 3.1), lessons extraction, Targeted Contradiction Sweeps for direct contradictions, and proposal drafting are governed strictly by [learn-with-docs](../learn-with-docs/SKILL.md).
+- **Governed by `learn-with-docs`**: During safe-commit (Phase 3, Step 3.3), lessons extraction, Targeted Contradiction Sweeps for direct contradictions, and proposal drafting are governed strictly by [learn-with-docs](../learn-with-docs/SKILL.md).
 
 ### Strict Verification Contract for Documentation
 
@@ -182,7 +182,7 @@ To detect missing `AGENTS.md` files, unindexed child DOX indices, absolute path 
 npm run auditor:md
 
 # Direct DOX Suite Execution (via canonical @francogp/auditor runner):
-npm run auditor -- task=validate_dox_integrity
+npm run auditor task=validate_dox_integrity
 
 # In host projects with @francogp/auditor installed:
 auditor task=validate_dox_integrity

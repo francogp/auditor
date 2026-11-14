@@ -42,26 +42,25 @@ This automated step:
 3. Synchronizes the master build gate in `package.json`:
 
    ```json
-   "build": "npm run auditor:full && vite build && npm run auditor:post-build"
+   "build": "npm run auditor:full && vp build && npm run auditor:post-build"
    ```
 
 ---
 
 ## 🏛️ 2. Modernizing Extension Rule Capabilities (`AuditorRuleCapabilities`)
 
-In v8, `BaseAuditor` enforces the **Explicit 7-Field Orthogonal Capabilities Contract** (`AuditorRuleCapabilities`). Legacy 10-boolean declarations (`lint`, `precommit`, `requiresBuild`, `postRun`, `heavy`, `fixPriority`) fail loudly at runtime:
+`BaseAuditor` enforces the **Explicit 6-Field Orthogonal Capabilities Contract** (`AuditorRuleCapabilities`), while deriving `fix` (`'none' | 'normal' | 'priority'`) automatically from registered fixers. Legacy boolean declarations (`lint`, `precommit`, `requiresBuild`, `postRun`, `heavy`, `fixPriority`) and manual `fix` entries inside `AuditorRuleCapabilities` fail loudly:
 
 ```text
 [Auditor Contract Violation] Auditor [id] must explicitly define 'ruleCapabilities.<ruleId>.speed' as 'light' | 'heavy' | 'full'
 ```
 
-### 2.1 The 7 Orthogonal Fields
+### 2.1 The 6 Orthogonal Fields (+ Derived `fix`)
 
 ```ts
 export interface AuditorRuleCapabilities {
   readonly speed: 'light' | 'heavy' | 'full' | readonly ('light' | 'heavy' | 'full')[];
-  readonly phase: 'normal' | 'post-run' | 'post-build';
-  readonly fix: 'none' | 'normal' | 'priority';
+  readonly phase: 'setup' | 'normal' | 'post-run' | 'post-build';
   readonly md: boolean;
   readonly ast: boolean;
   readonly changedOnly: boolean;
@@ -71,11 +70,12 @@ export interface AuditorRuleCapabilities {
 
 ### 2.2 Migration Mapping Matrix
 
-| Legacy v7 Capability Property   | v8 Orthogonal Equivalent                  | Notes                                                           |
+| Legacy v7 Capability Property   | Modern Orthogonal Equivalent              | Notes                                                           |
 | ------------------------------- | ----------------------------------------- | --------------------------------------------------------------- |
 | `lint: true, heavy: false`      | `speed: 'light'`                          | Fast in-memory AST or regex checks (🐇)                         |
 | `heavy: true`                   | `speed: 'heavy'`                          | Multi-file disk, database, or simulation checks (🐢)            |
 | Heavy cascade / vector analysis | `speed: 'full'` or `['light', 'full']`    | Exhaustive verification (🐘)                                    |
+| Infrastructure / config check   | `phase: 'setup'`                          | Imperative blocking setup check before code audits              |
 | `phase: 'normal'`               | `phase: 'normal'`                         | Standard source audit                                           |
 | `postRun: true`                 | `phase: 'post-run'`                       | Sequential execution post-audit (coverage flush)                |
 | `requiresBuild: true`           | `phase: 'post-build'`                     | Executed against `dist/` via `auditor:post-build`               |
@@ -112,26 +112,25 @@ export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
 }
 ```
 
-#### Individual Rule Fixability or Overrides
+#### Individual Rule Fixability via `ruleFixers`
 
 ```ts
-import { BaseAuditor, createRuleCapabilities } from '@francogp/auditor';
+import { BaseAuditor, createUniformRuleCapabilities } from '@francogp/auditor';
 
 export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
   constructor() {
     super({
-      ruleCapabilities: createRuleCapabilities(
-        MY_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          md: false,
-          ast: true,
-          changedOnly: false,
-          critical: false
-        },
-        ['fixable-rule-1', 'fixable-rule-2'] // Automatically sets fix: 'normal' for these rules
-      )
+      ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: true,
+        changedOnly: false,
+        critical: false
+      }),
+      ruleFixers: {
+        'fixable-rule-1': async () => true
+      }
       // ... rest of AuditorOptions
     });
   }
@@ -162,12 +161,10 @@ for (const rule of RULES) {
 }
 
 // ✅ CANONICAL PATTERN: In-RAM single pass
-await this.scanFilesSinglePass(files, {
-  onFile: (relPath, content) => {
-    this.checkSyntax(relPath, content);
-    this.checkImports(relPath, content);
-  }
-});
+await this.scanFilesSinglePass(files, [
+  { ruleId: 'rule-syntax', scan: (relPath, content) => this.checkSyntax(relPath, content) },
+  { ruleId: 'rule-imports', scan: (relPath, content) => this.checkImports(relPath, content) }
+]);
 ```
 
 ### 3.2 Outside Auditor Extensions (Build Scripts & Maintenance Utilities): Native Node.js 26+
@@ -213,7 +210,7 @@ Running `npm run auditor:fix` automatically executes the non-destructive 5-stage
 1. **Extract & Merge**: Reads existing `vitest.config.*` (extracting `test: { ... }` blocks, projects, and custom pools) and merges them into `vite.config.ts`, preserving 100% of existing application plugins, aliases, and server configs.
 2. **Rewrite Testing Imports**: Rewires test imports across all `tests/**/*.{ts,vue}` from `'vitest'` to `'vite-plus/test'`.
 3. **Migrate Node Runtime**: Migrates `.nvmrc` to `.node-version` (canonical for `vp env`).
-4. **Synchronize `package.json`**: Adds `"vite-plus": "^1.2.0"` to `devDependencies`, strips obsolete `eslint*` packages, and modernizes scripts to `vp check`, `vp test`, and `vp pack`.
+4. **Synchronize `package.json`**: Adds `"vite-plus": "^1.6.0"` (from `getAuditorMinimumVersions()`) to `devDependencies`, strips obsolete `eslint*` packages, and modernizes scripts to `vp check`, `vp test run`, and `vp pack`.
 5. **Certified Cleanup**: Purges obsolete config files (`vitest.config.*`, `eslint.config.*`, `.nvmrc`) ONLY after stages 1–4 complete with 100% success.
 
 ### 4.2 Modernized CLI Commands
@@ -223,8 +220,8 @@ Running `npm run auditor:fix` automatically executes the non-destructive 5-stage
 | Syntax & Lint     | Legacy ESLint (`npm run lint`)          | `vp check` (or `npm run check`)                       |
 | Format Check      | Legacy Prettier (`prettier --check`)    | `vp fmt --check` (or `npm run fmt:check`, `vp check`) |
 | Format Fix        | Legacy Prettier (`prettier --write`)    | `vp fmt` (or `npm run fmt`, `vp check --fix`)         |
-| Test Suite        | Legacy Vitest (`npm test`)              | `vp test` (or `npm test`)                             |
-| Test Coverage     | Legacy Vitest (`npm run test:coverage`) | `vp test --coverage` (or `npm run test:coverage`)     |
+| Test Suite        | Legacy Vitest (`npm test`)              | `vp test run` (or `npm test`)                         |
+| Test Coverage     | Legacy Vitest (`npm run test:coverage`) | `vp test run --coverage` (or `npm run test:coverage`) |
 | Library Packaging | Legacy tsdown CLI                       | `vp pack`                                             |
 | Dev Server        | Legacy Vite CLI                         | `vp dev`                                              |
 | Project Tasks     | Legacy script runner (`npm run <task>`) | `vp run <task>` (or `npm run <task>`)                 |
@@ -233,44 +230,24 @@ Running `npm run auditor:fix` automatically executes the non-destructive 5-stage
 
 When migrating large codebases with multiple external plugins and complex test environments:
 
-1. **Avoid Plugin Type Recursion in `defineConfig`**:
-   Extract plugins into a standalone `const plugins: PluginOption[] = [...]` array outside `defineConfig` to prevent TS2321/TS2589 ("Excessive stack depth comparing types") between bundled Rollup types and external plugin declarations.
+1. **Modular Plugin Delegation (`vite.plugins.ts`) + `npm run auditor:fix`**:
+   Declare Vite plugins in developer-owned `vite.plugins.ts` (`export const plugins: PluginOption[] = [...]`) and run `npm run auditor:fix` so `vite.config.ts` imports them cleanly without manual satellite edits or `TS2321`/`TS2589` stack-depth recursion.
 
 2. **Remove Obsolete `environmentMatchGlobs`**:
-   Remove deprecated `environmentMatchGlobs` from `vite.config.ts`. In Vite+, use project-level environments or file-level docblocks (`// @vitest-environment jsdom`) for component tests.
+   `npm run auditor:fix` migrates test projects into `vite.config.ts` from `.auditor/audit.config.ts`; use project-level environments or file-level docblocks (`// @vitest-environment jsdom`) for component tests.
 
 3. **ANSI VT Sequences in Log Spies**:
    Node.js 26+ native styling (`node:util` `styleText`) injects ANSI color sequences into console logs. When asserting warnings or logs in Vitest / Vite+ test suites, match against regex patterns (`expect.stringMatching(/.../)`) instead of strict string equality.
 
 ---
 
-## 🔍 5. Verification Workflow
+## 🔍 5. Verification Workflow (Pick ONE Tier — Never Stack!)
 
-After updating extensions and scripts:
+Because `auditor:lint ⊂ auditor ⊂ auditor:full ⊂ npm run build`, execute **only the single command** matching your goal (never run all three sequentially):
 
-1. **Verify Fast Lint Tier (Light 🐇)**:
-
-   ```bash
-   npm run auditor:lint
-   ```
-
-   Ensures all lightweight AST and syntax rules pass instantaneously.
-
-2. **Verify Full Standard Workspace Audit (Heavy 🐢)**:
-
-   ```bash
-   npm run auditor
-   ```
-
-   Ensures all domain, persistence, assets, and architecture rules pass cleanly.
-
-3. **Verify Master Build Pipeline**:
-
-   ```bash
-   npm run build
-   ```
-
-   Ensures `auditor:full` ➔ compile ➔ `auditor:post-build` executes smoothly end-to-end.
+- **Iterative edits in progress**: `npm run auditor:lint`
+- **Migration complete (no dist compilation needed)**: `npm run auditor`
+- **Full release / library distribution verification**: `npm run test:coverage` (once) followed by `npm run build` (once — already runs `auditor:full` ➔ compile ➔ `auditor:post-build`).
 
 ---
 

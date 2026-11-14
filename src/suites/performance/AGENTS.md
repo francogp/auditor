@@ -24,8 +24,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run performance suite tests: `vp test tests/validate_web_performance.test.ts tests/oxlint_query_performance_migration.test.ts` (or `npm test -- tests/validate_web_performance.test.ts tests/oxlint_query_performance_migration.test.ts`)
-- Run general performance audit: `auditor family=performance` (or `npm run auditor -- family=performance`)
+- Run performance suite tests: `vp test run tests/validate_web_performance.test.ts tests/oxlint_query_performance_migration.test.ts` (or `npm test -- tests/validate_web_performance.test.ts tests/oxlint_query_performance_migration.test.ts`)
+- Run general performance audit: `auditor family=performance` (or `npm run auditor family=performance`)
 
 ## Child DOX Index
 

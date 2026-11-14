@@ -6,10 +6,9 @@
  * Ready-to-copy blueprint for implementing custom project-specific sub-auditors
  * in scripts/auditors/<family>/<suite_name>.ts.
  *
- * Usage in .auditor/audit.config.ts:
- *   import { MyCustomAuditor } from '../scripts/auditors/architecture/validate_my_custom.ts';
+ * Usage in .auditor/audit.config.ts (`extensions` accepts file or directory paths):
  *   export default defineAuditConfig({
- *     extensions: [new MyCustomAuditor()]
+ *     extensions: ['scripts/auditors/architecture/validate_my_custom.ts']
  *   });
  *
  * CLI Contract Governance (`validate_cli_contracts`):
@@ -71,7 +70,7 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
       //   }
       // },
       ruleIds: MY_CUSTOM_RULES,
-      packageName: 'HostProject',
+      packageName: 'Host',
       configKey: 'customRules.enabled',
       defaultConfig: {
         enabled: true
@@ -84,9 +83,10 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
       // Mandatory strategic remediation phase (e.g. 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish')
       remediationPhase: 'contracts',
       usesThirdPartyTool: false,
+      // Composed "${packageName}: ${desc}" MUST stay <= 50 chars:
       ruleDescriptions: {
-        'my-custom-rule-a': 'Violation of custom project architectural rule A',
-        'my-custom-rule-b': 'Violation of custom project architectural rule B'
+        'my-custom-rule-a': 'Custom architectural rule A violation',
+        'my-custom-rule-b': 'Custom architectural rule B violation'
       },
       // Mandatory 4-section diagnostic & remediation guide contract
       ruleRemediations: {

@@ -48,7 +48,7 @@ Specialized skill for extracting, synthesizing, and persisting newly acquired kn
      1. **`AGENTS.md` Governance Files**: Local contracts (`## Local Contracts`), directory descriptions, module boundaries, and architectural invariants placed at the most specific child boundary.
      2. **Hierarchical DOX Indices**: Navigation tables, tree mappings, and child DOX indices (`## Child DOX Index`) ensuring index integrity and relative path validity.
      3. **Host Program & Repository Documentation**: Root and nested `README.md`, `docs/**`, architecture guides, manuals, and script tables of the program where the auditor is running.
-     4. **Agent Skills & Bundled Resources (`.agents/skills/**` or `skills/**`)**: Internal `SKILL.md` instructions, `references/**`, `examples/**`, and `templates/**` / `assets/**`.
+     4. **Project-Owned Agent Skills & Bundled Resources (`.agents/skills/**` or `skills/**`)**: Internal `SKILL.md` instructions, `references/**`, `examples/**`, and `templates/**` / `assets/**` belonging strictly to the current repository — **NEVER** inspect, propose changes to, or touch third-party locked skills listed in `skills-lock.json` or upstream `@francogp/auditor` skills from inside a consumer project.
 
 3. **Active Eradication of Legacy, Deprecated & Contradictory Content**:
    - Actively identify and purge:

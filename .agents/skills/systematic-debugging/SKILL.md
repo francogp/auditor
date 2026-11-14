@@ -27,13 +27,13 @@ metadata:
 ## ⛔ INVIOLABLE DEBUGGING GATES (ZERO DEVIATION)
 
 1. **⛔ GATE 1: PROHIBITION ON EDITING `src/` BEFORE RED REPRODUCTION**:
-   - It is STRICTLY FORBIDDEN to modify `src/` or apply speculative patches before creating an isolated reproduction test in `tests/node/` or `tests/unit/` and observing a deterministic failure in **RED**.
+   - It is STRICTLY FORBIDDEN to modify `src/` or apply speculative patches before creating an isolated reproduction test under the configured test roots (`config.paths.testRoots`, e.g. `<testRoot>/reproduce_<slug>.test.ts`) and observing a deterministic failure in **RED**.
 2. **⛔ GATE 2: ZERO RUNTIME FALLBACKS & SILENT CATCH BLOCKS**:
    - Never mask bugs with default fallbacks (`||`, `??`, dummy derivations) or silent catches (`.catch(() => true)`).
    - System logic MUST fail fast and loudly (`throw new Error(...)`) so root causes can be diagnosed at the source.
 3. **⛔ GATE 3: IMMUTABLE STATIC FIXTURES ONLY**:
    - Reproduction tests MUST extract and inline static fixture data (or use a dedicated static fixture file).
-   - Querying mutable live fuzzer files (`fuzzer_certified_cases.json`) dynamically is strictly prohibited.
+   - Querying mutable runtime state or live fuzzer output files dynamically is strictly prohibited.
 4. **⛔ GATE 4: MAXIMUM 5-ITERATION CAP**:
    - The repair loop is strictly capped at 5 attempts. If a bug resists repair after 5 attempts, execution MUST halt with a structured blocker report.
 5. **⛔ GATE 5: PERSISTENCE & MIGRATION VERIFICATION GATE**:
@@ -91,22 +91,22 @@ flowchart TD
 
 Create deterministic reproduction tests before touching `src/`:
 
-| Testing Tier                                  | Scope & Trigger Condition                                                                           | Target Location                                                 | Template                                                                      |
-| :-------------------------------------------- | :-------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------- | :---------------------------------------------------------------------------- |
-| **Tier 1: Unit Test (Mandatory)**             | Isolated logic, pure functions, state actions, schema parsing, SQL queries.                         | `tests/node/<domain>/reproduce_<slug>.test.ts` or `tests/unit/` | [Unit Template](./templates/reproduction_unit_test.template.ts)               |
-| **Tier 2: Integrity Test (Mandatory)**        | Cross-boundary contracts, state engine parity, Supabase roundtrips, SQL migrations.                 | `tests/node/<domain>/`                                          | [Integration Template](./templates/reproduction_integration_test.template.ts) |
-| **Tier 3: UI Interaction Test (Conditional)** | **ONLY IF** the bug affects UI interaction, GSAP animations, dashboard metrics, or page navigation. | `tests/unit/views/reproduce_<slug>.test.ts`                     | [Unit Template](./templates/reproduction_unit_test.template.ts)               |
+| Testing Tier                                  | Scope & Trigger Condition                                                                           | Target Location (`config.paths.testRoots`)            | Template                                                                      |
+| :-------------------------------------------- | :-------------------------------------------------------------------------------------------------- | :---------------------------------------------------- | :---------------------------------------------------------------------------- |
+| **Tier 1: Unit Test (Mandatory)**             | Isolated logic, pure functions, state actions, schema parsing, SQL queries.                         | `<testRoot>/reproduce_<slug>.test.ts`                 | [Unit Template](./templates/reproduction_unit_test.template.ts)               |
+| **Tier 2: Integrity Test (Mandatory)**        | Cross-boundary contracts, state engine parity, database roundtrips, SQL migrations.                 | `<testRoot>/<domain>/reproduce_<slug>.test.ts`        | [Integration Template](./templates/reproduction_integration_test.template.ts) |
+| **Tier 3: UI Interaction Test (Conditional)** | **ONLY IF** the bug affects UI interaction, GSAP animations, dashboard metrics, or page navigation. | `<testRoot>/views/reproduce_<slug>.test.ts`           | [Unit Template](./templates/reproduction_unit_test.template.ts)               |
 
 #### Rules for Reproduction Tests
 
 1. **Inline Static Data**: Inline all failing inputs, entity definitions, mock records, and formula ASTs.
-2. **Pure Supabase Testing for Database Bugs**:
-   - If the bug involves database queries, migrations, schemas, or persistence roundtrips, verify against the dynamic client in `src/logic/db/supabase.ts`.
+2. **Real Persistence Boundary Testing for Database Bugs**:
+   - If the bug involves database queries, migrations, schemas, or persistence roundtrips, verify against the project's canonical persistence router / database client.
    - Assert deterministic constraint enforcement and error shapes.
-3. **Confirm Deterministic RED**: Execute the reproduction test and confirm that it fails with the exact reported error (always use official NPM scripts to guarantee Rolldown native bindings load correctly):
+3. **Confirm Deterministic RED**: Execute the reproduction test and confirm that it fails with the exact reported error:
 
    ```bash
-   npm run test:node -- tests/node/<domain>/reproduce_<slug>.test.ts
+   vp test run <testRoot>/reproduce_<slug>.test.ts
    ```
 
 ---
@@ -123,7 +123,7 @@ Before modifying `src/` or `database/`, evaluate the invocation context:
    - **MANDATORY PAUSE**: If the fix requires:
      - SQL database migrations or schema alterations (`database/migrations/`, Supabase). All schema changes MUST deliver synchronized companion `.sql` (PostgreSQL) and `.sqlite.sql` (SQLite) migrations with monotonic timestamps and bumped `db_version`.
      - Breaking changes to public store actions, DTOs, or engine APIs.
-     - Contradictions or relaxations of rules in `AGENTS.md` or `references/rules/`.
+     - Contradictions or relaxations of rules in `AGENTS.md`.
      - Non-trivial architectural trade-offs between two or more valid designs.
    - The agent MUST halt, consult `.auditor/audit.config.ts` to determine `config.documentation.chatLanguage` (defaulting strictly to `'es'` if unconfigured), formulate a structured options matrix in the resolved chat language with pros, cons, and architectural impact, render this full breakdown directly in the visible chat message (accompanied by clickable links to reproduction tests and error traces), and await user approval. If invoking `ask_question`, the `question` parameter MUST provide an explicit summary of the dilemma so the modal interface remains context-rich. Calling `ask_question` blindly without displaying the options matrix in chat is strictly prohibited. The agent must never hardcode the consultation language, while code, tests, and documentation adhere to `config.documentation.language` (defaulting to `'en'`).
 2. **Automatic Mode (Invoked Autonomously via Subagent, CI, or Simulation Self-Healing)**:
@@ -137,33 +137,16 @@ Before modifying `src/` or `database/`, evaluate the invocation context:
 
 Verify all test tiers in strict sequential order. If any test fails, re-enter Phase 3 (capped at 5 attempts total):
 
-1. **Tier 1 Pass**: Re-run the reproduction unit test. Confirm that it turns **GREEN** (across both SQLite and PostgreSQL if database-related):
+1. **Tier 1 & Tier 2 Pass**: Re-run the reproduction unit and integration tests and confirm they turn **GREEN**:
 
    ```bash
-   npm run test:node -- tests/node/<domain>/reproduce_<slug>.test.ts
+   vp test run <testRoot>/reproduce_<slug>.test.ts
    ```
 
-2. **Tier 2 Pass**: Verify integrity/integration tests turn **GREEN** (across both database engines for persistence bugs).
-3. **Full Node Unit Regression**: Run the entire Node test suite to confirm 0 regressions:
-
-   ```bash
-   npm run test:node
-   ```
-
-4. **Tier 3 Playwright Pass (If Applicable)**:
-   - Re-run the affected simulation suite:
-
-     ```bash
-     npm run <sim_or_e2e_script> filter=<suite_name>
-     ```
-
-   - **Step 6B Dual Clean Zero Pass**: If the simulation suite reached the end via checkpoint resumption, execute a clean pass from case 1 in dual mode (`sqlite` + `postgres`):
-
-     ```bash
-     npm run <sim_or_e2e_script> filter=<suite_name> clean=true
-     ```
-
-5. **Iteration Cap Escalation**:
+2. **Full Regression Suite (Single Run)**: Run the full test suite **once** (`npm test`, or `npm run test:coverage` if heading into build/commit next — never both) to confirm 0 regressions.
+3. **Tier 3 E2E / Simulation Pass (If Applicable)**:
+   - Re-run the affected E2E or simulation suite (`npm run <sim_or_e2e_script> filter=<suite_name>`), plus a clean dual-engine pass (`clean=true`) if checkpoints were resumed.
+4. **Iteration Cap Escalation**:
    - If after 5 attempts the tests do not pass, HALT immediately and emit the structured blocker report detailing all failed hypotheses.
    - _Detailed verification loop protocol: [Verification & Repair Loop Protocol](./references/verification_and_repair_loop.md)_.
 
@@ -173,15 +156,15 @@ Verify all test tiers in strict sequential order. If any test fails, re-enter Ph
 
 Once all tests pass cleanly:
 
-1. **Fast Development Lint**:
+1. **DOX Pass (`dox-navigator`)**:
+   - Update the nearest owning `AGENTS.md` first (if needed) to persist the lesson learned, contract clarification, or invariant established by this fix.
+2. **Single Final Audit Gate (`npm run auditor`)**:
 
    ```bash
-   npm run lint
+   npm run auditor
    ```
 
-2. **DOX Pass (`dox-navigator`)**:
-   - Update the nearest owning `AGENTS.md` to persist the lesson learned, contract clarification, or invariant established by this fix.
-   - Run `npm run auditor:md` to ensure zero broken links or unindexed paths.
+   Verifies Oxlint, type checking, Oxfmt, architecture, and all Markdown/DOX suites (`auditor:md`) in a single pass. Never run `npm run lint` and `npm run auditor:md` separately, and skip this step if you are immediately running `npm run build` (which executes `auditor:full`).
 3. **Final Status Walkthrough**:
    - Present a concise walkthrough summarizing root cause, files touched, test results, and critical decisions.
 
@@ -201,6 +184,6 @@ Once all tests pass cleanly:
 ## 🌐 Dynamic Language Governance (Zero Hardcoding)
 
 - The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
-  - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all interactive chat communication, user interviews, options matrices, `ask_question` dialogs. The agent converses strictly in the language resolved from `config.documentation.chatLanguage`.
-  - **Documentation & File Writing Language (`config.documentation.language`)**: Governs code, code comments, commit messages, git tags, documentation files, markdown files, brain artifacts (`walkthrough.md`, `task.md`, `plan_safe_commit.md`), and DOX indices (`AGENTS.md`). The agent writes files strictly in the language resolved from `config.documentation.language`.
+  - **AI Chat & Brain Artifacts Language (`config.documentation.chatLanguage`)**: Governs all interactive chat communication, user interviews, options matrices, `ask_question` dialogs, and narrative prose/headers in AI brain artifacts (`walkthrough.md`, `task.md`, `implementation_plan.md`, `learning_proposal.md`).
+  - **Documentation & File Writing Language (`config.documentation.language`)**: Governs repository code, code comments, commit messages, git tags, documentation files, markdown files, DOX indices (`AGENTS.md`), and embedded code/contract diffs.
 - **Zero Language Mixing & Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages. The AI agent must dynamically resolve these settings from configuration and never confuse or conflate the chat communication language with the repository file writing language.

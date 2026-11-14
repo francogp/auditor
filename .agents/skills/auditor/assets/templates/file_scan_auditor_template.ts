@@ -79,7 +79,7 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       name: 'My Document Auditor',
       description: 'Validates forbidden tokens and required headers in documentation',
       icon: '📖', // Mandatory thematic emoji representing this auditor
-      family: 'documentation', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
+      family: 'documentation', // 'architecture' | 'domain_data' | 'performance' | 'security' | 'persistence' | 'documentation'
       ruleIds: MY_FEATURE_RULES,
       packageName: 'Docs',
       configKey: 'documentation.enabled',

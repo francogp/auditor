@@ -14,8 +14,7 @@ const useDomainStore = defineStore('domain', {
 /**
  * REPRODUCTION INTEGRATION TEST TEMPLATE (Tier 2)
  *
- * Location: tests/integration/<domain>/reproduce_<slug>.spec.ts
- *       or: tests/node/<domain>/reproduce_<slug>_integration.test.ts
+ * Location: <testRoot>/<domain>/reproduce_<slug>_integration.test.ts (from config.paths.testRoots)
  *
  * Mandatory Laws:
  * 1. Verify cross-boundary integrity (contracts, schemas, domain state lifecycles, or calculation pipelines).

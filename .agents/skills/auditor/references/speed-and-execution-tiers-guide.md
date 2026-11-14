@@ -42,4 +42,24 @@ The framework classifies suites and rules into 3 canonical execution tiers:
 - `npm run auditor:post-build` (`auditor phase=post-build`, binary `auditor-post-build`): Post-compilation artifact verification against `dist/`.
 - `npm run build`: Chains `"npm run auditor:full && <compile> && npm run auditor:post-build"`.
 - `npm run build:deploy` (`auditor-build-deploy`): Runs `npm run build` under `AUDITOR_ENV=production` for Docker/CI/deploy environments.
-- **Zero Redundant Execution Mandate**: `auditor:lint` is a strict subset of `auditor`. Executing `npm run auditor:lint` AFTER running `npm run auditor`, `npm run auditor:full`, or `npm run build` is strictly redundant and prohibited.
+
+---
+
+## Command Containment & Zero Redundant Execution Mandate
+
+Follow this strict containment hierarchy to avoid wasting minutes repeating checks that a broader command already runs:
+
+```text
+npm run auditor:lint (speed=light)
+  ⊂ npm run auditor (speed=heavy, includes auditor:md, oxfmt, oxlint, fallow)
+    ⊂ npm run auditor:full (speed=full, includes similar-code & full AST/dead-code)
+      ⊂ npm run build (auditor:full + compile + auditor:post-build)
+```
+
+- **`npm run test:coverage` vs `npm run build`**: `validate_test_coverage` inside `auditor:full`/`build` **reads** the coverage artifact (`scratch/coverage/coverage-final.json`); it does **not** execute tests. Therefore:
+  - Run `npm run test:coverage` **once** after finishing code/test edits (never run `npm run test` and then `npm run test:coverage`, and never re-run `test:coverage` if neither `src/` nor `tests/` changed).
+  - Run `npm run build` **once** after `test:coverage` passes.
+- **Never run subsets around `auditor:full` or `npm run build`**:
+  - Running `npm run auditor:lint`, `npm run auditor`, `npm run auditor:md`, `npm run fmt:check`, or `npm run auditor:post-build` **before or after** `npm run auditor:full` or `npm run build` is strictly redundant and prohibited.
+  - Running `npm run auditor:full` and immediately running `npm run build` is strictly redundant (unless `dist/` compilation is not needed, in which case run only `auditor:full`).
+- **Inspect without re-running**: When an audit or build fails, inspect `scratch/audits/latest_audit.json` with `npm run auditor:next` / `npm run auditor:findings` / `npm run auditor:errors` instead of re-running the suite. Use `npm run auditor:fix` (which already applies formatting and auto-fixes) and verify targeted fixes with `npm run auditor suite=<id>` or `npm run auditor:lint` during the inner loop; run `npm run build` only once at the end.

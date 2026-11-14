@@ -3,7 +3,7 @@
 > [!IMPORTANT]
 > **Distinction Between CI Quality Gate & Interactive Refactor Tool**:
 >
-> - **`validate_o1_structures` (`npm run auditor`)**: CI static verification suite. Audits forbidden linear search anti-patterns in hot execution loops and legacy JSON clone hacks (`JSON.parse(JSON.stringify())`). If CI passes with 0 errors, there are no blocking performance regressions in CI.
+> - **`validate_o1_data_structures` & `validate_oxlint` (`npm run auditor`)**: CI static verification suites. Audit forbidden linear search anti-patterns (`o1-catalog-lookup`, `o1-linear-membership`, `o1-object-scan`), legacy JSON clone hacks (`o1-json-clone`, `@francogp/domain-type/no-json-clone`), and redundant spread returns (`o1-redundant-spread-return`, `@francogp/domain-type/no-redundant-spread-return`). If CI passes with 0 errors, there are no blocking O(1) regressions in CI.
 > - **`auditor-o1` (`npm run auditor:o1`)**: Interactive refactoring engine (`BaseRefactorEngine`). Systematically discovers opportunities across the entire repository to hoist array `.includes()` lookups to module-level `ReadonlySet` constants, eliminate redundant array spread returns, and modernize deep cloning to `structuredClone()`.
 > - `npm run auditor` **NEVER** runs `auditor:o1`. Candidates reported by `auditor:o1 discover` are elective architectural improvements, not CI failures. See [quality-gates-vs-refactor-engines.md](./quality-gates-vs-refactor-engines.md).
 
@@ -17,18 +17,21 @@ The `auditor-o1` CLI and `O1RefactorEngine` provide automated detection and dete
    Calling `.includes()` or `.indexOf()` on constant arrays in frequent execution paths (getters, loops, validations) produces unnecessary linear overhead:
 
    ```ts
+   import { createDomainSet } from '@francogp/auditor/domain';
+
    // Anti-pattern: O(N)
    export const ALLOWED_ROLES = ['admin', 'editor', 'viewer'] as const;
    if (ALLOWED_ROLES.includes(role)) { ... }
 
    // Canonical O(1)
    export const ALLOWED_ROLES = ['admin', 'editor', 'viewer'] as const;
-   export const ALLOWED_ROLES_SET: ReadonlySet<Role> = new Set(ALLOWED_ROLES);
+   export type Role = (typeof ALLOWED_ROLES)[number];
+   export const ALLOWED_ROLES_SET: ReadonlySet<Role> = createDomainSet(ALLOWED_ROLES);
    if (ALLOWED_ROLES_SET.has(role)) { ... }
    ```
 
 2. **Modern `structuredClone()` Over `JSON.parse(JSON.stringify())`**:
-   `JSON.parse(JSON.stringify(x))` is an outdated deep cloning idiom that is slow, drops `Date`, `RegExp`, `Set`, `Map`, `BigInt`, and loses type accuracy. Node.js 26+ natively supports `structuredClone(x)`.
+   `JSON.parse(JSON.stringify(x))` is an outdated deep cloning idiom that is slow, drops `RegExp`, `Set`, `Map`, `BigInt`, and loses type accuracy. Node.js 26+ natively supports `structuredClone(x)`.
 3. **Elimination of Redundant Spread Returns**:
    `return [...arr];` inside functions that do not mutate arrays introduces redundant heap allocations. The return signature should be typed as `readonly T[]` and return the array directly (`return arr;`).
 
@@ -40,16 +43,16 @@ The `auditor-o1` CLI and `O1RefactorEngine` provide automated detection and dete
 # Direct CLI invocation (bin in node_modules/.bin)
 auditor-o1 <command> [options]
 
-# Via package script
-npm run auditor:o1 <command>
-npm run auditor:o1 -- <command> [options]
+# Via package script (pass positional subcommands, key=value, and bare booleans without --)
+npm run auditor:o1 help
+npm run auditor:o1 <command> [options]
 ```
 
 ### 1. `discover`: Scan Project for O(N) Anti-Patterns
 
 ```bash
 npm run auditor:o1 discover
-npm run auditor:o1 -- discover project=../my-app
+npm run auditor:o1 discover project=../my-app
 ```
 
 Renders a Box-Drawing table with counts for `Set.has`, `Clone`, and `Spread`.
@@ -67,7 +70,7 @@ npm run auditor:o1 inspect src/services/auth.ts
 npm run auditor:o1 apply scratch/o1-plan.json
 
 # Safe execution inside an isolated Git Worktree
-npm run auditor:o1 apply scratch/o1-plan.json --worktree
+npm run auditor:o1 apply scratch/o1-plan.json worktree
 ```
 
 ---
@@ -120,32 +123,32 @@ Comment escape hatches (`// o1-ok:`, `// linear-search-ok:`) are permanently era
 
 ## 5. Reaction Protocol: CI Error vs. Elective Optimization
 
-### Scenario A: CI Quality Gate Error (`validate_o1_structures`)
+### Scenario A: CI Quality Gate Error (`validate_o1_data_structures`)
 
-- **Trigger**: `npm run auditor` reports `o1-forbidden-json-clone` or `o1-linear-search-in-loop`.
+- **Trigger**: `npm run auditor` reports `o1-json-clone`, `o1-linear-membership`, `o1-catalog-lookup`, `o1-object-scan`, or `o1-redundant-spread-return`.
 - **Strategic Phase**: Phase 5 (`behavior`).
-- **Action**: Formulate a **Correction Plan**. Replace `JSON.parse(JSON.stringify(x))` with native `structuredClone(x)` or hoist array lookup outside the loop to a Set.
-- **Verification**: `npm run auditor -- suite=validate_o1_structures` -> Green.
+- **Action**: Formulate a **Correction Plan**. Replace `JSON.parse(JSON.stringify(x))` with native `structuredClone(x)` or hoist constant array membership checks to `createDomainSet(...)`.
+- **Verification**: `npm run auditor task=validate_o1_data_structures` -> Green.
 
 ### Scenario B: Elective Performance Optimization (`auditor:o1`)
 
 - **Trigger**: User requests _"optimize O(1) structures"_, _"speed up membership lookups"_, or _"remove redundant spreads"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before proceeding.
-- **Action**: Formulate an **Improvement Plan**. Run `auditor:o1 discover`, inspect candidates via `auditor:o1 inspect --file <target>`, generate `scratch/o1_plan.json`, and apply with `--worktree`.
+- **Action**: Formulate an **Improvement Plan**. Run `npm run auditor:o1 discover`, inspect candidates via `npm run auditor:o1 inspect src/services/auth.ts`, generate `scratch/o1_plan.json`, and apply with `npm run auditor:o1 apply scratch/o1_plan.json worktree`.
 
 ---
 
 ## 6. Concrete Plan Blueprints
 
-### Correction Plan (CI Error: `o1-forbidden-json-clone`)
+### Correction Plan (CI Error: `o1-json-clone`)
 
 ````markdown
-# Correction Plan: o1-forbidden-json-clone in stateManager.ts
+# Correction Plan: o1-json-clone in stateManager.ts
 
 ## 1. Diagnosis & Strategic Phase
 
 - **Active Phase (`auditor:next`)**: `behavior` (Phase 5)
-- **Suite**: `validate_o1_structures`
+- **Suite**: `validate_o1_data_structures`
 - **Location**: `src/state/stateManager.ts:L92`
 - **Violation**: Use of `JSON.parse(JSON.stringify(state))` to clone application state.
 
@@ -159,7 +162,7 @@ const clonedState = structuredClone(state);
 
 ## 3. Verification
 
-`npm run auditor -- suite=validate_o1_structures`
+`npm run auditor task=validate_o1_data_structures`
 ````
 
 ### Improvement Plan (Elective: `auditor:o1`)
@@ -199,7 +202,7 @@ const clonedState = structuredClone(state);
 
 ## 4. Sandbox Execution
 
-`npm run auditor:o1 apply --plan scratch/o1_plan.json --worktree`
+`npm run auditor:o1 apply scratch/o1_plan.json worktree`
 ````
 
 ---
@@ -236,7 +239,7 @@ Emits line-anchored code snippets and recommended Set hoist declarations.
 ### Step 3: Apply Declarative Plan via Worktree
 
 ```bash
-npm run auditor:o1 apply scratch/o1_plan.json --worktree
+npm run auditor:o1 apply scratch/o1_plan.json worktree
 ```
 
 The engine builds the code, verifies types, runs unit tests in the worktree sandbox, and safely integrates the changes.

@@ -8,15 +8,15 @@ This reference provides the comprehensive CLI manual, filtering parameters, and 
 
 | Flag / Parameter                 | Description                                                                                                             | Example Usage                                                                     |
 | :------------------------------- | :---------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------- |
-| `rules` / `by-rule`              | Renders a consolidated Box-Drawing table of findings grouped and sorted by rule ID (`ruleId`) with `TOTAL CONSOLIDADO`. | `npm run auditor:rules` o `npm run auditor:findings rules`                        |
-| `rule=<id>` / `ruleId=<id>`      | Filters findings strictly by rule identifier or rule description.                                                       | `npm run auditor:findings rule=domain-naked-string-primitive`                     |
+| `rules` / `by-rule`              | Renders a consolidated Box-Drawing table of findings grouped and sorted by rule ID (`ruleId`) with `CONSOLIDATED TOTAL`. | `npm run auditor:rules` or `npm run auditor:findings rules`                       |
+| `rule=<id>` / `ruleId=<id>`      | Filters findings strictly by rule identifier or rule description.                                                       | `npm run auditor:findings rule=@francogp/domain-type/no-naked-string-union`       |
 | `flat` / `raw`                   | Emits an exhaustive line-by-line list of findings (`file:line [ruleId] message`) without truncating to sample limits.   | `npm run auditor:findings file=src/combat.ts flat`                                |
 | `file=<path1>,<path2>`           | Filters by one or more comma-separated file paths or substrings.                                                        | `npm run auditor:findings file=combat.ts,items.ts`                                |
 | `partial`                        | Allows inspecting partial runs (non-blocking by default; warns with executed suite count).                              | `npm run auditor:findings partial dir=src/`                                       |
-| `breakdown` / `by-dir` / `dirs`  | Renders a consolidated Box-Drawing table of findings grouped by directory/scope with `TOTAL CONSOLIDADO`.               | `npm run auditor:findings breakdown`                                              |
+| `breakdown` / `by-dir` / `dirs`  | Renders a consolidated Box-Drawing table of findings grouped by directory/scope with `CONSOLIDATED TOTAL`.              | `npm run auditor:findings breakdown`                                              |
 | `dir=<path>` / `folder=<path>`   | Filters findings by directory or file path substring across both category breakdown tables and finding samples.         | `npm run auditor:findings dir=src/`                                               |
 | `scope=<host\|packages\|all>`    | Isolates application code (`host`) from reusable engine code (`packages`) in category tables and sample lists.          | `npm run auditor:findings scope=host`                                             |
-| `category=<name>` / `<name>`     | Filters by rule or category name.                                                                                       | `npm run auditor:findings category=seguridad`                                     |
+| `category=<name>` / `<name>`     | Filters by rule or category name.                                                                                       | `npm run auditor:findings category=security`                                      |
 | `files`                          | Lists affected files sorted by error density with category banners and total sums.                                      | `npm run auditor:findings category=cwe files top=10`                              |
 | `stale` / `allow-stale`          | Bypasses the freshness check for investigative read-only inspection.                                                    | `npm run auditor:findings breakdown stale`                                        |
 | `severity=<error\|warning\|all>` | Filters findings by severity level (`error`, `warning`, `all`).                                                         | `npm run auditor:findings severity=error`                                         |
@@ -31,28 +31,32 @@ This reference provides the comprehensive CLI manual, filtering parameters, and 
 
 Whenever analyzing, inspecting, or querying `scratch/audits/latest_audit.json` or `latest_audit.json`, developers and AI agents MUST activate `/auditor` and MUST use the canonical inspection tools declared in `package.json` specifically built to consume `latest_audit.json`. Reading raw JSON directly, running manual shell greps, creating ad-hoc scratch scripts (`scratch/analyze_...`), or executing `node -e` one-liners to parse `latest_audit.json` is **STRICTLY PROHIBITED**:
 
-- `npm run auditor:rules` / `npm run auditor:by-rule`: Dedicated reporter grouping and sorting all findings by rule ID with `TOTAL CONSOLIDADO`.
+- `npm run auditor:rules` / `npm run auditor:by-rule`: Dedicated reporter grouping and sorting all findings by rule ID with `CONSOLIDATED TOTAL`.
 - `npm run auditor:findings`: Primary findings reporter with full filtering capabilities (`rule=...`, `file=...`, `flat`, `dir=...`, `search=...`, `category=...`, `top=...`, `json`).
 - `npm run auditor:by-file`: Hierarchical tree findings reporter grouped by file and line.
 - `npm run auditor:errors`: Preset filtering strictly to errors (`severity=error`).
 - `npm run auditor:warnings`: Preset filtering strictly to warnings (`severity=warning`).
 - `npm run auditor:summary`: Compact summary overview of latest audit results.
 - `npm run auditor:files`: Table of affected files sorted by violation count.
+- `npm run auditor:guide`: On-demand diagnostic and remediation manual (`npm run auditor:guide <ruleId>`).
 - `npm run auditor:update` / `auditor-update`: Dedicated CLI updater executing hermetic npm update, timestamp verification, and Box-Drawing summary table.
 - `npm run auditor:version` / `auditor-version -v`: Displays the active package version, build timestamp, and ISO date metadata.
-- `npm run auditor:coverage` / `auditor:test-coverage`: Istanbul/C8 test coverage report with threshold verification.
+- `npm run auditor:coverage` / `auditor:test-coverage`: Istanbul/V8 test coverage report (`scratch/coverage/coverage-final.json`) with threshold verification.
 - `npm run auditor:coverage-map`: Full test coverage heatmap and uncovered file tracer.
 - `npm run auditor:css`: Stylelint CSS/SCSS duplication and orphan token reporter.
 - `npm run auditor:flags`: Feature flags status and dead code analyzer.
 - `npm run auditor:guard`: Architectural boundary and dependency graph gating.
-- `npm run auditor:similar`: Semantic and structural clone detection using local Fallow vector embeddings (Box-Drawing table, threshold filter `--threshold <N>`).
+- `npm run auditor:similar`: Semantic and structural clone detection using local Fallow vector embeddings (Box-Drawing table, threshold filter `-- --threshold <N>`).
 - `npm run auditor:review`: Graph-grounded architectural review brief for changed files against base branch via Fallow code-review graphs.
-- `npm run auditor:dupes` / `auditor-dupes`: Dedicated clone discovery, Dirac micro-context extraction, and safe worktree refactoring CLI (`inspect <fingerprint>`, `apply <plan.json> --worktree`).
-- `npm run auditor:magic` / `auditor-magic`: Polyglot magic numbers and design tokens discovery, Value-Clustering Super-Dirac compression, and AST refactoring CLI (`inspect --file=<path>`, `apply --plan=<plan.json>`).
-- `npm run auditor:motion` / `auditor-motion`: UI animation governance and GSAP refactoring CLI (`discover`, `inspect --file=<path>`, `apply --plan=<plan.json> --worktree`).
-- `npm run auditor:o1` / `auditor-o1`: O(1) data structure optimizer and linear search refactoring CLI (`discover`, `inspect --file=<path>`, `apply --plan=<plan.json> --worktree`).
-- `npm run auditor:types` / `auditor-types`: Type assertions, loose any, and explicit return type refactoring CLI (`discover`, `inspect <file>`, `apply <plan.json> --worktree`).
-- `npm run auditor:domain` / `auditor-domain`: Domain types, naked string parameters, and branded IDs refactoring CLI (`discover`, `inspect <file>`, `apply <plan.json> --worktree`).
+- `npm run auditor:config` / `auditor-config`: Unidirectional configuration hardening advisor (`diff`, `apply`, `human`).
+- `npm run auditor:dependencies` / `auditor-dependencies`: Package version floor advisor.
+- `npm run auditor:dupes` / `auditor-dupes`: Dedicated clone discovery, Dirac micro-context extraction, and safe worktree refactoring CLI (`discover`, `inspect <fingerprint>`, `apply <plan.json> worktree`).
+- `npm run auditor:magic` / `auditor-magic`: Polyglot magic numbers and design tokens discovery, Value-Clustering Super-Dirac compression, and AST refactoring CLI (`discover`, `inspect <path>`, `apply <plan.json> worktree`).
+- `npm run auditor:hygiene` / `auditor-hygiene`: Member accessibility, `globalThis`, and `no-void` refactoring CLI (`discover`, `inspect <path>`, `apply <plan.json> worktree`).
+- `npm run auditor:motion` / `auditor-motion`: UI animation governance and GSAP refactoring CLI (`discover`, `inspect <path>`, `apply <plan.json> worktree`).
+- `npm run auditor:o1` / `auditor-o1`: O(1) data structure optimizer and linear search refactoring CLI (`discover`, `inspect <path>`, `apply <plan.json> worktree`).
+- `npm run auditor:types` / `auditor-types`: Type assertions, loose `any`, and explicit return type refactoring CLI (`discover`, `inspect <file>`, `apply <plan.json> worktree`).
+- `npm run auditor:domain` / `auditor-domain`: Domain types, naked string parameters, and branded IDs refactoring CLI (`discover`, `inspect <file>`, `apply <plan.json> worktree`).
 
 ---
 

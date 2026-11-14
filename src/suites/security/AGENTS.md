@@ -22,7 +22,7 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run security suite tests: `vp test tests/oxlint_security_hardening_migration.test.ts` (or `npm test -- tests/oxlint_security_hardening_migration.test.ts`)
+- Run security suite tests: `vp test run tests/oxlint_security_hardening_migration.test.ts` (or `npm test -- tests/oxlint_security_hardening_migration.test.ts`)
 - Run general audit: `auditor task=validate_oxlint`
 
 ## Child DOX Index

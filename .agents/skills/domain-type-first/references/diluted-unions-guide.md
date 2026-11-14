@@ -29,7 +29,7 @@ flowchart LR
 
 ### Rule
 
-- **At the Boundary**: Accept `unknown` or `string`. Use boundary guards (`isDomainId`, `requireDomainId`) or Valibot/Zod schemas to validate.
+- **At the Boundary**: Accept `unknown` or `string`. Use boundary guards (`isDomainId`, `requireDomainId`) or Valibot schemas to validate.
 - **In the Core**: Function and method parameters **MUST ALWAYS** demand pure domain types (`DomainType`). Accepting `DomainType | string` in core functions is strictly prohibited.
 
 ---
@@ -129,6 +129,6 @@ export function runProcess(mode: ProcessMode): void {
 This mandate is enforced automatically by:
 
 1. **Oxlint Plugin (`@francogp/domain-type/no-naked-string-union`)**:
-   Inspects `TSUnionType` AST nodes and reports an immediate error whenever `TSStringKeyword` is mixed with `TSTypeReference`, `TSLiteralType`, or `TSTemplateLiteralType`.
-2. **Auditor Suite (`validate_domain_types / domain-naked-string-primitive`)**:
-   Audits function parameter signatures across all source roots, blocking `param: DomainType | string` patterns.
+   Inspects `TSUnionType` AST nodes inside `validate_oxlint` and reports an immediate error whenever `TSStringKeyword` is mixed with `TSTypeReference`, `TSLiteralType`, or `TSTemplateLiteralType`.
+2. **Auditor Suite (`validate_oxlint` / `npm run auditor:domain-types`)**:
+   Audits function parameter and property signatures across all source and script roots, blocking `param: DomainType | string` patterns.

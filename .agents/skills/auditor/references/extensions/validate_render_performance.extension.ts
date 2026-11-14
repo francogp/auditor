@@ -14,7 +14,9 @@
  *      requiring hardware-accelerated GPU transforms with modular translation.
  *
  * Usage in .auditor/audit.config.ts:
- *   extensions: ['../scripts/auditors/architecture/validate_render_performance.ts']
+ *   export default defineAuditConfig({
+ *     extensions: ['scripts/auditors/architecture/validate_render_performance.ts']
+ *   });
  */
 
 import { enableCompileCache } from 'node:module';
@@ -23,11 +25,13 @@ import {
   BaseAuditor,
   FileScanAuditor,
   createUniformRuleCapabilities,
+  createUniformRemediationPhases,
   getAuditConfig,
   DEFAULT_AUDIT_CONFIG,
   normalizePosixPath,
   type FileScanRootsOptions
 } from '@francogp/auditor';
+import ts from 'typescript';
 
 enableCompileCache();
 
@@ -70,14 +74,31 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       description: 'Validates GPU hygiene and blend-modes in weather layers',
       icon: '⚡',
       family: 'architecture',
-      ruleCapabilities: createUniformRuleCapabilities(RENDER_PERFORMANCE_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        md: false,
-        ast: false,
-        changedOnly: true,
-        critical: false
-      }),
+      ruleCapabilities: {
+        ...createUniformRuleCapabilities(
+          [
+            'render-banned-mix-blend-mode',
+            'render-banned-filter-in-weather',
+            'render-excessive-atmospheric-inset'
+          ],
+          {
+            speed: 'light',
+            phase: 'normal',
+            md: false,
+            ast: false,
+            changedOnly: true,
+            critical: false
+          }
+        ),
+        'render-gsap-cpu-modifier': {
+          speed: 'light',
+          phase: 'normal',
+          md: false,
+          ast: true,
+          changedOnly: true,
+          critical: false
+        }
+      },
       ruleIds: RENDER_PERFORMANCE_RULES,
       packageName: 'GPU',
       configKey: 'performance.renderPerformance',
@@ -86,7 +107,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       },
       criticalConfig: {},
       requiredPermissions: [],
-      remediationPhase: 'behavior',
+      ruleRemediationPhases: createUniformRemediationPhases(RENDER_PERFORMANCE_RULES, 'behavior'),
       usesThirdPartyTool: false,
       ruleDescriptions: RENDER_PERFORMANCE_DESCRIPTIONS,
       ruleRemediations: {
@@ -117,9 +138,13 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
     });
   }
 
-  protected override scanFile(relPath: string, content: string): void {
+  protected override scanFile(
+    relPath: string,
+    content: string,
+    sourceFile?: ts.SourceFile
+  ): void {
     const normalizedPath = normalizePosixPath(relPath);
-    const config = getAuditConfig();
+    const config = getAuditConfig(this.projectRoot);
     const heavyPaths = config.styles?.heavyEffectPaths ?? [];
     const isWeatherStyle =
       heavyPaths.some((p) => normalizedPath.includes(p.replace(/^\/+|\/+$/g, ''))) ||
@@ -132,12 +157,14 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       normalizedPath.includes('snow') ||
       normalizedPath.includes('rain');
 
-    const lines = content.split(/\r?\n/);
+    const isStylesheet = normalizedPath.endsWith('.scss') || normalizedPath.endsWith('.css');
+    const styleLines = isStylesheet ? content.split(/\r?\n/) : [];
 
-    // Rule 1: render-banned-mix-blend-mode
+    // Rule 1: render-banned-mix-blend-mode (stylesheet format)
     this.runSubAuditorSync('render-banned-mix-blend-mode', () => {
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+      if (!isStylesheet) return;
+      for (let i = 0; i < styleLines.length; i++) {
+        const line = styleLines[i] ?? '';
         if (isWeatherStyle || line.includes('weather-overlay') || line.includes('rain-layer')) {
           const mixBlendMatch = /mix-blend-mode\s*:\s*(?!normal\b)([a-z-]+)/i.exec(line);
           if (mixBlendMatch) {
@@ -154,11 +181,11 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       }
     });
 
-    // Rule 2: render-banned-filter-in-weather
+    // Rule 2: render-banned-filter-in-weather (stylesheet format)
     this.runSubAuditorSync('render-banned-filter-in-weather', () => {
-      if (!isWeatherStyle) return;
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+      if (!isStylesheet || !isWeatherStyle) return;
+      for (let i = 0; i < styleLines.length; i++) {
+        const line = styleLines[i] ?? '';
         const filterMatch = /filter\s*:\s*[^;]*(?:drop-shadow|blur)\s*\(/i.exec(line);
         if (filterMatch) {
           this.addViolation({
@@ -173,13 +200,13 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       }
     });
 
-    // Rule 3: render-excessive-atmospheric-inset
+    // Rule 3: render-excessive-atmospheric-inset (stylesheet format)
     this.runSubAuditorSync('render-excessive-atmospheric-inset', () => {
-      if (!isWeatherStyle) return;
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+      if (!isStylesheet || !isWeatherStyle) return;
+      for (let i = 0; i < styleLines.length; i++) {
+        const line = styleLines[i] ?? '';
         const insetMatch = /inset\s*:\s*-\s*([0-9]+)px/i.exec(line);
-        if (insetMatch) {
+        if (insetMatch && insetMatch[1]) {
           const px = parseInt(insetMatch[1], 10);
           if (px > MAX_PERMISSIBLE_NEGATIVE_INSET_PX) {
             this.addViolation({
@@ -195,22 +222,31 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       }
     });
 
-    // Rule 4: render-gsap-cpu-modifier
+    // Rule 4: render-gsap-cpu-modifier (TypeScript / Vue SFC AST traversal — zero regex on code)
     this.runSubAuditorSync('render-gsap-cpu-modifier', () => {
-      if (!isAtmosphereAnim) return;
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (/\bmodifiers\s*:\s*\{/.test(line)) {
+      if (!isAtmosphereAnim || !sourceFile) return;
+      const visit = (node: ts.Node): void => {
+        if (
+          ts.isPropertyAssignment(node) &&
+          ts.isIdentifier(node.name) &&
+          node.name.text === 'modifiers' &&
+          ts.isObjectLiteralExpression(node.initializer)
+        ) {
+          const { line, character } = sourceFile.getLineAndCharacterOfPosition(
+            node.name.getStart(sourceFile)
+          );
           this.addViolation({
             ruleId: 'render-gsap-cpu-modifier',
             severity: 'error',
             file: relPath,
-            line: i + 1,
-            message: `GSAP JS modifier ('modifiers: { ... }') inside continuous animation loop degrades 60 FPS. Use native GPU transforms.`,
-            context: line.trim()
+            line: line + 1,
+            col: character + 1,
+            message: `GSAP JS modifier ('modifiers: { ... }') inside continuous animation loop degrades 60 FPS. Use native GPU transforms.`
           });
         }
-      }
+        ts.forEachChild(node, visit);
+      };
+      visit(sourceFile);
     });
   }
 }

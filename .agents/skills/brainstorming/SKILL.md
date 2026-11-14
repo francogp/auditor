@@ -30,7 +30,7 @@ Why this skill exists:
 ## Operating Mode & Language Governance
 
 1. **Dynamic Language Separation**: Always consult `.auditor/audit.config.ts` to respect the repository's dual-language contract:
-   - Conduct all interactive user dialogue, questions, option matrices, and summaries in `config.documentation.chatLanguage` (e.g., Spanish `'es'`).
+   - Conduct all interactive user dialogue, questions, option matrices, summaries, and AI brain artifacts (`implementation_plan.md`, `task.md`, `walkthrough.md`) in `config.documentation.chatLanguage` (e.g., Spanish `'es'`).
    - Write all repository documentation, code contracts, comments, and DOX indices in `config.documentation.language` (e.g., English `'en'`).
 2. **Evidence Over Guesswork**: Never ask the user a question that the repository already answers. Inspect relevant files first.
 3. **Sparring Partner, Not Passive Scribe**: Challenge fragile assumptions politely, highlight hidden complexity, and always include a radical simplification (_YAGNI / do-least_) option.
@@ -207,8 +207,8 @@ This is the final, non-negotiable gate before transitioning from design (_what/w
 
 1. **Create or Update `implementation_plan.md` Artifact**:
    - Set `RequestFeedback: true` and `UserFacing: true` in `ArtifactMetadata`.
-   - Include the validated architecture, exact file modifications (`[NEW]`, `[MODIFY]`, `[DELETE]`), typed contracts, Decision Log summary, and exact verification commands.
-   - **Mandatory Pillar Compliance**: Explicitly enforce compliance with [`/architecture`](../architecture/SKILL.md), [`/domain-type-first`](../domain-type-first/SKILL.md), [`/clean-code`](../clean-code/SKILL.md), [`/ponytail`](../ponytail/SKILL.md), [`/dox-navigator`](../dox-navigator/SKILL.md), and [`/auditor`](../auditor/SKILL.md).
+   - Include the validated architecture, exact file modifications (`[NEW]`, `[MODIFY]`, `[DELETE]`), typed contracts, Decision Log summary, and exact verification commands. Never propose `[MODIFY]` on auditor-owned satellite configuration files (`vite.config.ts`, `tsconfig.json`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`, `.markdownlint.json`); route all configuration changes through `.auditor/audit.config.ts` (or `vite.plugins.ts`) + `npm run auditor:fix`.
+   - **Mandatory Pillar Compliance**: Explicitly enforce compliance with [`/architecture`](../architecture/SKILL.md) and all 6 design pillars ([`/domain-type-first`](../domain-type-first/SKILL.md), [`/clean-code`](../clean-code/SKILL.md), [`/ponytail`](../ponytail/SKILL.md), [`/dox-navigator`](../dox-navigator/SKILL.md), [`/auditor`](../auditor/SKILL.md), [`/fallow`](../fallow/SKILL.md)), plus [`/systematic-debugging`](../systematic-debugging/SKILL.md) for bug/failure flows.
 2. **Create or Update `task.md` Artifact** (when managing multi-step execution):
    - Break the implementation into granular, ordered, independently verifiable steps.
 
@@ -232,7 +232,7 @@ You may exit brainstorming mode and begin implementation **only when all 6 crite
 
 ## Related Skills
 
-- [`/architecture`](../architecture/SKILL.md) — Master 5-pillar architectural governance framework.
+- [`/architecture`](../architecture/SKILL.md) — Master 6-pillar architectural governance framework.
 - [`/domain-type-first`](../domain-type-first/SKILL.md) — Strict compile-time domain unions, branded IDs, and zero loose types.
 - [`/codebase-design`](../codebase-design/SKILL.md) — Designing deep modules, clean boundaries, and high-leverage seams.
 - [`/dox-navigator`](../dox-navigator/SKILL.md) — Hierarchical `AGENTS.md` indexing and documentation integrity.

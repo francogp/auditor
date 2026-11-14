@@ -25,8 +25,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run domain types migration tests: `vp test tests/oxlint_domain_types_migration.test.ts` (or `npm test -- tests/oxlint_domain_types_migration.test.ts`)
-- Run O(1) structures suite tests: `vp test tests/validate_o1_data_structures.test.ts` (or `npm test -- tests/validate_o1_data_structures.test.ts`)
+- Run domain types migration tests: `vp test run tests/oxlint_domain_types_migration.test.ts` (or `npm test -- tests/oxlint_domain_types_migration.test.ts`)
+- Run O(1) structures suite tests: `vp test run tests/validate_o1_data_structures.test.ts` (or `npm test -- tests/validate_o1_data_structures.test.ts`)
 
 ## Child DOX Index
 

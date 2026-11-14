@@ -36,9 +36,9 @@ A global installation is optional. To install the global `vp` CLI when it is not
 
 Open a new terminal after installation. Follow https://viteplus.dev/guide/upgrade to select the target release or preview and check `vp toolchain --global` before scaffolding.
 
-Without a global installation, use a supported Node.js runtime from the compatibility guide. For the 1.2.0 release, run `pnpm dlx --package=vite-plus@1.2.0 vp create` or `npm exec --package=vite-plus@1.2.0 -- vp create`. Replace 1.2.0 with the intended release version. For a preview, use the version from its PR and pass `--registry=https://registry-bridge.viteplus.dev` to pnpm or npm before the vp command.
+Without a global installation, use a supported Node.js runtime from the compatibility guide. For the 1.6.0 release, run `pnpm dlx --package=vite-plus@1.6.0 vp create` or `npm exec --package=vite-plus@1.6.0 -- vp create`. Replace 1.6.0 with the intended release version. For a preview, use the version from its PR and pass `--registry=https://registry-bridge.viteplus.dev` to pnpm or npm before the vp command.
 
-Run `vp install`, `vp check`, and `vp test`, then `vp build` for applications or `vp pack` for libraries. Without a global CLI, install with the project's package manager and run the local CLI through it, such as `pnpm exec vp check` or `npm exec -- vp check`. Explain how to use `vp dev` for the dev server and `vp run <task>` for project scripts or tasks. Report the setup changes, validation results, and any remaining work. Do not commit or push unless I ask.
+Run `vp install`, `vp check`, and `vp test run`, then `vp build` for applications or `vp pack` for libraries. Without a global CLI, install with the project's package manager and run the local CLI through it, such as `pnpm exec vp check` or `npm exec -- vp check`. Explain how to use `vp dev` for the dev server and `vp run <task>` for project scripts or tasks. Report the setup changes, validation results, and any remaining work. Do not commit or push unless I ask.
 
 For an existing project, including one that already uses Vite+, follow these migration or upgrade instructions:
 
@@ -56,12 +56,12 @@ Inspect the worktree and preserve unrelated changes. Identify the workspace root
 
 For a project that does not use Vite+ yet, check the prerequisites for the tools it uses: Vite 7+ and Vitest 4+. Complete any required upstream upgrades and validate them before starting the Vite+ migration. Then keep those manifests, lockfile, and installed packages available so the migrator can identify the original Vitest version. Do not install vite-plus or upgrade Vitest to the target's bundled version before running migration.
 
-Use the CLI from the target Vite+ 1.0 release or its preview build. Use a supported Node.js runtime from the compatibility guide. A global installation is optional:
+Use the CLI from the target Vite+ release or its preview build. Use a supported Node.js runtime from the compatibility guide. A global installation is optional:
 
 - With a global vp installation, follow https://viteplus.dev/guide/upgrade to select the target release and check `vp toolchain --global`. Run `vp help` and `vp help migrate`, then `vp migrate --no-interactive` from the workspace root.
-- Without a global installation, run the target CLI through the package manager from the workspace root. For the 1.2.0 release, use `pnpm dlx --package=vite-plus@1.2.0 vp migrate --no-interactive` or `npm exec --package=vite-plus@1.2.0 -- vp migrate --no-interactive`. First run the same command with `help migrate` instead of `migrate --no-interactive` to read its help. These commands fetch the target CLI without replacing the old project dependencies first.
+- Without a global installation, run the target CLI through the package manager from the workspace root. For the 1.6.0 release, use `pnpm dlx --package=vite-plus@1.6.0 vp migrate --no-interactive` or `npm exec --package=vite-plus@1.6.0 -- vp migrate --no-interactive`. First run the same command with `help migrate` instead of `migrate --no-interactive` to read its help. These commands fetch the target CLI without replacing the old project dependencies first.
 
-Replace 1.2.0 with the intended release version. For a preview, use the version from its PR and pass `--registry=https://registry-bridge.viteplus.dev` to pnpm or npm before the vp command.
+Replace 1.6.0 with the intended release version. For a preview, use the version from its PR and pass `--registry=https://registry-bridge.viteplus.dev` to pnpm or npm before the vp command.
 
 Do not run migration with an old project's node_modules/.bin/vp. Migrate monorepos from the workspace root so shared manifests, catalogs, overrides, and lockfiles remain consistent.
 
@@ -71,10 +71,10 @@ Review the resulting changes against the migration rules:
 
 - Confirm Vite and test imports use the supported vite-plus and vite-plus/test* entries. Keep type augmentations on their upstream module identities and the community WebDriverIO provider on @vitest/browser-webdriverio.
 - Preserve dependencies, aliases, catalogs, and overrides configured by the migrator. On pnpm, keep the configured vite and vitest entries. Retain upstream packages when the migration rules require them.
-- Move remaining tool-specific configuration into the appropriate blocks in vite.config.ts. Review manual follow-up for lint, formatting, packaging, and hooks without discarding project-specific behavior.
+- Move remaining tool-specific configuration into the appropriate blocks in vite.config.ts (NOTE: in repositories governed by @francogp/auditor, declare settings in .auditor/audit.config.ts under vitePlusConfig and custom Vite plugins in vite.plugins.ts, then run npm run auditor:fix to project vite.config.ts via AST — never edit vite.config.ts by hand). Review manual follow-up for lint, formatting, packaging, and hooks without discarding project-specific behavior.
 - Distinguish built-ins from tasks: `vp dev` and `vp test` run built-in tools; `vp run dev` and `vp run test` run the corresponding project scripts or tasks. The packageManager field selects the package manager used by `vp install`, `vp add`, and `vp remove`.
 
-Run `vp install`, `vp check`, and `vp test`, plus configured browser, coverage, and benchmark suites. Run `vp build` for applications and `vp pack` for libraries, including both where the workspace contains both. Check library consumers against emitted imports and declarations. Without a global CLI, install with the project's package manager and invoke the updated local CLI through it, such as `pnpm exec vp check` or `npm exec -- vp check`. Fix failures without weakening assertions or dropping test coverage.
+Run `vp install`, `vp check`, and `vp test run`, plus configured browser, coverage, and benchmark suites. Run `vp build` for applications and `vp pack` for libraries, including both where the workspace contains both. Check library consumers against emitted imports and declarations. Without a global CLI, install with the project's package manager and invoke the updated local CLI through it, such as `pnpm exec vp check` or `npm exec -- vp check`. Fix failures without weakening assertions or dropping test coverage.
 
 After establishing a passing baseline, try to remove the generated "Vitest v4 compatibility" settings with no code changes or small, localized fixes:
 
@@ -114,9 +114,9 @@ The authoritative guides provided by Vite+ and VoidZero include:
 Vite+ provides both a **global binary** (`vp`) and a **project-local execution** model:
 
 ```bash
-# Direct invocation (when global vp is installed)
+# Direct invocation (when global vp is installed; always pass 'run' for single-pass CI/agent execution)
 vp check
-vp test
+vp test run
 vp pack
 
 # Local-only execution (via package manager)
@@ -255,8 +255,8 @@ vp install
 # 2. Perform linting, formatting, and type-checks
 vp check
 
-# 3. Execute unit and integration tests
-vp test
+# 3. Execute unit and integration tests (single-run mode)
+vp test run
 
 # 4. Compile packages or libraries
 vp pack
@@ -285,18 +285,18 @@ In complex configurations combining multiple third-party Vite plugins (e.g. `vit
    `vite.plugins.ts` is 100% application-owned, developer/AI-owned, and directly editable:
 
    ```ts
+   // vite.plugins.ts (100% developer/AI-owned module)
    import vue from '@vitejs/plugin-vue';
-   // vite.plugins.ts
-   import type { PluginOption } from 'vite';
+   import type { PluginOption } from 'vite-plus';
    import { VitePWA } from 'vite-plugin-pwa';
 
    export const plugins: PluginOption[] = [vue(), VitePWA({/* ... */})];
    ```
 
-   `vite.config.ts` then cleanly imports `{ plugins } from './vite.plugins.ts'`:
+   `vite.config.ts` then cleanly imports `{ plugins } from './vite.plugins.ts'` (wired automatically by `npm run auditor:fix`):
 
    ```ts
-   // vite.config.ts
+   // vite.config.ts (READ-ONLY SATELLITE PROJECTION)
    import { defineConfig } from 'vite-plus';
 
    import { plugins } from './vite.plugins.ts';
@@ -314,16 +314,7 @@ In complex configurations combining multiple third-party Vite plugins (e.g. `vit
    - Automatically scaffolds canonical `vite.plugins.ts` with `@vitejs/plugin-vue` for Vue projects lacking it.
    - Completely eliminates `TS2321` type recursion depth issues and server 500 compilation errors without requiring manual edits to `vite.config.ts`.
 
-3. **Unify Dependencies via `overrides`**: In `package.json`, align all transitive Vite references to the bundled core using npm's dynamic reference syntax (`"$vite"` and `"$vitest"`):
-
-   ```json
-   "overrides": {
-     "vite": "$vite",
-     "vitest": "$vitest"
-   }
-   ```
-
-   This binds transitive references directly to whatever version is declared in `devDependencies`, preventing version drift, hardcoded version conflicts, and fatal npm `EOVERRIDE` crashes during upgrades.
+3. **Unify Dependencies via `overrides`**: In `package.json`, `vitePlusConfigSync.ts` removes direct `"vite"` and `"vitest"` entries from `devDependencies` (relying on `"vite-plus": "^1.6.0"`) and cleans conflicting overrides automatically via `npm run auditor:fix`.
 
 ### 8.2 Eradication of Obsolete `environmentMatchGlobs`
 
@@ -360,29 +351,29 @@ Never retain dual imports or direct `'vitest'` dependencies. Ensure 100% of test
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 ```
 
-### 8.5 Third-Party Rollup Plugins Type Compatibility (`as PluginOption`) & Custom Vite Plugins
+### 8.5 Third-Party Rollup Plugins Type Compatibility (`as PluginOption`) & Custom Vite Plugins (`vite.plugins.ts`)
 
-When declaring plugins in `vite.config.ts`, third-party Rollup plugins often declare slightly incompatible Rollup `Plugin` types with Vite's internal `Plugin` type bundled in `vite` / `vite-plus`. (Note: for bundle size and compression statistics, use native `vp pack` size reports instead of external visualizer plugins).
+When declaring plugins in `vite.plugins.ts` (never manually in `vite.config.ts`), third-party Rollup plugins sometimes declare slightly incompatible Rollup `Plugin` types. (Note: for bundle size and compression statistics, use native `vp pack` size reports instead of external visualizer plugins).
 
 **Canonical Solution**:
 
-1. Cast third-party Rollup plugins as `as PluginOption` when instantiating them:
+1. Cast third-party Rollup plugins as `as PluginOption` inside `vite.plugins.ts`:
 
    ```ts
-   import type { PluginOption } from 'vite';
+   import type { PluginOption } from 'vite-plus';
 
-   const plugins: PluginOption[] = [vue(), ...(customPlugin() as PluginOption)];
+   export const plugins: PluginOption[] = [vue(), ...(customPlugin() as PluginOption)];
    ```
 
-2. Type custom Vite plugins explicitly with the `: Plugin` return type from `'vite'`:
+2. Type custom Vite plugins explicitly with the `: Plugin` return type from `'vite-plus'`:
 
    ```ts
-   import type { Plugin } from 'vite';
+   import type { Plugin } from 'vite-plus';
 
    function myCustomPlugin(): Plugin {
      return {
        name: 'my-custom-plugin',
-       configureServer(server) { ... }
+       configureServer(server): void { /* ... */ }
      };
    }
    ```
@@ -409,12 +400,11 @@ declare module '*.vue' {
 
 ### 8.7 Oxfmt vs. Html-Validate Doctype Harmonization (`doctype-style: lowercase`)
 
-Vite+'s code formatter (`vp fmt` / `oxfmt`) enforces lowercase `<!doctype html>` in `index.html` following modern HTML and Prettier/Biome standards.
-However, `html-validate:recommended` (when auditing top-level HTML files via `validate_html_validate`) enforces uppercase `<!DOCTYPE html>` by default under its `doctype-style` rule.
+Vite+'s code formatter (`vp fmt` / `oxfmt`) enforces lowercase `<!doctype html>` in `index.html`, whereas `html-validate:recommended` defaults to uppercase.
 
 **Canonical Solution**:
 
-Align `.htmlvalidate.json` so both tools agree deterministically without relaxing standards:
+`.htmlvalidate.json` is an auditor-owned satellite file; running `npm run auditor:fix` automatically generates `.htmlvalidate.json` with `"doctype-style": ["error", { "style": "lowercase" }]` (custom rules, if ever needed, are declared in `.auditor/audit.config.ts` under `htmlValidate.rules` and projected via `npm run auditor:fix`):
 
 ```json
 {
@@ -424,8 +414,6 @@ Align `.htmlvalidate.json` so both tools agree deterministically without relaxin
   }
 }
 ```
-
-This preserves strict doctype validation while allowing `oxfmt` to format the root `index.html` cleanly.
 
 ### 8.8 Multi-line SCSS Variables with Oxfmt vs. Stylelint
 
@@ -439,10 +427,10 @@ Structure long variables as an indented multiline list with an inline trailing c
 
 ### 8.9 Vitest Workspace Projects & Runner Isolation Protocol (SSoT Anti-Contamination Mandate)
 
-In complex repositories with multiple test environments (such as frontend JSDOM unit tests, Node.js backend logic tests, and ephemeral database migrations), Vitest supports inline workspace projects:
+In complex repositories with multiple test environments, declare workspace projects in `.auditor/audit.config.ts` (`vitePlusConfig.test.projects`) and run `npm run auditor:fix` to synchronize the read-only `vite.config.ts` projection:
 
 ```ts
-// vite.config.ts
+// READ-ONLY PROJECTION IN vite.config.ts (governed via vitePlusConfig.test.projects in .auditor/audit.config.ts)
 export default defineConfig({
   test: {
     projects: [

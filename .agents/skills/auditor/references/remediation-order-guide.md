@@ -20,15 +20,15 @@ flowchart LR
     P6 --> P7["7. ✨ Polish\n(Format & Docs)"]
 ```
 
-| Order | Phase ID    | Title                            | Primary Focus                                                                 | Representative Suites                                                                                                                                                                                                                                                                                      | Strategic Rationale                                                                                                                                   |
-| ----- | ----------- | -------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | `setup`     | **Infrastructure & Setup**       | Project integrity, runtime, extensions, dependencies, and package scripts     | `validate_audit_config`, `validate_tsconfig`, `validate_dependency_minimums`, `validate_vite_plus_config`, etc.                                                                                                                                                                                            | If configuration or extensions are broken, downstream analysis produces **massive false positives**. This phase triggers _Imperative Setup Blocking_. |
-| **2** | `prune`     | **Dead Code Pruning**            | Unreferenced files, exports, members, and unused types                        | `validate_fallow` (`fallow-unused-file`, `fallow-unused-export`, `fallow-unused-member`, `fallow-unused-type`), `validate_orphaned_assets`                                                                                                                                                                 | Pruning dead code **eliminates hundreds of findings** immediately without modifying active application logic.                                         |
-| **3** | `dedup`     | **Deduplication & Clones**       | Syntactic clones, semantic vector duplicates, and triplicates                 | `validate_similar_code`, `validate_fallow` (`fallow-duplicate-*`, `fallow-triplicate-*`). Remediate via `npm run auditor:dupes` (`inspect` + `apply --worktree`).                                                                                                                                          | Unifying duplicated functions BEFORE refactoring prevents fixing the same bug or applying types multiple times across copies.                         |
-| **4** | `contracts` | **Domain Contracts & Types**     | State interfaces, Valibot schemas, canonical domain types, and DTOs           | `validate_valibot_parity`, `validate_domain_types`, `validate_domain_type_first`                                                                                                                                                                                                                           | Unstable domain types or contracts cause downstream UI or business logic refactors to desynchronize.                                                  |
-| **5** | `behavior`  | **Framework, UI & Logic**        | GSAP animations, Vue directives, accessibility, and functional business logic | `validate_gsap_animations`, `validate_vue_security`, `validate_game_loop`. Remediate GSAP and UI animations via `npm run auditor:motion` (`discover` + `inspect` + `apply --worktree`).                                                                                                                    | Once code is deduplicated and strongly typed, component interaction and business logic are safely adjusted.                                           |
-| **6** | `hygiene`   | **Hygiene, Linter & Complexity** | Oxlint, Stylelint, magic numbers, excessive nesting, and cyclomatic debt      | `validate_oxlint`, `validate_stylelint`, `validate_cyclomatic_complexity`, `validate_magic_numbers`, `validate_o1_data_structures`. Remediate magic numbers via `npm run auditor:magic` (`inspect` + `apply`), and O(1) structures via `npm run auditor:o1` (`discover` + `inspect` + `apply --worktree`). | Micro-optimizations, linter rules, and constant extraction belong on consolidated, typed, and functioning code.                                       |
-| **7** | `polish`    | **Formatting, Docs & Coverage**  | OxFmt formatting, documentation integrity, and coverage thresholds            | `validate_oxfmt`, `validate_audit_coverage`, `validate_test_coverage`, `validate_documented_commands`                                                                                                                                                                                                      | The final pass: mechanically format the clean tree, synchronize documentation, and verify test coverage.                                              |
+| Order | Phase ID    | Title                            | Primary Focus                                                                 | Representative Suites                                                                                                                                                                                                                                                                                               | Strategic Rationale                                                                                                                                   |
+| ----- | ----------- | -------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | `setup`     | **Infrastructure & Setup**       | Project integrity, runtime, extensions, dependencies, and package scripts     | `validate_audit_config`, `validate_tsconfig`, `validate_dependency_minimums`, `validate_vite_plus_config`, `validate_fallow_config`, `validate_stylelint_config`, `validate_cli_contracts`, etc.                                                                                                                    | If configuration or extensions are broken, downstream analysis produces **massive false positives**. This phase triggers _Imperative Setup Blocking_. |
+| **2** | `prune`     | **Dead Code Pruning**            | Unreferenced files, exports, members, unused CSS, and unused types            | `validate_fallow` (`fallow-unused-file`, `fallow-unused-export`, `fallow-unused-member`, `fallow-unused-type`), `validate_dead_css`, `validate_package_hygiene`                                                                                                                                                     | Pruning dead code **eliminates hundreds of findings** immediately without modifying active application logic.                                         |
+| **3** | `dedup`     | **Deduplication & Clones**       | Syntactic clones, semantic vector duplicates, and triplicates                 | `validate_similar_code`, `validate_fallow` (`fallow-duplicate-*`, `fallow-triplicate-*`). Remediate via `npm run auditor:dupes inspect <file>` + `npm run auditor:dupes apply <plan.json> worktree`.                                                                                                              | Unifying duplicated functions BEFORE refactoring prevents fixing the same bug or applying types multiple times across copies.                         |
+| **4** | `contracts` | **Domain Contracts & Types**     | State interfaces, Valibot schemas, canonical domain types, and type coverage  | `validate_oxlint` (`@francogp/domain-type/valibot-schema-type-parity`, `no-naked-string-union`, `no-unbranded-id`, `no-record-string-key`), `validate_type_coverage`. Remediate via `npm run auditor:domain` / `npm run auditor:types`.                                                                             | Unstable domain types or contracts cause downstream UI or business logic refactors to desynchronize.                                                  |
+| **5** | `behavior`  | **Framework, UI & Logic**        | GSAP animations, Vue directives, HTML5, accessibility, and SQL anti-patterns  | `validate_oxlint` (`@francogp/domain-type` GSAP, Vue, router, Pinia, security, query rules), `validate_accessibility`, `validate_html_validate`, `validate_sql_anti_patterns`, `validate_web_performance`. Remediate UI motion via `npm run auditor:motion apply <plan.json> worktree`.                              | Once code is deduplicated and strongly typed, component interaction and business logic are safely adjusted.                                           |
+| **6** | `hygiene`   | **Hygiene, Linter & Complexity** | Oxlint, Stylelint, magic numbers, SCSS nesting, and cyclomatic debt           | `validate_oxlint`, `validate_stylelint`, `validate_scss_architecture`, `validate_component_styles`, `validate_fallow` (complexity/targets), `validate_magic_numbers`, `validate_o1_data_structures`. Remediate via `npm run auditor:magic`, `npm run auditor:hygiene`, and `npm run auditor:o1` (`worktree`).       | Micro-optimizations, linter rules, and constant extraction belong on consolidated, typed, and functioning code.                                       |
+| **7** | `polish`    | **Formatting, Docs & Coverage**  | OxFmt formatting, documentation integrity, and coverage thresholds            | `validate_oxfmt`, `validate_audit_coverage`, `validate_test_coverage`, `validate_documented_commands`, `validate_dox_integrity`, `validate_markdown_links`, `validate_mermaid_syntax`                                                                                                                               | The final pass: mechanically format the clean tree, synchronize documentation, and verify test coverage.                                              |
 
 ---
 
@@ -40,19 +40,29 @@ Every sub-auditor (`BaseAuditor`) and host extension **MUST declare** the `ruleR
 import {
   BaseAuditor,
   createUniformRemediationPhases,
-  type RemediationPhaseId
+  type AuditorOptions
 } from '@francogp/auditor';
 
 export class ValidateMyModuleAuditor extends BaseAuditor<MyRuleId> {
-  public constructor(options?: AuditorOptions<MyRuleId>) {
+  public constructor(options?: Partial<AuditorOptions<MyRuleId>>) {
     super({
       ...options,
       id: 'validate_my_module',
-      rules: MY_RULES,
+      name: 'My Module Validator',
+      description: 'Validates domain invariants in my module',
+      family: 'architecture',
+      packageName: 'MyModule',
+      icon: '🧩',
+      configKey: 'myModule.enabled',
+      defaultConfig: { enabled: true },
+      criticalConfig: {},
+      usesThirdPartyTool: false,
+      ruleIds: MY_RULE_IDS,
+      ruleDescriptions: MY_RULE_DESCRIPTIONS,
       ruleCapabilities: MY_RULE_CAPABILITIES,
       ruleRemediations: MY_RULE_REMEDIATIONS,
       // Mandatory contract: map each rule to its strategic phase
-      ruleRemediationPhases: createUniformRemediationPhases(MY_RULES, 'behavior')
+      ruleRemediationPhases: createUniformRemediationPhases(MY_RULE_IDS, 'behavior')
     });
   }
 }
@@ -109,25 +119,25 @@ When Phase 1 (`setup`) reports configuration mismatches, undeclared entries, or 
 The terminal audit summary (`npm run auditor` or `vp run auditor`) does not render an uncontextualized flat table. Instead, it renders **Box-Drawing sub-tables grouped by recommended resolution order**:
 
 ```text
-📊 DESGLOSE POR TIPO DE ERROR Y ADVERTENCIA (ORDEN ESTRATÉGICO DE RESOLUCIÓN):
+📊 BREAKDOWN BY FINDING TYPE & RULE (STRATEGIC REMEDIATION ORDER):
 
 ┌──────────────────────────────────────────────────────┬───────────┬───────────┐
-│ TIPO DE INCIDENCIA / REGLA                           │   ERRORES │  WARNINGS │
+│ FINDING TYPE / RULE ID                               │    ERRORS │  WARNINGS │
 ├──────────────────────────────────────────────────────┼───────────┼───────────┤
-│ ⚙️ FASE 1 · INFRAESTRUCTURA Y SETUP                    │           │           │
+│ ⚙️ PHASE 1 · INFRASTRUCTURE & SETUP                   │           │           │
 │   audit-config-invalid-extension                     │         1 │         0 │
-│   ↳ Subtotal Fase 1                                  │         1 │         0 │
+│   ↳ Phase 1 Subtotal                                 │         1 │         0 │
 ├──────────────────────────────────────────────────────┼───────────┼───────────┤
-│ 🧹 FASE 2 · PODA DE CÓDIGO MUERTO                    │           │           │
+│ 🧹 PHASE 2 · DEAD CODE PRUNING                        │           │           │
 │   fallow-unused-file                                 │         4 │         0 │
 │   fallow-unused-export                               │        12 │         0 │
-│   ↳ Subtotal Fase 2                                  │        16 │         0 │
+│   ↳ Phase 2 Subtotal                                 │        16 │         0 │
 ├──────────────────────────────────────────────────────┼───────────┼───────────┤
-│ 🧩 FASE 3 · DESDUPLICACIÓN Y CLONES                  │           │           │
+│ 🧩 PHASE 3 · DEDUPLICATION & CLONES                   │           │           │
 │   fallow-duplicate-function                          │         3 │         0 │
-│   ↳ Subtotal Fase 3                                  │         3 │         0 │
+│   ↳ Phase 3 Subtotal                                 │         3 │         0 │
 ├──────────────────────────────────────────────────────┼───────────┼───────────┤
-│ TOTAL CONSOLIDADO                                    │        20 │         0 │
+│ CONSOLIDATED TOTAL                                   │        20 │         0 │
 └──────────────────────────────────────────────────────┴───────────┴───────────┘
 ```
 
@@ -135,8 +145,8 @@ Each active phase displays:
 
 1. The phase header with icon and compact title.
 2. The rules belonging to that phase with their error and warning counts.
-3. The phase subtotal (`↳ Subtotal Fase X`).
-4. At the end of all phases, a single **`TOTAL CONSOLIDADO`**.
+3. The phase subtotal (`↳ Phase X Subtotal`).
+4. At the end of all phases, a single **`CONSOLIDATED TOTAL`**.
 
 ---
 
@@ -148,7 +158,7 @@ To eliminate the risk of developers or AI agents arbitrarily jumping between pha
 npm run auditor:next
 # or in interactive Box-Drawing mode:
 npm run auditor:next:human
-# or via flag:
+# or via positional mode:
 npm run auditor:findings next
 ```
 
@@ -159,13 +169,13 @@ flowchart TD
     START(["Audit Fails (Errors > 0)"]) --> CMD["Execute: npm run auditor:next"]
     CMD --> RESOLVE{"Detect Critical Phase with Errors"}
 
-    RESOLVE -->|Errors in Setup| S1["Fase 1: Setup\n(audit.config, tsconfig, scripts)"]
-    RESOLVE -->|Errors in Prune| S2["Fase 2: Prune\n(fallow unused files/exports)"]
-    RESOLVE -->|Errors in Dedup| S3["Fase 3: Dedup\n(npm run auditor:dupes)"]
-    RESOLVE -->|Errors in Contracts| S4["Fase 4: Contracts\n(TypeScript, Valibot, Domains)"]
-    RESOLVE -->|Errors in Behavior| S5["Fase 5: Behavior\n(GSAP, Vue reactivity, timers)"]
-    RESOLVE -->|Errors in Hygiene| S6["Fase 6: Hygiene\n(Oxlint, Stylelint, auditor:magic, auditor:o1)"]
-    RESOLVE -->|Errors in Polish| S7["Fase 7: Polish\n(Oxfmt, markdown, AGENTS.md, tests)"]
+    RESOLVE -->|Errors in Setup| S1["Phase 1: Setup\n(audit.config, tsconfig, scripts)"]
+    RESOLVE -->|Errors in Prune| S2["Phase 2: Prune\n(fallow unused files/exports)"]
+    RESOLVE -->|Errors in Dedup| S3["Phase 3: Dedup\n(npm run auditor:dupes)"]
+    RESOLVE -->|Errors in Contracts| S4["Phase 4: Contracts\n(TypeScript, Valibot, Domains)"]
+    RESOLVE -->|Errors in Behavior| S5["Phase 5: Behavior\n(GSAP, Vue reactivity, timers)"]
+    RESOLVE -->|Errors in Hygiene| S6["Phase 6: Hygiene\n(Oxlint, Stylelint, auditor:magic, auditor:o1)"]
+    RESOLVE -->|Errors in Polish| S7["Phase 7: Polish\n(Oxfmt, markdown, AGENTS.md, tests)"]
     RESOLVE -->|"0 Errors and 0 Warnings"| CLEAN(["✨ Repository Clean (Ready for Commit)"])
 
     S1 --> FIX["Apply Phase Fixes\n(Official CLI Tool / Code Repair)"]
@@ -176,9 +186,9 @@ flowchart TD
     S6 --> FIX
     S7 --> FIX
 
-    FIX --> REAUDIT["Re-run: npm run auditor:lint / auditor"]
-    REAUDIT --> CHECK{"Passed Cleanly?"}
-    CHECK -->|Yes| CMD
+    FIX --> REAUDIT["Re-run ONLY the targeted suite:\nnpm run auditor suite=<id> (or auditor:lint for light rules)"]
+    REAUDIT --> CHECK{"Targeted Check Clean?"}
+    CHECK -->|Yes| FINAL["Run final gate once at the end:\nnpm run auditor (or npm run build if packaging)"]
     CHECK -->|No| FIX
 ```
 

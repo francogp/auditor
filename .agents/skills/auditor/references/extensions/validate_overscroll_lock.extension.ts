@@ -10,9 +10,8 @@
  *     pull-to-refresh and swipe-navigation gestures on mobile canvas/touch screens.
  *
  * Usage in .auditor/audit.config.ts:
- *   import { OverscrollLockAuditor } from '../scripts/auditors/extensions/validate_overscroll_lock.extension.ts';
  *   export default defineAuditConfig({
- *     extensions: [new OverscrollLockAuditor()]
+ *     extensions: ['scripts/auditors/extensions/validate_overscroll_lock.extension.ts']
  *   });
  */
 

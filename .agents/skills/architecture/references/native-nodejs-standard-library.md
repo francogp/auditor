@@ -103,19 +103,16 @@ Homebrew path manipulation, custom directory walkers, and ad-hoc string splittin
 
 ## 3. Auditing & Enforcement
 
-Two core auditor suites actively govern this contract:
+All native path and homebrew hygiene rules execute natively inside **`validate_oxlint`** via the `@francogp/domain-type` Oxlint AST plugin (`src/core/domainTypeOxlintPlugin.ts`, runnable via `npm run auditor:oxlint`, `npm run auditor:native-paths`, or `npm run auditor:auditor-hygiene`):
 
-1. **`validate_native_paths`** (AST-based, 9 deterministic rules declared in `phase: 'setup'`):
-   - `native-path-unsafe-concat`: Flags string concatenations or template literals with slashes/segments in filesystem sinks (e.g. `dir + '/' + f`, `${base}/${rel}`). Use `path.join()` or `path.resolve()`.
-   - `native-path-homebrew-normalize`: Flags non-standard path sanitization, manual separator normalizations, and segment splitting/slicing algorithms. Use `path.normalize()`, `path.posix.normalize()`, `toPosixPath()`, or `p.replaceAll(path.win32.sep, path.posix.sep)`.
-   - `native-path-separator-swap`: Flags hardcoded separator swapping (`replace(/\\/g, '/')`), Windows drive letters (`C:\\`), and slash-dependent index slicing. Use `path.win32.isAbsolute()`, `path.sep`, or `path.posix`.
-   - `native-path-homebrew-containment`: Flags custom substring or regex-based directory traversal validations (e.g. `p.includes('..')`, `!p.startsWith(root)`). Use `path.resolve()` + `path.relative()` bounds checking (`isPathContained()`).
-   - `native-path-homebrew-parsing`: Flags manual string splitting, regex parsing, or slicing to extract extensions, basenames, or parent directories. Use `path.extname()`, `path.basename()`, or `path.dirname()`.
-   - `native-path-homebrew-file-url`: Flags manual `file://` protocol prefix concatenation or substring stripping. Use `pathToFileURL()` and `fileURLToPath()` from `node:url`.
-   - `native-path-homebrew-url-parsing`: Flags manual URL string splitting, protocol matching regexes, or custom query/hostname parsing. Use the WHATWG standard `URL` constructor or `URLSearchParams`.
-   - `native-path-unparsed-env-argv`: Flags unvalidated command-line (`process.argv`) or environment variable (`process.env`) paths fed directly into filesystem APIs without containment or normalization assertions.
-   - `native-path-homebrew-fetch-url`: Flags passing local filesystem paths, path variables, or directory segments directly into `fetch()` or HTTP clients without an explicit URL scheme. Use `node:fs` or `pathToFileURL()`.
+1. **Native Path Safety Rules (`@francogp/domain-type/*`)**:
+   - `unsafe-path-concat`: Flags string concatenations or template literals with slashes/segments in filesystem sinks (e.g. `dir + '/' + f`, `${base}/${rel}`). Use `path.join()` or `path.resolve()`.
+   - `hardcoded-slash-path`: Flags hardcoded separator swapping (`replace(/\\/g, '/')`), Windows drive letters (`C:\\`), manual normalization, and slash-dependent slicing. Use `path.normalize()`, `path.posix.normalize()`, `toPosixPath()`, or `path.win32.isAbsolute()`.
+   - `homebrew-path-containment`: Flags custom substring or regex-based directory traversal validations (e.g. `p.includes('..')`, `!p.startsWith(root)`). Use `path.resolve()` + `path.relative()` bounds checking (`isPathContained()`).
+   - `homebrew-path-parsing`: Flags manual string splitting, regex parsing, or slicing to extract extensions, basenames, or parent directories. Use `path.extname()`, `path.basename()`, or `path.dirname()`.
+   - `homebrew-file-url` & `homebrew-url-parsing`: Flags manual `file://` prefix manipulation or regex URL parsing. Use `pathToFileURL()`, `fileURLToPath()`, `URL`, or `URLSearchParams`.
+   - `unsanitized-env-argv-path` & `untrusted-url-fetch`: Flags unvalidated CLI/env paths in filesystem sinks or local filesystem paths passed directly to `fetch()`.
 
-2. **`validate_auditor_hygiene`**:
-   - `auditor-manual-file-walker`: Flags recursive directory walkers or custom `readdirSync` loops.
-   - `auditor-homebrew-path-normalization`: Flags custom normalization functions.
+2. **Auditor Homebrew Hygiene Detectors (`src/analyzers/homebrew/detectors/`)**:
+   - `auditor-manual-dir-walk`: Flags recursive directory walkers or custom `readdirSync` loops (`fileWalkerDetector.ts`).
+   - `auditor-manual-path-normalization`: Flags custom path normalization helpers.

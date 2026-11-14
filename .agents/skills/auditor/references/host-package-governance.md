@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.12.4 --allow-git=all
+npm install -D github:francogp/auditor#v10.12.5 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -50,7 +50,7 @@ npm install -D github:francogp/auditor#v10.12.4 --allow-git=all
 > Updates MUST be performed 100% natively through the official updater or npm.
 >
 > [!CAUTION]
-> **ABSOLUTE PROHIBITION ON MANUAL VERSION OR CONFIG BUMPS IN CONSUMER REPOSITORIES**: AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from manually editing (`write_file`, `edit_file`) `package.json`, `package-lock.json`, or `.auditor/audit.config.ts` (including `auditorVersion`) in consumer projects to simulate or apply an update. Modifying versions or configs by hand desynchronizes lockfiles, shims, installed modules, satellite configs, and environment scripts. Upgrades MUST be executed exclusively through `npm run auditor:update` (or `auditor-update`) or `node src/cli/update_package.ts --project <path>` from the auditor workspace.
+> **ABSOLUTE PROHIBITION ON MANUAL VERSION OR CONFIG BUMPS IN CONSUMER REPOSITORIES**: AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from manually editing (`write_file`, `edit_file`) `package.json`, `package-lock.json`, or `.auditor/audit.config.ts` (including `auditorVersion`) in consumer projects to simulate or apply an update. Modifying versions or configs by hand desynchronizes lockfiles, shims, installed modules, satellite configs, and environment scripts. Upgrades MUST be executed exclusively through `npm run auditor:update` (or `auditor-update`) inside the consumer project, or `npm run auditor:update project=<path>` (`auditor-update --project <path>`) from the auditor workspace.
 
 ### Canonical Update Command
 
@@ -62,12 +62,12 @@ auditor-update
 
 Under the hood, `auditor-update`:
 
-1. Queries upstream release tags via `git ls-remote --tags` with numerical SemVer sorting (`parseTagSemver` / `compareTagsDescending`), or accepts an explicit target tag via `npm run auditor:update -- [targetVersion]`.
+1. Queries upstream release tags via `git ls-remote --tags` with numerical SemVer sorting (`parseTagSemver` / `compareTagsDescending`), or accepts an explicit target tag via `npm run auditor:update [targetVersion]`.
 2. Snapshots `package.json`, `package-lock.json`, and `.npmrc` (restoring them atomically on failure), elevates declared dependency ranges dynamically from SSoT `peerDependencies`, prunes stale coupled `vite-plus`/`vitest`/`@vitest/*` lockfile entries to prevent `ERESOLVE`, and executes `npm install -D github:francogp/auditor#<targetTag>`.
 3. Synchronizes Antigravity agent skills in `.agents/skills/` and setup scripts (`setup-windows.ps1`, `setup-linux.sh`).
 4. Executes `auditor fix` to synchronize satellite configurations and canonical scripts.
 5. Automatically enforces and installs any production or development dependencies that fall below the newly installed `@francogp/auditor`'s `peerDependencies` floors, then runs `phase=setup` verification.
-6. **Post-Update Dependency Inspection (`auditor-dependencies`)**: Run `npm run auditor:dependencies` (or `auditor-dependencies`) anytime to verify that all declared project libraries and lockfile versions satisfy the active SSoT floors (or `npm run auditor:dependencies -- commands` to inspect manual install commands).
+6. **Post-Update Dependency Inspection (`auditor-dependencies`)**: Run `npm run auditor:dependencies` (or `auditor-dependencies`) anytime to verify that all declared project libraries and lockfile versions satisfy the active SSoT floors (or `npm run auditor:dependencies commands` to inspect manual install commands).
 7. Commit the updated `package.json` and `package-lock.json` to lock the audited version for the entire team and CI.
 
 ---
@@ -87,15 +87,14 @@ npm ci
 
 ## 4. `package.json` Script Inheritance (Zero Duplication)
 
-Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in their `package.json`.
-`@francogp/auditor` exports native binaries to `node_modules/.bin`:
+Host projects **MUST NOT** rewrite or duplicate generic audit scripts manually in their `package.json`.
+`@francogp/auditor` exports 35 native CLI binaries to `node_modules/.bin`:
 
 - `auditor` (master orchestrator `audit_full.ts`)
 - `auditor-post-build` (post-build compiled artifact runner `audit_post_build.ts`)
 - `auditor-build-deploy` (production build runner setting `AUDITOR_ENV=production`, `build_deploy.ts`)
 - `auditor-version` (version inspection, diff analysis, and SemVer bumping `bump_version.ts`)
-- `auditor-findings` / `auditor-report-findings` (interactive findings reporter `report_findings.ts`)
-- `auditor-by-file` (hierarchical tree findings reporter grouped by file and line `report_findings.ts`)
+- `auditor-next` / `auditor-findings` / `auditor-report-findings` / `auditor-rules` / `auditor-by-rule` / `auditor-by-file` (interactive findings reporters `report_findings.ts`)
 - `auditor-fallow` (Fallow intelligence suite `report_fallow.ts`)
 - `auditor-complexity` (complexity hotspot analysis `report_complexity.ts`)
 - `auditor-similar` (semantic code clone detection `report_similar_code.ts`)
@@ -103,14 +102,14 @@ Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in 
 - `auditor-css` (Stylelint style duplication & orphan reporter `report_css.ts`)
 - `auditor-guard` (architecture boundary and dependency gating `report_guard.ts`)
 - `auditor-flags` (feature flags status and dead code reporter `report_flags.ts`)
-- `auditor-coverage-map` (full test coverage heatmap and uncovered file tracer `report_coverage_map.ts`)
-- `auditor-coverage` / `auditor-test-coverage` (Istanbul/C8 test coverage report `report_test_coverage.ts`)
-- `auditor-update` (package updater and skill synchronizer `update_package.ts`)
-- `auditor-init-agent` (agent plugin and skills registrator `init_agent.ts`)
-- `auditor-sync-env` (environment script synchronizer `sync_env_scripts.ts`)
-- `auditor-setup-env` (environment setup runner `setup_env.ts`)
-- `auditor-check-env` (runtime environment validator `check_environment.ts`)
+- `auditor-coverage-map` (static audit suite file-coverage mapper `report_coverage_map.ts`)
+- `auditor-coverage` / `auditor-test-coverage` (V8/Istanbul test coverage report `report_test_coverage.ts`)
+- `auditor-config` (Unidirectional Config Ratchet hardening advisor `report_config_recommendations.ts`)
 - `auditor-dependencies` (mandatory library version floor inspector `report_dependencies.ts`)
+- `auditor-dupes`, `auditor-magic`, `auditor-motion`, `auditor-o1`, `auditor-types`, `auditor-domain`, `auditor-hygiene` (7 Dirac interactive refactor engines)
+- `auditor-update` (package updater and skill synchronizer `update_package.ts`)
+- `auditor-init` / `auditor-init-agent` (repository & agent plugin initializers)
+- `auditor-sync-env` / `auditor-setup-env` / `auditor-check-env` (environment setup & validation CLIs)
 
 ### Dynamic Script Injection via `auditor fix`
 
@@ -132,10 +131,10 @@ Host extensions declared in `.auditor/audit.config.ts` are automatically discove
 
 ## 5. Universal Standard `build` Script Contract
 
-The build execution is partitioned into a **2-part auditor lifecycle**:
+The build execution is partitioned into a **3-stage auditor lifecycle**:
 
 1. **Pre-build verification** (`npm run auditor:full`): enforces source code architecture, linting, and domain type constraints before compilation starts at full ceiling (`🐘`).
-2. **Compilation**: runs the bundler / TypeScript compiler (`vite build`, `tsc`, etc.).
+2. **Compilation**: runs the Vite+ bundler / packager (`vp build` for applications, `vp pack` for libraries).
 3. **Post-build verification** (`npm run auditor:post-build`): verifies compiled distribution artifacts in `dist/` (bundle budgets, export maps, type definitions).
 
 - **Tooling Packages (TypeScript CLI / Library Packages)**:
@@ -152,13 +151,13 @@ The build execution is partitioned into a **2-part auditor lifecycle**:
 
   Using platform-specific shell commands like `chmod` that fail on Windows is strictly forbidden; executable permissions are set via cross-platform Node.js filesystem APIs. Inventing arbitrary non-standard script names (such as `compile` or `build:dist`) is strictly forbidden across the framework.
 
-- **Web Application Host Projects (Vite / Vue / Webpack)**:
-  Host web applications compile their production assets through standard bundlers chained with both pre-audit and post-audit:
+- **Web Application Host Projects (Vite+ / Vue)**:
+  Host web applications compile their production assets through `vp build` chained with both pre-audit and post-audit:
 
   ```json
   {
     "scripts": {
-      "build": "npm run auditor:full && vite build && npm run auditor:post-build",
+      "build": "npm run auditor:full && vp build && npm run auditor:post-build",
       "build:deploy": "auditor-build-deploy"
     }
   }
@@ -206,9 +205,9 @@ When authoring or maintaining host extensions in `scripts/auditors/`:
 In consumer host projects deploying to production, building Docker containers, running deployment scripts (`deploy-install.sh`, `deploy-update.sh`), or deploying to GitHub Pages:
 
 - The full auditor normally validates 100% of architectural and quality checks.
-- In production environments, coverage files (`coverage/coverage-final.json`) are git-ignored and not generated during build, and computing vector embeddings via Candle CPU is undesirable.
+- In production environments, coverage files (`scratch/coverage/coverage-final.json`) are git-ignored and not generated during build, and computing vector embeddings via Candle CPU is undesirable.
 - Setting `AUDITOR_ENV=production` (or invoking `npm run build:deploy` / `auditor-build-deploy`) cleanly skips `validate_similar_code` and `validate_test_coverage` with 0 violations.
-- All other 48+ suites and post-build artifact verification (`auditor:post-build`) execute at 100% strictness.
+- All other pre-build suites and post-build artifact verification (`auditor:post-build`) execute at 100% strictness.
 
 ```yaml
 # In GitHub Actions workflow step (e.g. GitHub Pages deploy):
@@ -272,9 +271,9 @@ The root environment initialization and update scripts (`setup-linux.sh`, `setup
 
 When implementing core auditor features or script modernizations in `@francogp/auditor`:
 
-1. **Upstream First**: Complete all code changes, unit tests (`npm test`), distribution compilation (`npm run build`), and post-build audits (`npm run auditor:post-build`) exclusively inside `@francogp/auditor`.
+1. **Upstream First**: Complete all code changes, coverage-enabled tests (`npm run test:coverage`, once), and full distribution build (`npm run build`, once — which already executes `auditor:full`, `vp pack`, and `auditor:post-build`; NEVER re-run `npm test`, `auditor`, or `auditor:post-build` separately alongside `build`!) exclusively inside `@francogp/auditor`.
 2. **Zero Premature Host Updates**: NEVER edit or run auto-fix scripts on consumer applications (`package.json`) before the upstream package is committed and ready.
-3. **Consumer Upgrade via Canonical Workflow**: Once upstream is published or committed, upgrade consumer projects exclusively via `npm run auditor:update` (or `auditor-update`) followed by `auditor fix` to apply script updates cleanly.
+3. **Consumer Upgrade via Canonical Workflow**: Once upstream is published or committed, upgrade consumer projects exclusively via `npm run auditor:update` (or `auditor-update`) — which already runs `auditor fix` automatically.
 
 ---
 
@@ -284,10 +283,10 @@ During upstream `@francogp/auditor` development, you can test new suites, refact
 
 ```bash
 # In @francogp/auditor repository:
-npm run auditor -- project="../my-app"
-npm run auditor:lint -- project="../my-app"
-npm run auditor:fix -- project="../my-app"
-npm run auditor:findings -- project="../my-app"
+npm run auditor project="../my-app"
+npm run auditor:lint project="../my-app"
+npm run auditor:fix project="../my-app"
+npm run auditor:findings project="../my-app"
 ```
 
 ### Key Principles of Remote Execution
@@ -337,18 +336,17 @@ npm run auditor:findings -- project="../my-app"
 
 When upgrading an older host project that triggers hundreds or thousands of `scss-strict-values` / `missing-theme-token-usage` findings:
 
-1. **Inherit Canonical Stylelint Config First**:
-   Ensure `.stylelintrc.json` extends `./node_modules/@francogp/auditor/.stylelintrc.json`. This immediately resolves false-positive `selector-class-pattern` warnings on third-party icon classes (e.g. `.svg-inline--fa`) and prevents SVG keyword case collisions.
-2. **Calibrate Layout Nesting**:
-   If the host maintains deep component views, adjust `maxNestingDepth: 5` and `scopedMaxNestingDepth: 5` in `.auditor/audit.config.ts` under `scssArchitecture` (canonical threshold used in complex production applications).
-3. **Execute via Isolated Worktree & AST Codemod**:
-   - Create an isolated git worktree (`scratch/wt-migration`) so `main` remains pristine during experimentation.
-   - Map unique color hexes and literal values into token custom properties (`var(--slate-500)`, etc.) defined in `:root`.
-   - Run a targeted PostCSS-SCSS script to replace literals with CSS variable tokens.
+1. **Synchronize Canonical Stylelint Config via `npm run auditor:fix`**:
+   Never edit `.stylelintrc.json` manually; run `npm run auditor:fix` so the auditor generates the canonical `.stylelintrc.json` derived from `.auditor/audit.config.ts`. This immediately resolves false-positive `selector-class-pattern` warnings on third-party icon classes (e.g. `.svg-inline--fa`) and prevents SVG keyword case collisions.
+2. **Calibrate Layout Nesting (with Human Approval)**:
+   Canonical defaults are `maxNestingDepth: 3` and `scopedMaxNestingDepth: 4` under `scssArchitecture` in `.auditor/audit.config.ts` (never alter `.auditor/audit.config.ts` without prior human programmer authorization).
+3. **Execute via Official `auditor:magic` Engine & Worktree Sandbox**:
+   - Run `npm run auditor:magic discover` to cluster repeated visual literals and hex colors via Super-Dirac micro-context instead of writing ad-hoc PostCSS scripts.
+   - Formulate an approved token plan and apply safely inside a worktree via `npm run auditor:magic apply <plan.json> worktree`.
 
-### 2. Projections for `select-star-in-queries` (`validate_sql_anti_patterns`)
+### 2. Projections for `no-select-star-in-queries` (`validate_oxlint`)
 
-The rule `select-star-in-queries` targets Supabase and ORM queries across frontend code in `src/` (not database migration scripts).
+The rule `@francogp/domain-type/no-select-star-in-queries` (inside `validate_oxlint`) targets Supabase and ORM queries across frontend code in `src/` (not database migration scripts).
 
 - ❌ **Prohibited**: `.select('*')` or omitting columns.
 - ✅ **Canonical**: Explicit column projection `.select('id, name, created_at, ...')` to avoid overfetching, breaking schema contracts, and runtime payload bloat.
@@ -384,20 +382,11 @@ Vite+ is powered by Oxlint's high-performance native engine. Beyond the default 
    - The AST synchronizer (`src/core/viteConfigAst.ts`) automatically populates these 8 plugins into the `lint` block of `vite.config.ts`.
    - Tested empirically across thousands of source files with 0 false positives.
 
-2. **Promise Linter Plugin Adoption Guide (`promise`)**:
-   - The `promise` plugin detects serious runtime concurrency flaws (such as calling `Promise.then()` without handlers).
-   - Before activating `promise` in `vitePlusConfig.lint.plugins`:
-     - Run `vp lint --promise-plugin` to inspect any existing violations.
-     - Remediate thenable anti-patterns (e.g. replacing `const res = await this.then();` with `const res = await this;`).
-     - Declare `'promise'` in `.auditor/audit.config.ts` under `vitePlusConfig.lint.plugins`.
+2. **Promise Linter Plugin Remediation Notes (`promise`)**:
+   - Active by default in `DEFAULT_AUDIT_CONFIG.vitePlusConfig.lint.plugins`; detects concurrency flaws such as calling `Promise.then()` without handlers (`await this.then()` -> `await this`) or uncaught `.then()` chains.
 
-3. **Vue Linter Plugin Adoption Guide (`vue`)**:
-   - The `vue` plugin enforces strict Vue 3 Composition API idioms.
-   - Key considerations before activating:
-     - `vue(next-tick-style)` rejects callback syntax `nextTick(() => { ... })` and requires `await nextTick()`.
-     - When `vue(next-tick-style)` auto-fixes callbacks, it generates `nextTick().then(() => { ... })`. Because `promise(catch-or-return)` strictly prohibits unreturned or uncaught Promise chains, the canonical `/clean-code` solution is declaring the lifecycle callback as `async` (`onMounted(async () => { await nextTick(); restoreScroll(); })`). This pattern is 100% compliant with `vue/no-lifecycle-after-await` because the `await` is scoped inside the lifecycle callback rather than in the top-level `<script setup>`.
-     - `vue(define-props-declaration)` and `vue(define-emits-declaration)` require typed macro signatures (`defineProps<{ ... }>()`).
-     - If the repository has legacy callbacks in component lifecycles, schedule an AST migration before enabling.
+3. **Vue Linter Plugin Remediation Notes (`vue`)**:
+   - Active by default in `DEFAULT_AUDIT_CONFIG.vitePlusConfig.lint.plugins`; enforces Vue 3 Composition API idioms (`defineProps<{ ... }>()`, `await nextTick()`, and `onMounted(async () => { await nextTick(); restoreScroll(); })` to satisfy both `vue(next-tick-style)` and `promise(catch-or-return)`).
 
 ### 3. Architectural Health & Complexity Governance (`fallow.health`)
 

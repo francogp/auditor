@@ -14,7 +14,7 @@ Run `git status -s` and inspect `git diff HEAD` (or staged/unstaged changes) to 
 
 - **Modified/New Analyzers & Code (`src/**`)**: Identifies newly added features, refactored components, and architectural boundary changes. Internal implementation details and private functions are NOT documented for their own sake.
 - **Modified Package Scripts (`package.json`, `src/cli/**`)**: Identifies new CLI entrypoints, changed command-line arguments, or deprecated script aliases that require updating `README.md`.
-- **Modified Configurations (`.auditor/audit.config.ts`, `vite.config.ts`, `.fallowrc.json`, etc.)**: Identifies new configuration options, changed defaults, or newly added exemptions.
+- **Modified Configurations (`.auditor/audit.config.ts`, `vite.plugins.ts`, and auditor-derived projections in `vite.config.ts` / `.fallowrc.json`)**: Identifies new SSoT configuration options, changed defaults, or newly added exemptions (remembering that satellite configs are derived exclusively via `npm run auditor:fix`, never edited manually).
 - **Modified Tests (`tests/**`)**: Identifies newly established regression tests and expected behaviors.
 
 ### 1.2 Conversation Artifacts & Work Plans

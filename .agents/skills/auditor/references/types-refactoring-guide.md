@@ -22,23 +22,26 @@ The `auditor-types` CLI and `TypesRefactorEngine` provide automated discovery, D
      return raw as any;
    }
 
-   // Canonical: Use unknown or precise narrowing
+   // Canonical: Narrow via Valibot schema or explicit runtime type guard
    export function parsePayload(raw: unknown): Payload {
-     return raw as unknown as Payload; // or domain type guard
+     return v.parse(PayloadSchema, raw);
    }
    ```
 
-   When migrating legacy code, `auditor-types` automatically replaces loose `as any` with `as unknown` to restore compiler safety.
+   When migrating legacy code, `auditor-types` replaces loose `as any` with `as unknown` as a safe intermediate step toward proper narrowing (never chaining `as unknown as T`, which is banned by `@francogp/domain-type/no-double-cast-unknown`).
 
 2. **Double Assertion Sanitization (`as unknown as T`)**:
-   Double casting (`x as unknown as Target`) bypasses TypeScript's type-narrowing hierarchy. It should be refactored to explicit type guards, schemas, or direct type assertions:
+   Double casting (`x as unknown as Target`) bypasses TypeScript's type-narrowing hierarchy and is strictly prohibited (`@francogp/domain-type/no-double-cast-unknown`). Refactor to explicit type guards or schema validation:
 
    ```ts
    // Anti-pattern: Forced double assertion
    const val = input as unknown as string;
 
-   // Canonical: Direct narrowing or explicit domain assertion
-   const val = input as string; // verify narrowing with schema or type guard
+   // Canonical: Runtime narrowing guard
+   if (typeof input !== 'string') {
+     throw new TypeError('Expected string input');
+   }
+   const val = input;
    ```
 
 3. **Explicit Module Boundary & Function Return Contracts**:
@@ -58,8 +61,8 @@ The `auditor-types` CLI and `TypesRefactorEngine` provide automated discovery, D
 
 4. **Zero Escape Hatches & Safe Narrowing**:
    Comment escape hatches (`// type-ok:`, `// any-ok:`, `// type-ignore:`) are permanently eradicated. Instead, use canonical safe typing:
-   - Use `unknown` with runtime type guards (`isRecord`, `isString`, `instanceof`) instead of `as any`.
-   - Use `Record<string, unknown>` instead of untyped objects.
+   - Use `unknown` with runtime type guards (`isRecord`, `typeof`, `instanceof`) instead of `as any`.
+   - Use `JsonObject` (from `@francogp/auditor`) for external JSON payloads instead of `Record<string, unknown>`.
    - Use Valibot schema validation (`v.parse()`, `v.safeParse()`) for external payloads.
    - Use typed generics (`<T>`) for polymorphic operations.
 
@@ -79,16 +82,16 @@ The `auditor-types` CLI and `TypesRefactorEngine` provide automated discovery, D
 # Direct CLI invocation (bin in node_modules/.bin)
 auditor-types <command> [options]
 
-# Via package scripts
-npm run auditor:types <command>
-npm run auditor:types -- <command> [options]
+# Via package scripts (pass positional subcommands, key=value, and bare booleans without --)
+npm run auditor:types help
+npm run auditor:types <command> [options]
 ```
 
 ### 1. `discover`: Scan Project for Type Assertion & Return Issues
 
 ```bash
 npm run auditor:types discover
-npm run auditor:types -- discover project=../my-app
+npm run auditor:types discover project=../my-app
 ```
 
 Renders a dynamic 80-column Box-Drawing table with counts for `as any`, `Casts` (double assertions), and `Returns` (missing return annotations).
@@ -97,7 +100,7 @@ Renders a dynamic 80-column Box-Drawing table with counts for `as any`, `Casts` 
 
 ```bash
 npm run auditor:types inspect src/services/authService.ts
-npm run auditor:types -- inspect src/services/authService.ts project=../my-app
+npm run auditor:types inspect src/services/authService.ts project=../my-app
 ```
 
 Extracts only the affected lines with precise line numbers, current violation snippets, recommended replacement code, explanation, and a ready-to-use declarative refactoring plan.
@@ -109,7 +112,7 @@ Extracts only the affected lines with precise line numbers, current violation sn
 npm run auditor:types apply scratch/types-plan.json
 
 # Safe execution inside an isolated Git Worktree (verifies compilation and tests before applying)
-npm run auditor:types apply scratch/types-plan.json --worktree
+npm run auditor:types apply scratch/types-plan.json worktree
 ```
 
 ---
@@ -146,25 +149,25 @@ npm run auditor:types apply scratch/types-plan.json --worktree
 
 ### Scenario A: CI Quality Gate Error (`validate_oxlint`)
 
-- **Trigger**: `npm run auditor` reports `typescript/no-explicit-any` or TypeScript compiler error.
+- **Trigger**: `npm run auditor` reports `typescript/no-explicit-any` or `@francogp/domain-type/no-double-cast-unknown`.
 - **Strategic Phase**: Phase 4 (`contracts`).
-- **Action**: Formulate a **Correction Plan**. Replace `as any` with `as unknown` or introduce a proper type guard/schema. Never use comment escape hatches (`// type-ok:`) or cast to `as unknown as any`.
-- **Verification**: `npm run auditor:type-check` -> Green.
+- **Action**: Formulate a **Correction Plan**. Replace `as any` / `as unknown as T` with a runtime type guard or Valibot schema. Never use comment escape hatches (`// type-ok:`).
+- **Verification**: `npm run auditor suite=validate_oxlint` -> Green.
 
 ### Scenario B: Elective Type Modernization (`auditor:types`)
 
 - **Trigger**: User requests _"add return types to functions"_, _"remove as any"_, or _"reinforce TypeScript contracts"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before proceeding.
-- **Action**: Formulate an **Improvement Plan**. Run `auditor:types discover`, inspect specific candidate files via `auditor:types inspect <file>`, generate `scratch/types-plan.json`, and apply with `--worktree`.
+- **Action**: Formulate an **Improvement Plan**. Run `npm run auditor:types discover`, inspect specific candidate files via `npm run auditor:types inspect <file>`, generate `scratch/types-plan.json`, and apply with `npm run auditor:types apply scratch/types-plan.json worktree`.
 
 ---
 
 ## 5. Concrete Plan Blueprints
 
-### Correction Plan (CI Error: `type-assertion-as-any`)
+### Correction Plan (CI Error: `typescript/no-explicit-any`)
 
 ````markdown
-# Correction Plan: type-assertion-as-any in webhookHandler.ts
+# Correction Plan: typescript/no-explicit-any in webhookHandler.ts
 
 ## 1. Diagnosis & Strategic Phase
 
@@ -175,16 +178,16 @@ npm run auditor:types apply scratch/types-plan.json --worktree
 
 ## 2. Canonical Solution
 
-1. Define a discriminated union type or schema validation (`WebhookPayload`).
-2. Safely cast or narrow the type using `unknown`:
+1. Define a Valibot schema or runtime type guard (`isWebhookPayload`).
+2. Safely parse or narrow the `unknown` payload:
 
 ```ts
-const body = payload as unknown as WebhookPayload; // or domain type guard check
+const body = v.parse(WebhookPayloadSchema, payload);
 ```
 
 ## 3. Verification
 
-`npm run auditor -- task=validate_oxlint`
+`npm run auditor suite=validate_oxlint`
 ````
 
 ### Improvement Plan (Elective: `auditor:types`)
@@ -196,7 +199,7 @@ const body = payload as unknown as WebhookPayload; // or domain type guard check
 
 - **Tool**: `auditor-types`
 - **Objective**: Add explicit return type annotations on exported functions to accelerate compiler type-checking and secure public API contracts.
-- **Pre-flight CI Baseline**: 100% Green (0 errors, 0 warnings).
+- **Pre-flight CI Baseline**: 100% Green (0 errors, 0 new warnings).
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
 
@@ -224,7 +227,7 @@ const body = payload as unknown as WebhookPayload; // or domain type guard check
 
 ## 4. Sandbox Execution
 
-`npm run auditor:types apply scratch/types-plan.json --worktree`
+`npm run auditor:types apply scratch/types-plan.json worktree`
 ````
 
 ---
@@ -261,7 +264,7 @@ Outputs the exact line snippets, AST context, and ready-to-run declarative JSON 
 ### Step 3: Apply Declarative Plan via Worktree Sandbox
 
 ```bash
-npm run auditor:types apply scratch/types-plan.json --worktree
+npm run auditor:types apply scratch/types-plan.json worktree
 ```
 
-The engine executes in an ephemeral worktree, verifies type safety (`tsc --noEmit`), and safely merges changes upon green verification.
+The engine executes in an ephemeral worktree, verifies type safety and lint (`vp check`), and safely merges changes upon green verification.

@@ -35,8 +35,7 @@ Architecture & Tooling Engineers.
 ## Verification
 
 - Run modal stack unit and canary suites: `vp test run tests/modal_stack_manager.test.ts tests/modal_dom_and_motion.test.ts tests/modal_sequence_queue.test.ts`
-- Run fast source lint and type checks: `npm run auditor:lint`
-- Verify DOX and Markdown contracts: `npm run auditor:md`
+- Run fast source lint, type checks, and DOX/Markdown contracts (`auditor:lint` already includes `auditor:md`): `npm run auditor:lint`
 
 ## Child DOX Index
 

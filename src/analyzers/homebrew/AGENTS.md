@@ -18,7 +18,7 @@ Architecture & Tooling Engineers.
 - [`homebrewTypes.ts`](./homebrewTypes.ts): Domain types, rule IDs, and `HomebrewDetector` interface definitions.
 - [`homebrewRegistry.ts`](./homebrewRegistry.ts): Dynamic registry for detectors with modular execution.
 - [`index.ts`](./index.ts): Default registry initialization and built-in detector auto-registration.
-- [`detectors/`](./detectors/): Directory of 10 canonical homebrew detectors.
+- [`detectors/`](./detectors/AGENTS.md): Directory of 15 canonical homebrew detectors and shared measurement AST scanner.
 
 ## Work Guidance
 
@@ -27,7 +27,7 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run hygiene suite tests: `vp test tests/oxlint_auditor_hygiene_migration.test.ts` (or `npm test -- tests/oxlint_auditor_hygiene_migration.test.ts`)
+- Run hygiene suite tests: `vp test run tests/oxlint_auditor_hygiene_migration.test.ts` (or `npm test -- tests/oxlint_auditor_hygiene_migration.test.ts`)
 - Execute standalone suite: `auditor task=validate_oxlint`
 
 ## Child DOX Index

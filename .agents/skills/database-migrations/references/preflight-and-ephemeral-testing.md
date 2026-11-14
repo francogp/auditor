@@ -93,15 +93,16 @@ export async function runLiveEphemeralVerification(): Promise<void> {
     // 2. Discover applied migrations in baseline
     const appliedVersions = getAppliedVersionsFromDb(ephemeralDb);
 
-    // 3. Find pending migrations
-    const allFiles = (await fsPromises.readdir('supabase/migrations'))
+    // 3. Find pending migrations (resolved from config.paths.migrationsDir)
+    const migrationsDir = config.paths.migrationsDir ?? 'supabase/migrations';
+    const allFiles = (await fsPromises.readdir(migrationsDir))
       .filter((f) => f.endsWith('.sql'))
       .sort();
     const pendingFiles = allFiles.filter((f) => !appliedVersions.has(f));
 
     // 4. Apply each sequentially
     for (const file of pendingFiles) {
-      const sql = await fsPromises.readFile(`supabase/migrations/${file}`, 'utf-8');
+      const sql = await fsPromises.readFile(`${migrationsDir}/${file}`, 'utf-8');
       const start = performance.now();
       const res = execDockerSql(sql, ephemeralDb);
       const elapsed = Math.round(performance.now() - start);

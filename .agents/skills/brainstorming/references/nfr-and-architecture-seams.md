@@ -1,6 +1,6 @@
 # Non-Functional Requirements, Trade-off Matrices & Typed Architecture Seams
 
-Deep-dive engineering reference for **Phase 3 (Non-Functional Requirements)**, **Phase 5 (Exploring Design Approaches)**, and **Phase 6 (Incremental Typed Design Presentation)** of the [`brainstorming`](../SKILL.md) skill.
+Deep-dive engineering reference for **Stage 3 (Non-Functional Requirements)**, **Stage 5 (Exploring Design Approaches)**, and **Stage 6 (Incremental Typed Design Presentation)** of the [`brainstorming`](../SKILL.md) skill.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ Deep-dive engineering reference for **Phase 3 (Non-Functional Requirements)**, *
 
 Features rarely fail in production because the happy-path logic was wrong; they fail because latency, memory, security boundaries, or failure recovery were treated as an afterthought.
 
-During **Phase 3**, evaluate which NFR dimensions apply to the task. If the user has not specified targets, propose the **Sensible Default Baseline** below and record it explicitly under **Assumptions** in the Understanding Lock.
+During **Stage 3**, evaluate which NFR dimensions apply to the task. If the user has not specified targets, propose the **Sensible Default Baseline** below and record it explicitly under **Assumptions** in the Understanding Lock.
 
 | NFR Dimension                          | Key Questions to Resolve                                                                                       | Sensible Default Baseline (When Unspecified)                                                                                                                                                                                                         |
 | :------------------------------------- | :------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -31,7 +31,7 @@ During **Phase 3**, evaluate which NFR dimensions apply to the task. If the user
 
 ## 2. Architectural Trade-Off Evaluation Framework
 
-When presenting **2–3 Viable Design Approaches** in **Phase 5**, ensure the alternatives are **materially different** in structure, seam placement, or complexity—never strawman options or cosmetic variations of the same design.
+When presenting **2–3 Viable Design Approaches** in **Stage 5**, ensure the alternatives are **materially different** in structure, seam placement, or complexity—never strawman options or cosmetic variations of the same design.
 
 Evaluate and contrast your proposed approaches across these **7 Engineering Dimensions**:
 
@@ -71,7 +71,7 @@ Use a compact table when presenting options to the user:
 
 Prose descriptions of software architecture are inherently ambiguous. Two engineers reading _"the service validates the config and returns a result"_ will write completely incompatible code.
 
-During **Phase 6 (Present the Design Incrementally)**, anchor your architectural sections in **TypeScript contract sketches** following [`/domain-type-first`](../../domain-type-first/SKILL.md):
+During **Stage 6 (Present the Design Incrementally)**, anchor your architectural sections in **TypeScript contract sketches** following [`/domain-type-first`](../../domain-type-first/SKILL.md):
 
 ### 3.1. Finite Domain Unions Derived from Canonical Data
 
@@ -125,7 +125,7 @@ Show the exact data flow from the public entrypoint down to the boundary side ef
 
 ## 4. Designing Deep Modules & Hermetic Test Seams
 
-Every design presented in **Phase 6** must explicitly answer: _"How will we prove this works hermetically?"_
+Every design presented in **Stage 6** must explicitly answer: _"How will we prove this works hermetically?"_
 
 ### Rules for High-Leverage Test Seams
 

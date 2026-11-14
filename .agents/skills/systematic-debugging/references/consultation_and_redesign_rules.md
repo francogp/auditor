@@ -20,7 +20,7 @@ The agent must first detect how the debugging workflow was invoked:
 In **Explicit Mode**, the agent MUST pause execution and consult the user whenever ANY of the following conditions are met:
 
 1. **Database Schema or Persistence Mutations**:
-   - The fix requires modifying PostgreSQL/Supabase schemas, adding SQL migrations in `supabase/migrations/`, or altering core entity structures.
+   - The fix requires modifying PostgreSQL/Supabase/SQLite schemas, adding SQL migrations in the configured migrations directory (`config.paths.migrationsDir`), or altering core entity structures.
 2. **Breaking API & Contract Changes**:
    - The fix alters the signature or return type of public store actions, Supabase client interfaces, or core calculation engine exports consumed across multiple components.
 3. **DOX & Rule Collisions**:

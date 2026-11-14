@@ -16,6 +16,7 @@ export default defineAuditConfig({
   name: 'Enterprise Billing Portal',
 
   paths: {
+    enabled: true,
     srcRoots: ['src'], // Root directories containing application production code
     testRoots: ['tests/unit', 'tests/node'], // Unit and architectural test suites directories (Vitest / Node)
     e2eRoots: ['tests/e2e'], // End-to-End browser test directory with browser emulation
@@ -143,7 +144,7 @@ export default defineAuditConfig({
   ratchet: {
     enabled: true, // Warning ratchet on full `npm run auditor` runs: 0 errors and 0 NEW warnings (active by default)
     productionRef: 'origin/main', // Git ref holding the authoritative baseline; must resolve (verified by validate_audit_config)
-    baselineFile: '.auditor/audit-baseline.json' // Committed, shrink-only baseline of warning fingerprints; bootstrap once with `npm run auditor -- init-baseline`
+    baselineFile: '.auditor/audit-baseline.json' // Committed, shrink-only baseline of warning fingerprints; bootstrap once with `npm run auditor init-baseline`
   },
 
   coverage: {
@@ -240,7 +241,7 @@ export default defineAuditConfig({
   },
 
   packageDistribution: {
-    enabled: true, // Post-build distribution package verification via Publint & ATTW
+    enabled: false, // Enable (true) only for published npm library packages; verified via Publint & ATTW
     level: 'warning' // Problem report threshold ('error' | 'warning' | 'suggestion')
   },
 
@@ -279,8 +280,9 @@ export default defineAuditConfig({
   },
 
   testCoverage: {
-    enabled: true, // Evaluates Istanbul/C8 coverage artifacts (coverage/coverage-final.json)
+    enabled: true, // Evaluates Istanbul/V8 coverage artifacts (scratch/coverage/coverage-final.json)
     threshold: 80, // Minimum statements/lines/branches/functions threshold percentage
+    path: 'scratch/coverage/coverage-final.json',
     enforceInAudit: true // Promotes coverage threshold drops to blocking errors during full audit
   },
 
@@ -289,14 +291,14 @@ export default defineAuditConfig({
   },
 
   secretLeaks: {
-    enabled: true, // Secret, credential, and API token detection via @secretlint/core
+    enabled: true, // Secret, credential, and API token AST detection via validate_oxlint (@francogp/domain-type)
     maskSecrets: true, // Automatically masks exposed token values in logs and reports
     allowedPatterns: [] // Whitelisted patterns or test strings exempt from secret detection
   },
 
   dependencyVulnerabilities: {
     enabled: true, // Known dependency vulnerability auditing via npm audit
-    failOn: 'critical', // Minimum CVE severity level blocking audit ('critical' | 'high' | 'moderate')
+    failOn: 'critical', // Minimum CVE severity level blocking audit ('critical' | 'high' | 'moderate' | 'low' | 'info')
     allowList: [], // Advisory CVE IDs or package names explicitly permitted
     includeDev: false // Exclude development tooling dependencies from CVE blocking
   },
@@ -306,46 +308,38 @@ export default defineAuditConfig({
     targets: [] // List of ValibotParityTarget declarations for state, persistence, and schema parity
   },
 
-  packageTypes: {
-    enabled: true // Validates package TypeScript declarations (.d.ts) and module resolution via @arethetypeswrong/core (requires build)
-  },
-
   webPerformance: {
     enabled: true, // Frontend web performance hygiene and Core Web Vitals optimization
-    maxDomDepth: 32, // Maximum DOM tree nesting depth before triggering complexity warnings
-    maxInlineSvgBytes: 4096, // Maximum byte size for inline SVG strings before mandating external sprite/file
-    maxUncompressedVideoBytes: 10485760, // Maximum uncompressed video asset size (10 MB)
+    maxDomDepth: 16, // Maximum DOM tree nesting depth before triggering complexity warnings
+    maxInlineSvgSize: 2048, // Maximum byte size for inline SVG strings before mandating external sprite/file
     exemptImgClasses: ['corporate-logo'], // Image classes exempt from layout dimensions
     exemptSvgPaths: ['src/assets/branding'] // Paths exempt from inline SVG size checks
   },
 
   queryPerformance: {
-    enabled: true, // Database query performance and anti-pattern static analysis
-    enforceSelectStar: true, // Prohibits unbounded SELECT * queries in data access layers
-    enforcePagination: true, // Requires explicit limit/pagination on collection queries
-    enforceNPlusOneDetection: true, // Statically detects N+1 query patterns inside array loops
+    enabled: true, // Database query performance settings
+    excludeMigrationsDir: true, // Excludes SQL migration files from runtime query scans
     exemptSelectStarPaths: ['src/persistence/views/billing_ledger_export.sql'] // Views exempt from SELECT * checks
   },
 
   securityHardening: {
     enabled: true, // Static security hygiene and OWASP Top 10 hardening guardrails
-    enforceInsecureRandom: true, // Prohibits Math.random() for security-sensitive operations in favor of crypto.getRandomValues()
-    enforceVulnerableRegex: true, // Statically detects polynomial/exponential regular expressions vulnerable to ReDoS
-    enforceEvalDetection: true // Prohibits eval(), new Function(), and dangerous dynamic code evaluation
+    exemptPaths: []
   },
 
   codeSimplification: {
     enabled: true, // Pragmatic code complexity and anti-pattern static governance
     maxNestingDepth: 4, // Maximum nested control-flow depth (if/for/while) allowed before mandating guard clauses
-    maxBooleanParams: 2, // Maximum consecutive boolean parameters in function signatures to avoid boolean traps
-    maxSwitchCases: 10 // Maximum cases per switch statement before mandating polymorphic dispatch
+    allowMatrixLoops: false
   },
 
   scssArchitecture: {
     enabled: true, // SCSS modular styling architecture and token hygiene
-    maxNestingDepth: 4, // Maximum selector nesting depth allowed in SCSS and Vue SFC <style> blocks
-    enforceThemeTokens: true, // Mandates using design system theme tokens and SCSS variables for styling values
-    bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc'] // Obsolete print/physical units strictly prohibited in web stylesheets
+    maxNestingDepth: 3, // Maximum global selector nesting depth allowed in SCSS files
+    scopedMaxNestingDepth: 4, // Maximum selector nesting depth allowed in Vue SFC <style scoped> blocks
+    allowPixelArtSpacing: false,
+    allowedSpacingUnits: [],
+    allowScopedColors: false
   },
 
   domain: {
