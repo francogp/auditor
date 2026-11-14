@@ -28,13 +28,14 @@ import {
   SATELLITE_CONFIG_EXPLANATIONS
 } from '../../core/auditContract.ts';
 import {
+  type AnyRuleFixerFn,
   BaseAuditor,
   createUniformRemediationPhases,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
 import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
 import { isPathContained, toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
-import { tryCatchSync, safeJsonParse } from '../../core/safeUtils.ts';
+import { tryCatchSync, safeJsonParse, safeReadFileSync } from '../../core/safeUtils.ts';
 import {
   deepCompareSatelliteConfig,
   mergeSatelliteConfigProjection
@@ -737,18 +738,42 @@ function repairSkippedSourceDotdir(
   return modified;
 }
 
+function isSsotDeclaredRedundantEntry(
+  diag: FallowWorkspaceDiagnosticItem,
+  auditConfig: ReturnType<typeof getAuditConfig>
+): boolean {
+  if (!diag.pattern) return false;
+  if (diag.kind === 'ignore-patterns-entry-redundant') {
+    return collectDeclaredFallowIgnorePatterns(auditConfig).includes(
+      normalizePosixPath(diag.pattern)
+    );
+  }
+  if (diag.kind === 'ignore-dependencies-entry-redundant') {
+    return collectDeclaredFallowIgnoreDependencies(auditConfig).includes(diag.pattern);
+  }
+  if (diag.kind === 'entry-pattern-redundant') {
+    return (projectFallowConfigFromAuditConfig(auditConfig).entry ?? []).includes(diag.pattern);
+  }
+  return false;
+}
+
 export function validateFallowWorkspaceDiagnostics(
   diagnostics: readonly FallowWorkspaceDiagnosticItem[] | undefined,
   auditor: ValidateFallowConfigAuditor,
   config?: FallowConfigSchema
 ): boolean {
   if (!Array.isArray(diagnostics)) return false;
+  const auditConfig = getAuditConfig(auditor.projectRoot);
   let modified = false;
   for (const d of diagnostics) {
     if (d.kind === 'boundaries-not-configured' || d.kind === 'rule-packs-not-configured') {
       continue;
     }
     const isRedundantConfigEntry = Boolean(d.kind && REDUNDANT_CONFIG_DIAGNOSTIC_SET.has(d.kind));
+
+    if (isRedundantConfigEntry && isSsotDeclaredRedundantEntry(d, auditConfig)) {
+      continue;
+    }
 
     if (
       isRedundantConfigEntry &&
@@ -1291,6 +1316,19 @@ export const FALLOW_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<FallowConfi
   generateDefaultContent: () => createDefaultFallowConfigContent()
 };
 
+const FALLOW_CONFIG_FIXERS: Partial<Record<FallowConfigRuleId, AnyRuleFixerFn>> = {
+  'fallow-config-workspace-diagnostic': ({ projectRoot }): void => {
+    const configPath = path.resolve(projectRoot, '.fallowrc.json');
+    const parsed = safeJsonParse<FallowConfigSchema>(safeReadFileSync(configPath) ?? '');
+    if (!parsed) return;
+    const auditConfig = getAuditConfig(projectRoot);
+    const projected = projectFallowConfigFromAuditConfig(auditConfig);
+    if (applyFallowConfigFixes(parsed, projected, auditConfig)) {
+      fs.writeFileSync(configPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
+    }
+  }
+};
+
 export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId> {
   public static readonly cachePaths = ['.fallow'] as const;
 
@@ -1308,7 +1346,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
     };
 
     super({
-      ruleFixers: {},
+      ruleFixers: FALLOW_CONFIG_FIXERS,
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {

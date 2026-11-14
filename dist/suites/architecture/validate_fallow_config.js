@@ -8,7 +8,7 @@ import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { isPathContained, toPosixRelative } from "../../core/safePath.js";
-import { safeJsonParse, tryCatchSync } from "../../core/safeUtils.js";
+import { safeJsonParse, safeReadFileSync, tryCatchSync } from "../../core/safeUtils.js";
 import { deepCompareSatelliteConfig, mergeSatelliteConfigProjection } from "../../core/satelliteConfigParity.js";
 import { getAllowedSatellitePathExcludes, validateSatelliteUndeclaredEntries } from "../../core/satelliteGlobMatcher.js";
 import "./validate_fallow.js";
@@ -464,12 +464,21 @@ function repairSkippedSourceDotdir(d, config) {
 	}
 	return modified;
 }
+function isSsotDeclaredRedundantEntry(diag, auditConfig) {
+	if (!diag.pattern) return false;
+	if (diag.kind === "ignore-patterns-entry-redundant") return collectDeclaredFallowIgnorePatterns(auditConfig).includes(normalizePosixPath(diag.pattern));
+	if (diag.kind === "ignore-dependencies-entry-redundant") return collectDeclaredFallowIgnoreDependencies(auditConfig).includes(diag.pattern);
+	if (diag.kind === "entry-pattern-redundant") return (projectFallowConfigFromAuditConfig(auditConfig).entry ?? []).includes(diag.pattern);
+	return false;
+}
 function validateFallowWorkspaceDiagnostics(diagnostics, auditor, config) {
 	if (!Array.isArray(diagnostics)) return false;
+	const auditConfig = getAuditConfig(auditor.projectRoot);
 	let modified = false;
 	for (const d of diagnostics) {
 		if (d.kind === "boundaries-not-configured" || d.kind === "rule-packs-not-configured") continue;
 		const isRedundantConfigEntry = Boolean(d.kind && REDUNDANT_CONFIG_DIAGNOSTIC_SET.has(d.kind));
+		if (isRedundantConfigEntry && isSsotDeclaredRedundantEntry(d, auditConfig)) continue;
 		if (isRedundantConfigEntry && auditor.isFixActive() && pruneRedundantFallowConfigDiagnostic(d, config)) {
 			modified = true;
 			continue;
@@ -819,6 +828,13 @@ const FALLOW_CONFIG_REQUIREMENT = {
 	ruleId: "fallow-config-missing",
 	generateDefaultContent: () => createDefaultFallowConfigContent()
 };
+const FALLOW_CONFIG_FIXERS = { "fallow-config-workspace-diagnostic": ({ projectRoot }) => {
+	const configPath = path.resolve(projectRoot, ".fallowrc.json");
+	const parsed = safeJsonParse(safeReadFileSync(configPath) ?? "");
+	if (!parsed) return;
+	const auditConfig = getAuditConfig(projectRoot);
+	if (applyFallowConfigFixes(parsed, projectFallowConfigFromAuditConfig(auditConfig), auditConfig)) fs.writeFileSync(configPath, JSON.stringify(parsed, null, 2) + "\n", "utf-8");
+} };
 var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends BaseAuditor {
 	static cachePaths = [".fallow"];
 	constructor(options = {}) {
@@ -831,7 +847,7 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 			candidateFiles: [relConfig]
 		};
 		super({
-			ruleFixers: {},
+			ruleFixers: FALLOW_CONFIG_FIXERS,
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
