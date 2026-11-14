@@ -529,18 +529,24 @@ function mapUnusedExportFindings(
   }));
 }
 
+export const FALLOW_RUNTIME_COMPANIONS: ReadonlySet<string> = new Set<string>([
+  'fallow-similar-code'
+]);
+
 function mapUnusedDepFindings(
   deps: readonly { path?: string; package_name: string; line?: number }[] | undefined,
   projectRoot: string
 ): FallowFindingItem[] {
-  return (deps || []).map((d) => ({
-    file: path.resolve(projectRoot, d.path || 'package.json'),
-    line: d.line || 1,
-    message: `Unused dependency in package.json (Fallow): '${d.package_name}'`,
-    context: d.package_name,
-    ruleId: 'fallow-unused-dependencies',
-    severity: 'error'
-  }));
+  return (deps || [])
+    .filter((d) => !FALLOW_RUNTIME_COMPANIONS.has(d.package_name))
+    .map((d) => ({
+      file: path.resolve(projectRoot, d.path || 'package.json'),
+      line: d.line || 1,
+      message: `Unused dependency in package.json (Fallow): '${d.package_name}'`,
+      context: d.package_name,
+      ruleId: 'fallow-unused-dependencies',
+      severity: 'error'
+    }));
 }
 
 function mapCircularDepFindings(

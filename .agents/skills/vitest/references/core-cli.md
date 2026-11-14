@@ -168,7 +168,6 @@ vitest --merge-reports=reports --reporter=junit --reporter=default
 ## Watch Mode Keyboard Shortcuts
 
 In watch mode, press:
-
 - `a` - Run all tests
 - `f` - Run only failed tests
 - `u` - Update snapshots
@@ -186,7 +185,7 @@ In watch mode, press:
 - `--merge-reports` and `--reporter=blob` do not work in watch mode (`--merge-reports` now handles non-sharded multi-environment runs)
 - v5: use `-p` as shorthand for `--project`; `vitest doctor` suggests faster config
 
-<!--
+<!-- 
 Source references:
 - https://vitest.dev/guide/cli.html
 -->

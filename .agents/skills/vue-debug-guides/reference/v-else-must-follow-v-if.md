@@ -23,11 +23,12 @@ In most modern Vue projects using Single File Components, this is caught at buil
 - [ ] If you need content between conditions, restructure using nested conditionals or computed
 
 **Incorrect:**
-
 ```html
 <!-- WRONG: v-else not immediately after v-if -->
 <template>
-  <div v-if="isLoggedIn">Welcome back!</div>
+  <div v-if="isLoggedIn">
+    Welcome back!
+  </div>
 
   <p>Some other content in between</p>
 
@@ -53,18 +54,20 @@ In most modern Vue projects using Single File Components, this is caught at buil
 <template>
   <div v-if="showA">A</div>
   Just some text here
-  <div v-else>B</div>
-  <!-- Not recognized, always renders -->
+  <div v-else>B</div>  <!-- Not recognized, always renders -->
 </template>
 ```
 
 **Correct:**
-
 ```html
 <!-- CORRECT: v-else immediately follows v-if -->
 <template>
-  <div v-if="isLoggedIn">Welcome back!</div>
-  <div v-else>Please log in</div>
+  <div v-if="isLoggedIn">
+    Welcome back!
+  </div>
+  <div v-else>
+    Please log in
+  </div>
 
   <p>Some other content (placed after the conditional block)</p>
 </template>
@@ -103,7 +106,9 @@ In most modern Vue projects using Single File Components, this is caught at buil
     <div v-else>Please log in</div>
   </div>
 
-  <div class="always-shown">Some other content</div>
+  <div class="always-shown">
+    Some other content
+  </div>
 
   <div class="another-conditional">
     <div v-if="showMore">More info</div>
@@ -128,5 +133,4 @@ In most modern Vue projects using Single File Components, this is caught at buil
 ```
 
 ## Reference
-
 - [Vue.js Conditional Rendering - v-else](https://vuejs.org/guide/essentials/conditional.html#v-else)

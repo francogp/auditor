@@ -36,21 +36,20 @@ props: {
 ## Using PropType for Complex Types
 
 **Import and use PropType:**
-
 ```typescript
-import { defineComponent, PropType } from 'vue';
+import { defineComponent, PropType } from 'vue'
 // or
-import type { PropType } from 'vue';
+import type { PropType } from 'vue'
 
 interface User {
-  id: number;
-  name: string;
-  email: string;
+  id: number
+  name: string
+  email: string
 }
 
 interface Config {
-  theme: 'light' | 'dark';
-  maxItems: number;
+  theme: 'light' | 'dark'
+  maxItems: number
 }
 
 export default defineComponent({
@@ -95,12 +94,12 @@ export default defineComponent({
   methods: {
     async handleSubmit() {
       // Full type inference!
-      await this.onSubmit(this.user); // onSubmit is properly typed
-      console.log(this.user.email); // user.email is string
-      console.log(this.config.theme); // theme is 'light' | 'dark'
+      await this.onSubmit(this.user)  // onSubmit is properly typed
+      console.log(this.user.email)    // user.email is string
+      console.log(this.config.theme)  // theme is 'light' | 'dark'
     }
   }
-});
+})
 ```
 
 ## Important: Runtime vs Compile-Time
@@ -196,12 +195,12 @@ You might think to skip `PropType`:
 ```typescript
 // WRONG - doesn't work as expected
 props: {
-  user: Object as User; // TypeScript error or incorrect inference
+  user: Object as User  // TypeScript error or incorrect inference
 }
 
 // CORRECT - use PropType
 props: {
-  user: Object as PropType<User>;
+  user: Object as PropType<User>
 }
 ```
 

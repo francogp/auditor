@@ -17,6 +17,7 @@ import {
 import { getPackageJson } from '../../core/packageJson.ts';
 import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 import { safeReadFileSync, safeJsonParse, safeRmSync, tryOrNull } from '../../core/safeUtils.ts';
+import { FALLOW_RUNTIME_COMPANIONS } from './validate_fallow.ts';
 
 enableCompileCache();
 
@@ -647,12 +648,16 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     const fallowIgnoredDeps = this.resolveFallowIgnoredDependencies();
     const scriptReferencedDeps = Array.from(extractReferencedScriptDependencies(this.projectRoot));
     const implicitTestDeps = this.resolveImplicitCoverageDependencies();
+    const pkg = getPackageJson(this.projectRoot);
+    const hasFallow = Boolean(pkg?.dependencies?.fallow || pkg?.devDependencies?.fallow);
+    const fallowCompanionDeps = hasFallow ? Array.from(FALLOW_RUNTIME_COMPANIONS) : [];
     const allIgnoredDeps = Array.from(
       new Set([
         ...customIgnoredDeps,
         ...fallowIgnoredDeps,
         ...scriptReferencedDeps,
-        ...implicitTestDeps
+        ...implicitTestDeps,
+        ...fallowCompanionDeps
       ])
     );
     const customIgnoredBinaries = config.packageHygiene?.ignoreBinaries ?? [];

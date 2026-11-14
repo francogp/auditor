@@ -22,41 +22,42 @@ Template expressions including function calls are evaluated whenever the compone
 - [ ] Avoid expensive computations; use computed properties for caching
 
 **Incorrect:**
-
 ```vue
 <script setup>
-import { ref } from 'vue';
+import { ref } from 'vue'
 
-const count = ref(0);
-const items = ref([/* large array */]);
+const count = ref(0)
+const items = ref([/* large array */])
 
 // BAD: Has side effect - modifies state
 function incrementAndGet() {
-  count.value++; // Side effect!
-  return count.value;
+  count.value++  // Side effect!
+  return count.value
 }
 
 // BAD: Async operation in template
 async function fetchUserName() {
-  const res = await fetch('/api/user'); // Side effect!
-  return (await res.json()).name;
+  const res = await fetch('/api/user')  // Side effect!
+  return (await res.json()).name
 }
 
 // BAD: Logging is a side effect
 function logAndFormat(date) {
-  console.log('Formatting date:', date); // Side effect!
-  return new Date(date).toLocaleDateString();
+  console.log('Formatting date:', date)  // Side effect!
+  return new Date(date).toLocaleDateString()
 }
 
 // BAD: Expensive, runs every render without caching
 function filterAndSort(items) {
-  return items.filter((i) => i.active).sort((a, b) => a.name.localeCompare(b.name));
+  return items
+    .filter(i => i.active)
+    .sort((a, b) => a.name.localeCompare(b.name))
 }
 
 // BAD: Non-deterministic
 function getRandomGreeting() {
-  const greetings = ['Hello', 'Hi', 'Hey'];
-  return greetings[Math.floor(Math.random() * greetings.length)];
+  const greetings = ['Hello', 'Hi', 'Hey']
+  return greetings[Math.floor(Math.random() * greetings.length)]
 }
 </script>
 
@@ -83,40 +84,41 @@ function getRandomGreeting() {
 ```
 
 **Correct:**
-
 ```vue
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue'
 
-const count = ref(0);
-const userName = ref('');
-const date = ref(new Date());
-const items = ref([/* large array */]);
+const count = ref(0)
+const userName = ref('')
+const date = ref(new Date())
+const items = ref([/* large array */])
 
 // Side effects in event handlers
 function increment() {
-  count.value++;
+  count.value++
 }
 
 // Fetch data in lifecycle hook
 onMounted(async () => {
-  const res = await fetch('/api/user');
-  userName.value = (await res.json()).name;
-});
+  const res = await fetch('/api/user')
+  userName.value = (await res.json()).name
+})
 
 // Pure function - same input, same output
 function formatDate(date) {
-  return new Date(date).toLocaleDateString();
+  return new Date(date).toLocaleDateString()
 }
 
 // Computed property - cached, only recalculates when dependencies change
 const filteredAndSortedItems = computed(() => {
-  return items.value.filter((i) => i.active).sort((a, b) => a.name.localeCompare(b.name));
-});
+  return items.value
+    .filter(i => i.active)
+    .sort((a, b) => a.name.localeCompare(b.name))
+})
 
 // Set random value once, not on every render
-const greetings = ['Hello', 'Hi', 'Hey'];
-const greeting = ref(greetings[Math.floor(Math.random() * greetings.length)]);
+const greetings = ['Hello', 'Hi', 'Hey']
+const greeting = ref(greetings[Math.floor(Math.random() * greetings.length)])
 </script>
 
 <template>
@@ -145,7 +147,6 @@ const greeting = ref(greetings[Math.floor(Math.random() * greetings.length)]);
 ## Pure Function Guidelines
 
 A pure function:
-
 1. Given the same inputs, always returns the same output
 2. Does not modify any external state
 3. Does not perform I/O operations (network, console, file system)
@@ -154,34 +155,33 @@ A pure function:
 ```javascript
 // PURE - safe for templates
 function formatCurrency(amount, currency = 'USD') {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
 }
 
 function fullName(first, last) {
-  return `${first} ${last}`;
+  return `${first} ${last}`
 }
 
 function isExpired(date) {
-  return new Date(date) < new Date();
+  return new Date(date) < new Date()
 }
 
 // IMPURE - unsafe for templates
 function logAndReturn(value) {
-  console.log(value); // I/O
-  return value;
+  console.log(value)  // I/O
+  return value
 }
 
 function getFromLocalStorage(key) {
-  return localStorage.getItem(key); // External state
+  return localStorage.getItem(key)  // External state
 }
 
 function updateAndReturn(obj, key, value) {
-  obj[key] = value; // Mutation
-  return obj;
+  obj[key] = value  // Mutation
+  return obj
 }
 ```
 
 ## Reference
-
 - [Vue.js Template Syntax - Calling Functions](https://vuejs.org/guide/essentials/template-syntax.html#calling-functions)
 - [Vue.js Computed Properties](https://vuejs.org/guide/essentials/computed.html)

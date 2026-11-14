@@ -20,30 +20,28 @@ tags: [vue3, provide-inject, composition-api, memory, shared-state]
 ## The Gotcha: Shared Default References
 
 **Wrong - Object literal creates shared reference:**
-
 ```vue
 <script setup>
-import { inject } from 'vue';
+import { inject } from 'vue'
 
 // WRONG: All components without a provider share this SAME object
-const config = inject('config', { debug: false, apiUrl: '' });
+const config = inject('config', { debug: false, apiUrl: '' })
 
 // If one component does this:
-config.debug = true;
+config.debug = true
 
 // ALL other components using this default now have debug: true!
 </script>
 ```
 
 **Correct - Factory function creates unique instance:**
-
 ```vue
 <script setup>
-import { inject } from 'vue';
+import { inject } from 'vue'
 
 // CORRECT: Each component gets its own object
 // Third argument `true` indicates the second arg is a factory function
-const config = inject('config', () => ({ debug: false, apiUrl: '' }), true);
+const config = inject('config', () => ({ debug: false, apiUrl: '' }), true)
 </script>
 ```
 
@@ -53,10 +51,10 @@ The `inject()` function has multiple signatures:
 
 ```ts
 // Simple default value (OK for primitives)
-inject(key, defaultValue);
+inject(key, defaultValue)
 
 // Factory function for non-primitives (REQUIRED for objects/arrays)
-inject(key, factoryFunction, true);
+inject(key, factoryFunction, true)
 ```
 
 The third argument `true` tells Vue that the second argument is a factory function, not the default value itself.
@@ -67,12 +65,12 @@ The third argument `true` tells Vue that the second argument is a factory functi
 
 ```vue
 <script setup>
-import { inject } from 'vue';
+import { inject } from 'vue'
 
 // Primitives are safe without factory
-const count = inject('count', 0);
-const name = inject('name', 'Guest');
-const enabled = inject('enabled', false);
+const count = inject('count', 0)
+const name = inject('name', 'Guest')
+const enabled = inject('enabled', false)
 </script>
 ```
 
@@ -80,28 +78,20 @@ const enabled = inject('enabled', false);
 
 ```vue
 <script setup>
-import { inject } from 'vue';
+import { inject } from 'vue'
 
 // Objects MUST use factory
-const user = inject(
-  'user',
-  () => ({
-    id: null,
-    name: 'Anonymous',
-    preferences: {}
-  }),
-  true
-);
+const user = inject('user', () => ({
+  id: null,
+  name: 'Anonymous',
+  preferences: {}
+}), true)
 
-const settings = inject(
-  'settings',
-  () => ({
-    theme: 'light',
-    language: 'en',
-    notifications: true
-  }),
-  true
-);
+const settings = inject('settings', () => ({
+  theme: 'light',
+  language: 'en',
+  notifications: true
+}), true)
 </script>
 ```
 
@@ -109,11 +99,11 @@ const settings = inject(
 
 ```vue
 <script setup>
-import { inject } from 'vue';
+import { inject } from 'vue'
 
 // Arrays MUST use factory
-const items = inject('items', () => [], true);
-const permissions = inject('permissions', () => ['read'], true);
+const items = inject('items', () => [], true)
+const permissions = inject('permissions', () => ['read'], true)
 </script>
 ```
 
@@ -121,11 +111,11 @@ const permissions = inject('permissions', () => ['read'], true);
 
 ```vue
 <script setup>
-import { inject } from 'vue';
-import { Logger } from '@/utils/logger';
+import { inject } from 'vue'
+import { Logger } from '@/utils/logger'
 
 // Class instances MUST use factory
-const logger = inject('logger', () => new Logger({ level: 'warn' }), true);
+const logger = inject('logger', () => new Logger({ level: 'warn' }), true)
 </script>
 ```
 
@@ -154,7 +144,7 @@ export default {
       default: () => []
     }
   }
-};
+}
 ```
 
 ## Real-World Example: Form Context
@@ -162,35 +152,31 @@ export default {
 ```vue
 <!-- FormProvider.vue -->
 <script setup>
-import { provide, reactive } from 'vue';
+import { provide, reactive } from 'vue'
 
 const formContext = reactive({
   values: {},
   errors: {},
   touched: {},
   isSubmitting: false
-});
+})
 
-provide('formContext', formContext);
+provide('formContext', formContext)
 </script>
 
 <!-- FormField.vue (might be used outside FormProvider) -->
 <script setup>
-import { inject } from 'vue';
+import { inject } from 'vue'
 
 // Safe default that won't be shared
-const formContext = inject(
-  'formContext',
-  () => ({
-    values: {},
-    errors: {},
-    touched: {},
-    isSubmitting: false,
-    // Mark as standalone mode
-    isStandalone: true
-  }),
-  true
-);
+const formContext = inject('formContext', () => ({
+  values: {},
+  errors: {},
+  touched: {},
+  isSubmitting: false,
+  // Mark as standalone mode
+  isStandalone: true
+}), true)
 
 // Component works both inside and outside FormProvider
 </script>
@@ -199,27 +185,23 @@ const formContext = inject(
 ## TypeScript: Typing Factory Defaults
 
 ```ts
-import { inject } from 'vue';
-import type { InjectionKey } from 'vue';
+import { inject } from 'vue'
+import type { InjectionKey } from 'vue'
 
 interface Config {
-  apiUrl: string;
-  debug: boolean;
-  features: string[];
+  apiUrl: string
+  debug: boolean
+  features: string[]
 }
 
-const ConfigKey: InjectionKey<Config> = Symbol('config');
+const ConfigKey: InjectionKey<Config> = Symbol('config')
 
 // TypeScript understands the factory return type
-const config = inject(
-  ConfigKey,
-  () => ({
-    apiUrl: 'https://api.example.com',
-    debug: false,
-    features: []
-  }),
-  true
-);
+const config = inject(ConfigKey, () => ({
+  apiUrl: 'https://api.example.com',
+  debug: false,
+  features: []
+}), true)
 ```
 
 ## Common Mistake in Testing
@@ -228,20 +210,19 @@ This gotcha often appears in tests where components are rendered without provide
 
 ```ts
 // test.spec.ts
-import { mount } from '@vue/test-utils';
-
-import MyComponent from './MyComponent.vue';
+import { mount } from '@vue/test-utils'
+import MyComponent from './MyComponent.vue'
 
 // Without provider, all test instances share the wrong default
 it('test 1', () => {
-  const wrapper = mount(MyComponent);
-  wrapper.vm.config.debug = true; // Pollutes other tests!
-});
+  const wrapper = mount(MyComponent)
+  wrapper.vm.config.debug = true // Pollutes other tests!
+})
 
 it('test 2', () => {
-  const wrapper = mount(MyComponent);
+  const wrapper = mount(MyComponent)
   // Might fail because debug is still true from test 1
-});
+})
 ```
 
 **Fix: Use factory functions in the component, or provide in tests:**
@@ -254,11 +235,10 @@ it('test with provider', () => {
         config: { debug: false, apiUrl: '' }
       }
     }
-  });
-});
+  })
+})
 ```
 
 ## Reference
-
 - [Vue.js inject() API Reference](https://vuejs.org/api/composition-api-dependency-injection.html#inject)
 - [Vue.js Provide/Inject Guide](https://vuejs.org/guide/components/provide-inject.html)

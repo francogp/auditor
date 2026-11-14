@@ -10,16 +10,18 @@ Reactive element's overflow state.
 
 ```vue
 <script setup>
-import { useElementOverflow } from '@vueuse/core';
-import { useTemplateRef } from 'vue';
+import { useElementOverflow } from '@vueuse/core'
+import { useTemplateRef } from 'vue'
 
-const el = useTemplateRef('el');
-const { isXOverflowed } = useElementOverflow(el);
+const el = useTemplateRef('el')
+const { isXOverflowed } = useElementOverflow(el)
 </script>
 
 <template>
   <div ref="el" style="width: 100px;overflow: hidden;">
-    <button v-if="isXOverflowed">show more</button>
+    <button v-if="isXOverflowed">
+      show more
+    </button>
     <span v-else>some words may be too long to show here</span>
   </div>
 </template>
@@ -29,12 +31,14 @@ const { isXOverflowed } = useElementOverflow(el);
 
 ```vue
 <script setup lang="ts">
-import { UseElementOverflow } from '@vueuse/components';
+import { UseElementOverflow } from '@vueuse/components'
 </script>
 
 <template>
   <UseElementOverflow v-slot="{ isXOverflowed }" style="width: 100px;overflow: hidden;">
-    <button v-if="isXOverflowed">show more</button>
+    <button v-if="isXOverflowed">
+      show more
+    </button>
     <span v-else>some words may be too long to show here</span>
   </UseElementOverflow>
 </template>
@@ -64,7 +68,9 @@ export default {
 
 <template>
   <div v-element-overflow="onXOverflowChanged" style="width: 100px;overflow: hidden;">
-    <button v-if="isXOverflowed">show more</button>
+    <button v-if="isXOverflowed">
+      show more
+    </button>
     <span v-else>some words may be too long to show here</span>
   </div>
 </template>
@@ -79,11 +85,11 @@ export interface UseElementOverflowOptions extends ConfigurableWindow {
    *
    * @default false
    */
-  observeMutation?: boolean | MutationObserverInit;
+  observeMutation?: boolean | MutationObserverInit
   /**
    * Callback when observer triggered.
    */
-  onUpdated?: ResizeObserverCallback | MutationCallback;
+  onUpdated?: ResizeObserverCallback | MutationCallback
 }
 /**
  * react a dom's overflow state
@@ -93,12 +99,12 @@ export interface UseElementOverflowOptions extends ConfigurableWindow {
  */
 export declare function useElementOverflow(
   target: MaybeComputedElementRef,
-  option?: UseElementOverflowOptions
+  option?: UseElementOverflowOptions,
 ): {
-  isXOverflowed: Readonly<ShallowRef<boolean, boolean>>;
-  isYOverflowed: Readonly<ShallowRef<boolean, boolean>>;
-  stop: typeof stop;
-  update: () => void;
-};
-export type UseElementOverflowReturn = ReturnType<typeof useElementOverflow>;
+  isXOverflowed: Readonly<ShallowRef<boolean, boolean>>
+  isYOverflowed: Readonly<ShallowRef<boolean, boolean>>
+  stop: typeof stop
+  update: () => void
+}
+export type UseElementOverflowReturn = ReturnType<typeof useElementOverflow>
 ```

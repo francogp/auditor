@@ -10,47 +10,49 @@ Fires when users start typing on non-editable elements. Useful for auto-focusing
 
 ```vue
 <script setup lang="ts">
-import { onStartTyping } from '@vueuse/core';
-import { useTemplateRef } from 'vue';
+import { onStartTyping } from '@vueuse/core'
+import { useTemplateRef } from 'vue'
 
-const input = useTemplateRef('input');
+const input = useTemplateRef('input')
 
 onStartTyping(() => {
-  if (!input.value.active) input.value.focus();
-});
+  if (!input.value.active)
+    input.value.focus()
+})
 </script>
 
 <template>
-  <input ref="input" type="text" placeholder="Start typing to focus" />
+  <input ref="input" type="text" placeholder="Start typing to focus">
 </template>
 ```
 
 ## Custom Valid Key
 
 ```ts
-import { onStartTyping } from '@vueuse/core';
+import { onStartTyping } from '@vueuse/core'
 
 onStartTyping(handleKey, {
   // only allow numbers
-  isTypedCharValid: (e) => /^\d$/.test(e.key)
-});
+  isTypedCharValid: e => /^\d$/.test(e.key)
+})
 ```
 
 ## Custom Editable Element
 
 ```ts
-import { isFocusedElementEditable as defaultEditable, onStartTyping } from '@vueuse/core';
+import { isFocusedElementEditable as defaultEditable, onStartTyping } from '@vueuse/core'
 
 onStartTyping(handleKey, {
   isFocusedElementEditable: () => {
-    const { activeElement } = document;
+    const { activeElement } = document
 
     // Exclude elements with id 'targetInput'
-    if (activeElement?.id === 'targetInput') return true;
+    if (activeElement?.id === 'targetInput')
+      return true
 
-    return defaultEditable();
+    return defaultEditable()
   }
-});
+})
 ```
 
 ## How It Works
@@ -68,16 +70,16 @@ Both `isFocusedElementEditable` and `isTypedCharValid` are also exported as util
 ## Type Declarations
 
 ```ts
-export declare function isFocusedElementEditable(): boolean;
+export declare function isFocusedElementEditable(): boolean
 export declare function isTypedCharValid({
   keyCode,
   metaKey,
   ctrlKey,
-  altKey
-}: KeyboardEvent): boolean;
+  altKey,
+}: KeyboardEvent): boolean
 export interface OnStartTypingOptions extends ConfigurableDocument {
-  isTypedCharValid?: (event: KeyboardEvent) => boolean;
-  isFocusedElementEditable?: () => boolean;
+  isTypedCharValid?: (event: KeyboardEvent) => boolean
+  isFocusedElementEditable?: () => boolean
 }
 /**
  * Fires when users start typing on non-editable elements.
@@ -88,6 +90,6 @@ export interface OnStartTypingOptions extends ConfigurableDocument {
  */
 export declare function onStartTyping(
   callback: (event: KeyboardEvent) => void,
-  options?: OnStartTypingOptions
-): void;
+  options?: OnStartTypingOptions,
+): void
 ```

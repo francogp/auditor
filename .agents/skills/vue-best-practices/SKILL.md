@@ -4,7 +4,7 @@ description: MUST be used for Vue.js tasks. Strongly recommends Composition API 
 license: MIT
 metadata:
   author: github.com/vuejs-ai
-  version: '19.1.0'
+  version: "19.1.0"
 ---
 
 # Vue Best Practices Workflow
@@ -12,7 +12,6 @@ metadata:
 Use this skill as an instruction set. Follow the workflow in order unless the user explicitly asks for a different order.
 
 ## Core Principles
-
 - **Keep state predictable:** one source of truth, derive everything else.
 - **Make data flow explicit:** Props down, Events up for most cases.
 - **Decompose by responsibility:** keep each implementation focused and the contracts between implementations explicit.

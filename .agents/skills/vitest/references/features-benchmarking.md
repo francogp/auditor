@@ -10,17 +10,17 @@ In v5 the benchmark API was rewritten: `bench` is **no longer a top-level import
 ## Defining & Running
 
 ```ts
-import { expect, test } from 'vitest';
+import { expect, test } from 'vitest'
 
 test('parse performance', async ({ bench }) => {
   // bench() registers; .run() executes and returns the result
   const result = await bench('parse', () => {
-    const data = JSON.parse('{"key":"value"}');
-    use(data); // consume the result — engines may eliminate dead code
-  }).run();
+    const data = JSON.parse('{"key":"value"}')
+    use(data) // consume the result — engines may eliminate dead code
+  }).run()
 
-  expect(result.throughput.mean).toBeGreaterThan(10_000);
-});
+  expect(result.throughput.mean).toBeGreaterThan(10_000)
+})
 ```
 
 Run benchmarks:
@@ -38,19 +38,15 @@ Set `benchmark: { enabled: true }` to run them alongside regular tests in a sepa
 ```ts
 test('compare parsers', async ({ bench }) => {
   const result = await bench.compare(
-    bench('JSON.parse', () => {
-      JSON.parse(input);
-    }),
-    bench('custom', { beforeEach: () => reset() }, () => {
-      customParse(input);
-    }),
-    { iterations: 100, time: 1000 } // shared Tinybench options (last arg)
-  );
+    bench('JSON.parse', () => { JSON.parse(input) }),
+    bench('custom', { beforeEach: () => reset() }, () => { customParse(input) }),
+    { iterations: 100, time: 1000 }, // shared Tinybench options (last arg)
+  )
 
   // Assertion matchers (delta avoids flaky failures)
-  expect(result.get('JSON.parse')).toBeFasterThan(result.get('custom'), { delta: 0.1 });
-  expect(result.get('custom')).toBeSlowerThan(result.get('JSON.parse'));
-});
+  expect(result.get('JSON.parse')).toBeFasterThan(result.get('custom'), { delta: 0.1 })
+  expect(result.get('custom')).toBeSlowerThan(result.get('JSON.parse'))
+})
 ```
 
 `bench.compare` interleaves iterations to reduce environmental bias and prints a comparison table after the test.
@@ -61,10 +57,10 @@ test('compare parsers', async ({ bench }) => {
 test('compare against baseline', async ({ bench }) => {
   await bench.compare(
     bench('current', { writeResult: './benchmarks/parse.json' }, () => parse(input)),
-    bench.from('previous', './benchmarks/parse.json'), // reads a stored result, no run
-    bench.from('remote', () => fetch(url).then((r) => r.json()))
-  );
-});
+    bench.from('previous', './benchmarks/parse.json'),       // reads a stored result, no run
+    bench.from('remote', () => fetch(url).then(r => r.json())),
+  )
+})
 ```
 
 - `writeResult` overwrites the JSON file on every successful run (no skip-when-cached).
@@ -82,7 +78,7 @@ test('compare against baseline', async ({ bench }) => {
 Replace the built-in Tinybench engine by pointing `benchmark.provider` at a module whose default export implements `BenchmarkProvider`:
 
 ```ts
-defineConfig({ test: { benchmark: { provider: './benchmark-provider.ts' } } });
+defineConfig({ test: { benchmark: { provider: './benchmark-provider.ts' } } })
 ```
 
 ## v5 Migration

@@ -11,16 +11,16 @@ Reactive [Web Share API](https://developer.mozilla.org/en-US/docs/Web/API/Naviga
 ## Usage
 
 ```ts
-import { useShare } from '@vueuse/core';
+import { useShare } from '@vueuse/core'
 
-const { share, isSupported } = useShare();
+const { share, isSupported } = useShare()
 
 function startShare() {
   share({
     title: 'Hello',
     text: 'Hello my friend!',
-    url: location.href
-  });
+    url: location.href,
+  })
 }
 ```
 
@@ -43,13 +43,13 @@ share()
 
 ```ts
 export interface UseShareOptions {
-  title?: string;
-  files?: File[];
-  text?: string;
-  url?: string;
+  title?: string
+  files?: File[]
+  text?: string
+  url?: string
 }
 export interface UseShareReturn extends Supportable {
-  share: (overrideOptions?: MaybeRefOrGetter<UseShareOptions>) => Promise<void>;
+  share: (overrideOptions?: MaybeRefOrGetter<UseShareOptions>) => Promise<void>
 }
 /**
  * Reactive Web Share API.
@@ -62,6 +62,6 @@ export interface UseShareReturn extends Supportable {
  */
 export declare function useShare(
   shareOptions?: MaybeRefOrGetter<UseShareOptions>,
-  options?: ConfigurableNavigator
-): UseShareReturn;
+  options?: ConfigurableNavigator,
+): UseShareReturn
 ```

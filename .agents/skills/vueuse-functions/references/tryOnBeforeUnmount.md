@@ -9,9 +9,11 @@ Safe `onBeforeUnmount`. Call `onBeforeUnmount()` if it's inside a component life
 ## Usage
 
 ```ts
-import { tryOnBeforeUnmount } from '@vueuse/core';
+import { tryOnBeforeUnmount } from '@vueuse/core'
 
-tryOnBeforeUnmount(() => {});
+tryOnBeforeUnmount(() => {
+
+})
 ```
 
 ## Type Declarations
@@ -23,5 +25,8 @@ tryOnBeforeUnmount(() => {});
  * @param fn
  * @param target
  */
-export declare function tryOnBeforeUnmount(fn: Fn, target?: ComponentInternalInstance | null): void;
+export declare function tryOnBeforeUnmount(
+  fn: Fn,
+  target?: ComponentInternalInstance | null,
+): void
 ```

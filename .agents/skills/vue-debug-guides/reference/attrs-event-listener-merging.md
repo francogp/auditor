@@ -16,12 +16,12 @@ When an event listener is passed to a component as a fallthrough attribute, it i
 ```vue
 <!-- BaseButton.vue - Potential double-action bug -->
 <script setup>
-const emit = defineEmits(['action']);
+const emit = defineEmits(['action'])
 
 function internalClick() {
   // This runs first
-  emit('action');
-  console.log('Internal click handler');
+  emit('action')
+  console.log('Internal click handler')
 }
 </script>
 
@@ -35,8 +35,8 @@ function internalClick() {
 <script setup>
 function parentClick() {
   // This ALSO runs (after internal)
-  submitForm(); // Might cause double submission!
-  console.log('Parent click handler');
+  submitForm()  // Might cause double submission!
+  console.log('Parent click handler')
 }
 </script>
 
@@ -63,14 +63,14 @@ function parentClick() {
 <script setup>
 defineOptions({
   inheritAttrs: false
-});
+})
 
-const emit = defineEmits(['click']);
+const emit = defineEmits(['click'])
 
 function handleClick(event) {
   // Component controls all click behavior
-  console.log('Handled internally');
-  emit('click', event); // Explicitly forward if needed
+  console.log('Handled internally')
+  emit('click', event)  // Explicitly forward if needed
 }
 </script>
 
@@ -93,11 +93,11 @@ function handleClick(event) {
  * The internal handler runs first, then any parent @click handler.
  * Use @action event if you only want to respond to the action.
  */
-const emit = defineEmits(['action']);
+const emit = defineEmits(['action'])
 
 function internalClick() {
   // Internal logic (e.g., ripple effect, analytics)
-  emit('action');
+  emit('action')
 }
 </script>
 
@@ -121,11 +121,11 @@ function internalClick() {
 <script setup>
 const props = defineProps({
   stopPropagation: Boolean
-});
+})
 
 function handleClick(event) {
   if (props.stopPropagation) {
-    event.stopPropagation();
+    event.stopPropagation()
   }
   // Internal handling...
 }
@@ -146,17 +146,20 @@ The additive behavior can be useful for extending functionality:
 <!-- EnhancedButton.vue - Leveraging additive listeners -->
 <script setup>
 function trackClick() {
-  analytics.track('button_click');
+  analytics.track('button_click')
   // Parent's @click will also run - that's intentional!
 }
 
 function trackFocus() {
-  analytics.track('button_focus');
+  analytics.track('button_focus')
 }
 </script>
 
 <template>
-  <button @click="trackClick" @focus="trackFocus">
+  <button
+    @click="trackClick"
+    @focus="trackFocus"
+  >
     <slot />
   </button>
 </template>
@@ -174,7 +177,7 @@ function trackFocus() {
 <script setup>
 // Component
 function componentHandler() {
-  console.log('1. Component handler (first)');
+  console.log('1. Component handler (first)')
 }
 </script>
 

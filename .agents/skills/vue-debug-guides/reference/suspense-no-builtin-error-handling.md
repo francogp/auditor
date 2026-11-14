@@ -18,7 +18,9 @@ Without explicit error handling, async errors in suspended components will propa
 <template>
   <Suspense>
     <AsyncComponent />
-    <template #fallback> Loading... </template>
+    <template #fallback>
+      Loading...
+    </template>
   </Suspense>
 </template>
 ```
@@ -27,15 +29,15 @@ Without explicit error handling, async errors in suspended components will propa
 
 ```vue
 <script setup>
-import { ref, onErrorCaptured } from 'vue';
-import AsyncComponent from './AsyncComponent.vue';
+import { ref, onErrorCaptured } from 'vue'
+import AsyncComponent from './AsyncComponent.vue'
 
-const error = ref(null);
+const error = ref(null)
 
 onErrorCaptured((err) => {
-  error.value = err;
-  return false; // Prevent error from propagating further
-});
+  error.value = err
+  return false // Prevent error from propagating further
+})
 </script>
 
 <template>
@@ -46,7 +48,9 @@ onErrorCaptured((err) => {
 
   <Suspense v-else>
     <AsyncComponent />
-    <template #fallback> Loading... </template>
+    <template #fallback>
+      Loading...
+    </template>
   </Suspense>
 </template>
 ```
@@ -56,30 +60,30 @@ onErrorCaptured((err) => {
 ```vue
 <!-- ErrorBoundary.vue -->
 <script setup>
-import { ref, onErrorCaptured } from 'vue';
+import { ref, onErrorCaptured } from 'vue'
 
 const props = defineProps({
   fallback: {
     type: String,
     default: 'Something went wrong'
   }
-});
+})
 
-const emit = defineEmits(['error']);
+const emit = defineEmits(['error'])
 
-const error = ref(null);
+const error = ref(null)
 
 onErrorCaptured((err, instance, info) => {
-  error.value = { err, instance, info };
-  emit('error', { err, instance, info });
-  return false;
-});
+  error.value = { err, instance, info }
+  emit('error', { err, instance, info })
+  return false
+})
 
 const reset = () => {
-  error.value = null;
-};
+  error.value = null
+}
 
-defineExpose({ reset });
+defineExpose({ reset })
 </script>
 
 <template>

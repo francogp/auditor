@@ -4,16 +4,16 @@ Inspect the repository before you change it. Record what you find, because the l
 
 ## Files to inspect
 
-| Tool area         | Signals                                                                                                                                                    |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Package manager   | `packageManager` in `package.json`; the lockfile: `pnpm-lock.yaml`, `yarn.lock`, `bun.lock` or `bun.lockb`, `package-lock.json`                            |
-| Formatter         | `.oxfmtrc.json`, `.oxfmtrc.jsonc`, `oxfmt.config.*`, `.prettierrc*`, `prettier.config.*`, `biome.json`, `biome.jsonc`, a `format` script in `package.json` |
-| Linter            | `.oxlintrc.json`, `.oxlintrc.jsonc`, `oxlint.config.{ts,mts}`, `eslint.config.*`, `.eslintrc*`, `biome.json`, a `lint` script in `package.json`            |
-| TypeScript        | `tsconfig.json`, `tsconfig.*.json`, a `typecheck` script, `typescript` in `devDependencies`                                                                |
-| CI                | `.github/workflows/*.yml`, `.gitlab-ci.yml`, other CI config files                                                                                         |
-| Existing analysis | `knip.json`, `knip.jsonc`, `.knip.json`, `.knip.jsonc`, a `knip` field in `package.json`; `.jscpd.json`; `.dependency-cruiser.*`                           |
-| Existing Fallow   | `fallow config --path` prints the config path, or exits 3 when there is no config                                                                          |
-| Agent harnesses   | `CLAUDE.md`, `.claude/`, `.codex/`, `.cursor/` (`AGENTS.md` alone does not name a harness)                                                                 |
+| Tool area | Signals |
+|---|---|
+| Package manager | `packageManager` in `package.json`; the lockfile: `pnpm-lock.yaml`, `yarn.lock`, `bun.lock` or `bun.lockb`, `package-lock.json` |
+| Formatter | `.oxfmtrc.json`, `.oxfmtrc.jsonc`, `oxfmt.config.*`, `.prettierrc*`, `prettier.config.*`, `biome.json`, `biome.jsonc`, a `format` script in `package.json` |
+| Linter | `.oxlintrc.json`, `.oxlintrc.jsonc`, `oxlint.config.{ts,mts}`, `eslint.config.*`, `.eslintrc*`, `biome.json`, a `lint` script in `package.json` |
+| TypeScript | `tsconfig.json`, `tsconfig.*.json`, a `typecheck` script, `typescript` in `devDependencies` |
+| CI | `.github/workflows/*.yml`, `.gitlab-ci.yml`, other CI config files |
+| Existing analysis | `knip.json`, `knip.jsonc`, `.knip.json`, `.knip.jsonc`, a `knip` field in `package.json`; `.jscpd.json`; `.dependency-cruiser.*` |
+| Existing Fallow | `fallow config --path` prints the config path, or exits 3 when there is no config |
+| Agent harnesses | `CLAUDE.md`, `.claude/`, `.codex/`, `.cursor/` (`AGENTS.md` alone does not name a harness) |
 
 `fallow doctor --format json --quiet` checks the project root, the config, the workspaces, and the installed dependencies. It changes nothing. Run it when the project layout is not clear.
 
@@ -21,12 +21,12 @@ Inspect the repository before you change it. Record what you find, because the l
 
 Give each tool one job. Do not configure two tools for the same job.
 
-| Job                            | Tool       | Command                  |
-| ------------------------------ | ---------- | ------------------------ |
-| Formatting                     | Oxfmt      | `oxfmt`                  |
-| Local lint rules               | Oxlint     | `oxlint`                 |
-| Type correctness               | TypeScript | `tsc --noEmit`           |
-| Repository and system analysis | Fallow     | `fallow`, `fallow audit` |
+| Job | Tool | Command |
+|---|---|---|
+| Formatting | Oxfmt | `oxfmt` |
+| Local lint rules | Oxlint | `oxlint` |
+| Type correctness | TypeScript | `tsc --noEmit` |
+| Repository and system analysis | Fallow | `fallow`, `fallow audit` |
 
 Repository and system analysis covers unused files, exports, types, and dependencies, duplication, complexity, circular dependencies, architecture boundaries, and changed-code risk.
 

@@ -18,22 +18,20 @@ tags: [vue3, component-registration, naming-conflicts, global-local, debugging]
 - [ ] When overriding third-party components, document and test thoroughly
 
 **Incorrect:**
-
 ```javascript
 // main.js
-import { createApp } from 'vue';
+import { createApp } from 'vue'
+import Button from './components/Button.vue'
 
-import Button from './components/Button.vue';
-
-const app = createApp(App);
-app.component('Button', Button); // Global Button
+const app = createApp(App)
+app.component('Button', Button) // Global Button
 ```
 
 ```vue
 <!-- SomeComponent.vue -->
 <script setup>
 // This local Button might conflict with global Button
-import Button from './local/Button.vue';
+import Button from './local/Button.vue'
 </script>
 
 <template>
@@ -46,7 +44,7 @@ import Button from './local/Button.vue';
 <!-- Another confusing scenario -->
 <script setup>
 // Registering with camelCase
-import MyButton from './MyButton.vue';
+import MyButton from './MyButton.vue'
 </script>
 
 <template>
@@ -56,24 +54,22 @@ import MyButton from './MyButton.vue';
 ```
 
 **Correct:**
-
 ```javascript
 // main.js - use prefixes for global components
-import { createApp } from 'vue';
+import { createApp } from 'vue'
+import BaseButton from './components/BaseButton.vue'
+import BaseIcon from './components/BaseIcon.vue'
 
-import BaseButton from './components/BaseButton.vue';
-import BaseIcon from './components/BaseIcon.vue';
-
-const app = createApp(App);
-app.component('BaseButton', BaseButton);
-app.component('BaseIcon', BaseIcon);
+const app = createApp(App)
+app.component('BaseButton', BaseButton)
+app.component('BaseIcon', BaseIcon)
 ```
 
 ```vue
 <!-- SomeComponent.vue -->
 <script setup>
 // Local components have distinct names
-import SubmitButton from './local/SubmitButton.vue';
+import SubmitButton from './local/SubmitButton.vue'
 </script>
 
 <template>
@@ -90,7 +86,7 @@ When you intentionally want to override or have similar names, use explicit alia
 ```vue
 <script setup>
 // Explicit alias to avoid confusion
-import { default as LocalButton } from './Button.vue';
+import { default as LocalButton } from './Button.vue'
 </script>
 
 <template>
@@ -101,8 +97,8 @@ import { default as LocalButton } from './Button.vue';
 ```vue
 <!-- Options API with explicit component name -->
 <script>
-import ThirdPartyModal from 'some-library';
-import CustomModal from './CustomModal.vue';
+import ThirdPartyModal from 'some-library'
+import CustomModal from './CustomModal.vue'
 
 export default {
   components: {
@@ -110,7 +106,7 @@ export default {
     LibraryModal: ThirdPartyModal,
     CustomModal
   }
-};
+}
 </script>
 ```
 
@@ -125,7 +121,7 @@ Understanding Vue's component resolution order helps debug issues:
 ```vue
 <!-- If all exist: GlobalButton, local Button, and file is Button.vue -->
 <script setup>
-import Button from './Button.vue'; // Local registration
+import Button from './Button.vue' // Local registration
 </script>
 
 <template>
@@ -139,8 +135,8 @@ import Button from './Button.vue'; // Local registration
 ```vue
 <script setup>
 // Be explicit when using components from multiple libraries
-import { Button as AntButton } from 'ant-design-vue';
-import { Button as ElButton } from 'element-plus';
+import { Button as AntButton } from 'ant-design-vue'
+import { Button as ElButton } from 'element-plus'
 </script>
 
 <template>
@@ -151,14 +147,13 @@ import { Button as ElButton } from 'element-plus';
 
 ## Naming Convention Strategy
 
-| Component Type    | Naming Pattern            | Example                        |
-| ----------------- | ------------------------- | ------------------------------ |
-| Base/Global       | `Base*` or `App*` prefix  | `BaseButton`, `AppHeader`      |
-| Domain-specific   | Domain prefix             | `UserCard`, `ProductList`      |
-| Page components   | `*Page` or `*View` suffix | `HomePage`, `UserView`         |
-| Layout components | `*Layout` suffix          | `DefaultLayout`, `AdminLayout` |
+| Component Type | Naming Pattern | Example |
+|----------------|---------------|---------|
+| Base/Global | `Base*` or `App*` prefix | `BaseButton`, `AppHeader` |
+| Domain-specific | Domain prefix | `UserCard`, `ProductList` |
+| Page components | `*Page` or `*View` suffix | `HomePage`, `UserView` |
+| Layout components | `*Layout` suffix | `DefaultLayout`, `AdminLayout` |
 
 ## Reference
-
 - [Vue.js Component Registration](https://vuejs.org/guide/components/registration.html)
 - [GitHub Issue: Global component naming conflicts](https://github.com/vuejs/vue/issues/4434)

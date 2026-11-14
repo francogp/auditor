@@ -14,22 +14,22 @@ Stores are defined using `defineStore()` with a unique name. Each store has thre
 Similar to Vue's Options API:
 
 ```ts
-import { defineStore } from 'pinia';
+import { defineStore } from 'pinia'
 
 export const useCounterStore = defineStore('counter', {
   state: () => ({
     count: 0,
-    name: 'Eduardo'
+    name: 'Eduardo',
   }),
   getters: {
-    doubleCount: (state) => state.count * 2
+    doubleCount: (state) => state.count * 2,
   },
   actions: {
     increment() {
-      this.count++;
-    }
-  }
-});
+      this.count++
+    },
+  },
+})
 ```
 
 Think of `state` as `data`, `getters` as `computed`, and `actions` as `methods`.
@@ -39,20 +39,20 @@ Think of `state` as `data`, `getters` as `computed`, and `actions` as `methods`.
 Uses Composition API syntax - more flexible and powerful:
 
 ```ts
-import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'
+import { defineStore } from 'pinia'
 
 export const useCounterStore = defineStore('counter', () => {
-  const count = ref(0);
-  const name = ref('Eduardo');
-  const doubleCount = computed(() => count.value * 2);
+  const count = ref(0)
+  const name = ref('Eduardo')
+  const doubleCount = computed(() => count.value * 2)
 
   function increment() {
-    count.value++;
+    count.value++
   }
 
-  return { count, name, doubleCount, increment };
-});
+  return { count, name, doubleCount, increment }
+})
 ```
 
 In Setup Stores: `ref()` → state, `computed()` → getters, `function()` → actions.
@@ -63,9 +63,9 @@ In Setup Stores: `ref()` → state, `computed()` → getters, `function()` → a
 
 ```vue
 <script setup>
-import { useCounterStore } from '@/stores/counter';
+import { useCounterStore } from '@/stores/counter'
 
-const store = useCounterStore();
+const store = useCounterStore()
 // Access: store.count, store.doubleCount, store.increment()
 </script>
 ```
@@ -74,19 +74,19 @@ const store = useCounterStore();
 
 ```vue
 <script setup>
-import { storeToRefs } from 'pinia';
-import { useCounterStore } from '@/stores/counter';
+import { storeToRefs } from 'pinia'
+import { useCounterStore } from '@/stores/counter'
 
-const store = useCounterStore();
+const store = useCounterStore()
 
 // ❌ Breaks reactivity
-const { name, doubleCount } = store;
+const { name, doubleCount } = store
 
 // ✅ Preserves reactivity for state/getters
-const { name, doubleCount } = storeToRefs(store);
+const { name, doubleCount } = storeToRefs(store)
 
 // ✅ Actions can be destructured directly
-const { increment } = store;
+const { increment } = store
 </script>
 ```
 
@@ -102,39 +102,39 @@ Type inference works automatically. For complex types:
 
 ```ts
 interface UserInfo {
-  name: string;
-  age: number;
+  name: string
+  age: number
 }
 
 export const useUserStore = defineStore('user', {
   state: () => ({
     userList: [] as UserInfo[],
-    user: null as UserInfo | null
-  })
-});
+    user: null as UserInfo | null,
+  }),
+})
 ```
 
 Or use an interface for the return type:
 
 ```ts
 interface State {
-  userList: UserInfo[];
-  user: UserInfo | null;
+  userList: UserInfo[]
+  user: UserInfo | null
 }
 
 export const useUserStore = defineStore('user', {
   state: (): State => ({
     userList: [],
-    user: null
-  })
-});
+    user: null,
+  }),
+})
 ```
 
 ### Accessing and Modifying
 
 ```ts
-const store = useStore();
-store.count++;
+const store = useStore()
+store.count++
 ```
 
 ```vue
@@ -149,14 +149,14 @@ Apply multiple changes at once:
 // Object syntax
 store.$patch({
   count: store.count + 1,
-  name: 'DIO'
-});
+  name: 'DIO',
+})
 
 // Function syntax (for complex mutations)
 store.$patch((state) => {
-  state.items.push({ name: 'shoes', quantity: 1 });
-  state.hasChanged = true;
-});
+  state.items.push({ name: 'shoes', quantity: 1 })
+  state.hasChanged = true
+})
 ```
 
 ### Resetting State
@@ -165,33 +165,33 @@ Option Stores have built-in `$reset()`. For Setup Stores, implement your own:
 
 ```ts
 export const useCounterStore = defineStore('counter', () => {
-  const count = ref(0);
+  const count = ref(0)
 
   function $reset() {
-    count.value = 0;
+    count.value = 0
   }
 
-  return { count, $reset };
-});
+  return { count, $reset }
+})
 ```
 
 ### Subscribing to State Changes
 
 ```ts
 cartStore.$subscribe((mutation, state) => {
-  mutation.type; // 'direct' | 'patch object' | 'patch function'
-  mutation.storeId; // 'cart'
-  mutation.payload; // patch object (only for 'patch object')
+  mutation.type // 'direct' | 'patch object' | 'patch function'
+  mutation.storeId // 'cart'
+  mutation.payload // patch object (only for 'patch object')
 
-  localStorage.setItem('cart', JSON.stringify(state));
-});
+  localStorage.setItem('cart', JSON.stringify(state))
+})
 
 // Options
-cartStore.$subscribe(callback, { flush: 'sync' }); // Immediate
-cartStore.$subscribe(callback, { detached: true }); // Keep after unmount
+cartStore.$subscribe(callback, { flush: 'sync' }) // Immediate
+cartStore.$subscribe(callback, { detached: true }) // Keep after unmount
 ```
 
-**`flush: 'sync'` caveats:** it runs the callback after _every_ state change instead of batching, so it can hurt performance if the callback is heavy or state changes often. It also matters for correctness in one niche case: a **direct** mutation (e.g. `store.count++`) happening synchronously right after a `$patch()` in the same tick won't trigger a non-sync subscription on its own — use `flush: 'sync'` if you must be notified of every such mutation.
+**`flush: 'sync'` caveats:** it runs the callback after *every* state change instead of batching, so it can hurt performance if the callback is heavy or state changes often. It also matters for correctness in one niche case: a **direct** mutation (e.g. `store.count++`) happening synchronously right after a `$patch()` in the same tick won't trigger a non-sync subscription on its own — use `flush: 'sync'` if you must be notified of every such mutation.
 
 ---
 
@@ -319,26 +319,28 @@ async orderCart() {
 ### Subscribing to Actions
 
 ```ts
-const unsubscribe = someStore.$onAction(({ name, store, args, after, onError }) => {
-  const startTime = Date.now();
-  console.log(`Start "${name}" with params [${args.join(', ')}]`);
+const unsubscribe = someStore.$onAction(
+  ({ name, store, args, after, onError }) => {
+    const startTime = Date.now()
+    console.log(`Start "${name}" with params [${args.join(', ')}]`)
 
-  after((result) => {
-    console.log(`Finished "${name}" after ${Date.now() - startTime}ms`);
-  });
+    after((result) => {
+      console.log(`Finished "${name}" after ${Date.now() - startTime}ms`)
+    })
 
-  onError((error) => {
-    console.warn(`Failed "${name}": ${error}`);
-  });
-});
+    onError((error) => {
+      console.warn(`Failed "${name}": ${error}`)
+    })
+  }
+)
 
-unsubscribe(); // Cleanup
+unsubscribe() // Cleanup
 ```
 
 Keep subscription after component unmount:
 
 ```ts
-someStore.$onAction(callback, true);
+someStore.$onAction(callback, true)
 ```
 
 ---
@@ -346,21 +348,20 @@ someStore.$onAction(callback, true);
 ## Options API Helpers
 
 ```ts
-import { mapState, mapWritableState, mapActions } from 'pinia';
-
-import { useCounterStore } from '../stores/counter';
+import { mapState, mapWritableState, mapActions } from 'pinia'
+import { useCounterStore } from '../stores/counter'
 
 export default {
   computed: {
     // Readonly state/getters
     ...mapState(useCounterStore, ['count', 'doubleCount']),
     // Writable state
-    ...mapWritableState(useCounterStore, ['count'])
+    ...mapWritableState(useCounterStore, ['count']),
   },
   methods: {
-    ...mapActions(useCounterStore, ['increment'])
-  }
-};
+    ...mapActions(useCounterStore, ['increment']),
+  },
+}
 ```
 
 ---
@@ -368,17 +369,17 @@ export default {
 ## Accessing Global Providers in Setup Stores
 
 ```ts
-import { defineStore } from 'pinia';
-import { inject } from 'vue';
-import { useRoute } from 'vue-router';
+import { inject } from 'vue'
+import { useRoute } from 'vue-router'
+import { defineStore } from 'pinia'
 
 export const useSearchFilters = defineStore('search-filters', () => {
-  const route = useRoute();
-  const appProvided = inject('appProvided');
+  const route = useRoute()
+  const appProvided = inject('appProvided')
 
   // Don't return these - access them directly in components
-  return {/* ... */};
-});
+  return { /* ... */ }
+})
 ```
 
 <!--

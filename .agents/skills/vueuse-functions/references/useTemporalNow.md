@@ -22,31 +22,31 @@ This function relies on the [`Temporal`](https://developer.mozilla.org/en-US/doc
   and either load it once as a global, before this function is used (e.g. in your app's entry point):
 
   ```ts
-  import 'temporal-polyfill/global';
+  import 'temporal-polyfill/global'
   ```
 
   If you need calendar systems beyond `iso8601`/`gregory` (e.g. `islamic`, `hebrew`, `chinese`, `japanese` as used in the examples below), use the `/full/` entry point instead:
 
   ```ts
-  import 'temporal-polyfill/full/global';
+  import 'temporal-polyfill/full/global'
   ```
 
   ...or pass it explicitly via the `temporal` option instead of touching the global scope:
 
   ```ts
-  import { useTemporalNow } from '@vueuse/core';
-  import { Temporal } from 'temporal-polyfill';
+  import { useTemporalNow } from '@vueuse/core'
+  import { Temporal } from 'temporal-polyfill'
 
-  const temporal = useTemporalNow({ temporal: Temporal });
+  const temporal = useTemporalNow({ temporal: Temporal })
   ```
 
   [`@js-temporal/polyfill`](https://github.com/js-temporal/temporal-polyfill) is another common alternative. It does not install a global `Temporal` object by itself, so the `temporal` option is the natural way to use it. Its type declarations are authored independently from TypeScript's own ambient `Temporal` types (unlike `temporal-polyfill`, which derives its types from the same source), so a cast is needed to satisfy the `temporal` option at compile time — the runtime objects are spec-compliant and interoperate fine:
 
   ```ts
-  import { Temporal } from '@js-temporal/polyfill';
-  import { useTemporalNow } from '@vueuse/core';
+  import { Temporal } from '@js-temporal/polyfill'
+  import { useTemporalNow } from '@vueuse/core'
 
-  const temporal = useTemporalNow({ temporal: Temporal as unknown as typeof globalThis.Temporal });
+  const temporal = useTemporalNow({ temporal: Temporal as unknown as typeof globalThis.Temporal })
   ```
 
 If no `Temporal` implementation can be found (neither passed via the `temporal` option nor available globally), calling `useTemporalNow` will throw an error.
@@ -57,12 +57,12 @@ If no `Temporal` implementation can be found (neither passed via the `temporal` 
 
 ```vue
 <script setup>
-import { useTemporalNow } from '@vueuse/core';
+import { useTemporalNow } from '@vueuse/core'
 
-const { now, timezone, calendar, format } = useTemporalNow();
+const { now, timezone, calendar, format } = useTemporalNow()
 
 // Display current time
-console.log(format()); // "12/25/2023, 3:30:00 PM"
+console.log(format()) // "12/25/2023, 3:30:00 PM"
 </script>
 
 <template>
@@ -77,69 +77,69 @@ console.log(format()); // "12/25/2023, 3:30:00 PM"
 ### Timezone Conversion
 
 ```ts
-import { useTemporalNow } from '@vueuse/core';
+import { useTemporalNow } from '@vueuse/core'
 
-const temporal = useTemporalNow({ timezone: 'America/New_York' });
+const temporal = useTemporalNow({ timezone: 'America/New_York' })
 
 // Convert to different timezones
-const tokyoTime = temporal.toTimezone('Asia/Tokyo');
-const londonTime = temporal.toTimezone('Europe/London');
-const utcTime = temporal.toTimezone('UTC');
+const tokyoTime = temporal.toTimezone('Asia/Tokyo')
+const londonTime = temporal.toTimezone('Europe/London')
+const utcTime = temporal.toTimezone('UTC')
 
 // Change timezone reactively
-temporal.timezone.value = 'Europe/Berlin';
+temporal.timezone.value = 'Europe/Berlin'
 ```
 
 ### Calendar Systems
 
 ```ts
-import { useTemporalNow } from '@vueuse/core';
+import { useTemporalNow } from '@vueuse/core'
 
-const temporal = useTemporalNow({ calendar: 'gregory' });
+const temporal = useTemporalNow({ calendar: 'gregory' })
 
 // Convert to different calendar systems
-const islamicDate = temporal.toCalendar('islamic-umalqura');
-const hebrewDate = temporal.toCalendar('hebrew');
-const chineseDate = temporal.toCalendar('chinese');
+const islamicDate = temporal.toCalendar('islamic-umalqura')
+const hebrewDate = temporal.toCalendar('hebrew')
+const chineseDate = temporal.toCalendar('chinese')
 
 // Change calendar reactively
-temporal.calendar.value = 'islamic-umalqura';
+temporal.calendar.value = 'islamic-umalqura'
 ```
 
 ### Date/Time Manipulation
 
 ```ts
-import { useTemporalNow } from '@vueuse/core';
+import { useTemporalNow } from '@vueuse/core'
 
-const { now, add, subtract, compare } = useTemporalNow();
+const { now, add, subtract, compare } = useTemporalNow()
 
 // Add/subtract durations
-const nextWeek = add('P7D'); // Add 7 days
-const lastMonth = subtract('P1M'); // Subtract 1 month
-const inTwoHours = add('PT2H'); // Add 2 hours
+const nextWeek = add('P7D') // Add 7 days
+const lastMonth = subtract('P1M') // Subtract 1 month
+const inTwoHours = add('PT2H') // Add 2 hours
 
 // Compare dates
-const futureDate = add('P1Y'); // Add 1 year
-const comparison = compare(futureDate); // -1 (now is before futureDate)
+const futureDate = add('P1Y') // Add 1 year
+const comparison = compare(futureDate) // -1 (now is before futureDate)
 ```
 
 ### Format Options
 
 ```ts
-import { useTemporalNow } from '@vueuse/core';
+import { useTemporalNow } from '@vueuse/core'
 
-const { format } = useTemporalNow();
+const { format } = useTemporalNow()
 
 // Different formatting options
-const short = format({ dateStyle: 'short' }); // "12/25/23"
-const long = format({ dateStyle: 'long' }); // "December 25, 2023"
-const time = format({ timeStyle: 'medium' }); // "3:30:00 PM"
+const short = format({ dateStyle: 'short' }) // "12/25/23"
+const long = format({ dateStyle: 'long' }) // "December 25, 2023"
+const time = format({ timeStyle: 'medium' }) // "3:30:00 PM"
 const custom = format({
   weekday: 'long',
   year: 'numeric',
   month: 'long',
   day: 'numeric'
-}); // "Monday, December 25, 2023"
+}) // "Monday, December 25, 2023"
 ```
 
 ### Control Auto-Update
@@ -149,20 +149,20 @@ custom `scheduler` to control how updates are driven — for example, tick on a
 fixed interval, or start paused:
 
 ```ts
-import { useTemporalNow } from '@vueuse/core';
-import { useIntervalFn } from '@vueuse/shared';
+import { useTemporalNow } from '@vueuse/core'
+import { useIntervalFn } from '@vueuse/shared'
 
 const { pause, resume, isActive } = useTemporalNow({
   // Update every 500ms instead of on every animation frame,
   // and don't start immediately.
-  scheduler: (cb) => useIntervalFn(cb, 500, { immediate: false })
-});
+  scheduler: cb => useIntervalFn(cb, 500, { immediate: false }),
+})
 
 // Manually control updates
-resume(); // Start auto-update
-pause(); // Stop auto-update
+resume() // Start auto-update
+pause() // Stop auto-update
 
-console.log(isActive.value); // true/false
+console.log(isActive.value) // true/false
 ```
 
 ## Examples
@@ -171,23 +171,23 @@ console.log(isActive.value); // true/false
 
 ```vue
 <script setup>
-import { useTemporalNow } from '@vueuse/core';
+import { useTemporalNow } from '@vueuse/core'
 
 const timezones = [
   { name: 'New York', tz: 'America/New_York' },
   { name: 'London', tz: 'Europe/London' },
   { name: 'Tokyo', tz: 'Asia/Tokyo' },
   { name: 'Sydney', tz: 'Australia/Sydney' }
-];
+]
 
-const { now } = useTemporalNow();
+const { now } = useTemporalNow()
 
 const worldTimes = computed(() =>
   timezones.map(({ name, tz }) => ({
     name,
     time: now.value.withTimeZone(tz).toLocaleString()
   }))
-);
+)
 </script>
 
 <template>
@@ -204,18 +204,18 @@ const worldTimes = computed(() =>
 
 ```vue
 <script setup>
-import { useTemporalNow } from '@vueuse/core';
+import { useTemporalNow } from '@vueuse/core'
 
-const { now, calendar } = useTemporalNow();
+const { now, calendar } = useTemporalNow()
 
-const calendars = ['gregory', 'islamic-umalqura', 'hebrew', 'chinese', 'japanese'];
+const calendars = ['gregory', 'islamic-umalqura', 'hebrew', 'chinese', 'japanese']
 
 const convertedDates = computed(() =>
-  calendars.map((cal) => ({
+  calendars.map(cal => ({
     name: cal,
     date: now.value.withCalendar(cal).toPlainDate().toString()
   }))
-);
+)
 </script>
 
 <template>
@@ -243,13 +243,13 @@ export interface UseTemporalNowOptions extends ConfigurableScheduler {
    *
    * @default 'UTC'
    */
-  timezone?: string;
+  timezone?: string
   /**
    * Calendar system to use
    *
    * @default 'gregory'
    */
-  calendar?: string;
+  calendar?: string
   /**
    * Custom `Temporal` implementation to use, e.g. the `Temporal` export from
    * `@js-temporal/polyfill` or another polyfill, instead of relying on the
@@ -257,57 +257,57 @@ export interface UseTemporalNowOptions extends ConfigurableScheduler {
    *
    * @default globalThis.Temporal
    */
-  temporal?: typeof Temporal;
+  temporal?: typeof Temporal
 }
 export interface UseTemporalNowReturn extends Pausable {
   /**
    * Current `Temporal.ZonedDateTime`
    */
-  now: Ref<Temporal.ZonedDateTime>;
+  now: Ref<Temporal.ZonedDateTime>
   /**
    * Current timezone
    */
-  timezone: Ref<string>;
+  timezone: Ref<string>
   /**
    * Current calendar
    */
-  calendar: Ref<string>;
+  calendar: Ref<string>
   /**
    * Convert to a different timezone
    */
-  toTimezone: (timezone: string) => Temporal.ZonedDateTime;
+  toTimezone: (timezone: string) => Temporal.ZonedDateTime
   /**
    * Convert to a different calendar
    */
-  toCalendar: (calendar: string) => Temporal.ZonedDateTime;
+  toCalendar: (calendar: string) => Temporal.ZonedDateTime
   /**
    * Get the `Temporal.PlainDate` (date only)
    */
-  toPlainDate: () => Temporal.PlainDate;
+  toPlainDate: () => Temporal.PlainDate
   /**
    * Get the `Temporal.PlainTime` (time only)
    */
-  toPlainTime: () => Temporal.PlainTime;
+  toPlainTime: () => Temporal.PlainTime
   /**
    * Get the `Temporal.PlainDateTime` (local date/time)
    */
-  toPlainDateTime: () => Temporal.PlainDateTime;
+  toPlainDateTime: () => Temporal.PlainDateTime
   /**
    * Format the current date/time
    */
-  format: (options?: Intl.DateTimeFormatOptions) => string;
+  format: (options?: Intl.DateTimeFormatOptions) => string
   /**
    * Add a duration
    */
-  add: (duration: Temporal.DurationLike) => Temporal.ZonedDateTime;
+  add: (duration: Temporal.DurationLike) => Temporal.ZonedDateTime
   /**
    * Subtract a duration
    */
-  subtract: (duration: Temporal.DurationLike) => Temporal.ZonedDateTime;
+  subtract: (duration: Temporal.DurationLike) => Temporal.ZonedDateTime
   /**
    * Compare with another date/time
    */
-  compare: (other: Temporal.ZonedDateTime | string) => number;
+  compare: (other: Temporal.ZonedDateTime | string) => number
 }
 /**
  * Reactive Temporal API with timezone and calendar support.
@@ -315,5 +315,7 @@ export interface UseTemporalNowReturn extends Pausable {
  * @see https://vueuse.org/useTemporalNow
  * @param options - Configuration options
  */
-export declare function useTemporalNow(options?: UseTemporalNowOptions): UseTemporalNowReturn;
+export declare function useTemporalNow(
+  options?: UseTemporalNowOptions,
+): UseTemporalNowReturn
 ```

@@ -59,7 +59,7 @@ In Vue 3, fallthrough attributes overwrite explicitly set attributes on the root
 <script setup>
 defineOptions({
   inheritAttrs: false
-});
+})
 </script>
 
 <template>
@@ -77,19 +77,19 @@ defineOptions({
 
 ```vue
 <script setup>
-import { computed, useAttrs } from 'vue';
+import { computed, useAttrs } from 'vue'
 
 defineOptions({
   inheritAttrs: false
-});
+})
 
-const attrs = useAttrs();
+const attrs = useAttrs()
 
 // Filter out attributes you want to control explicitly
 const filteredAttrs = computed(() => {
-  const { msg, ...rest } = attrs;
-  return rest;
-});
+  const { msg, ...rest } = attrs
+  return rest
+})
 </script>
 
 <template>
@@ -107,11 +107,11 @@ const props = defineProps({
     type: String,
     default: 'submit-btn'
   }
-});
+})
 
 defineOptions({
   inheritAttrs: false
-});
+})
 </script>
 
 <template>

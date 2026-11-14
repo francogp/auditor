@@ -599,5 +599,29 @@ describe('StylelintAuditor Suite', () => {
       const postFixResult = processStylelintResults(mockResult, process.cwd(), true);
       expect(postFixResult.violations[0]?.fixable).toBe(false);
     });
+
+    it('detects Stylelint 18 rules (value-no-invalid and at-charset-rule-no-invalid) as stylelint-issue', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-sl18-'));
+      try {
+        await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+        await fs.writeFile(
+          path.join(tempDir, 'src/invalid.css'),
+          `.panel {
+  width: calc(10px + 2);
+}
+@charset "utf-8";
+`,
+          'utf-8'
+        );
+        const auditor = new StylelintAuditor({ projectRoot: tempDir });
+        const result = await auditor.audit();
+        expect(result.status).toBe('failed');
+        const rules = result.findings.map((f) => f.context);
+        expect(rules).toContain('at-charset-rule-no-invalid');
+        expect(rules).toContain('value-no-invalid');
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    });
   });
 });

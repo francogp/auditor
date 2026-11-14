@@ -18,17 +18,16 @@ tags: [vue3, suspense, async-components, loading, error-handling]
 - [ ] Provide a retry path for failed loads
 
 **Incorrect:**
-
 ```vue
 <script setup>
-import { defineAsyncComponent } from 'vue';
+import { defineAsyncComponent } from 'vue'
 
 const AsyncDashboard = defineAsyncComponent({
   loader: () => import('./Dashboard.vue'),
   loadingComponent: LoadingSpinner,
   errorComponent: ErrorDisplay,
   timeout: 3000
-});
+})
 </script>
 
 <template>
@@ -40,10 +39,9 @@ const AsyncDashboard = defineAsyncComponent({
 ```
 
 **Correct (component handles its own states):**
-
 ```vue
 <script setup>
-import { defineAsyncComponent } from 'vue';
+import { defineAsyncComponent } from 'vue'
 
 const AsyncDashboard = defineAsyncComponent({
   loader: () => import('./Dashboard.vue'),
@@ -51,7 +49,7 @@ const AsyncDashboard = defineAsyncComponent({
   errorComponent: ErrorDisplay,
   timeout: 3000,
   suspensible: false
-});
+})
 </script>
 
 <template>
@@ -60,18 +58,17 @@ const AsyncDashboard = defineAsyncComponent({
 ```
 
 **Correct (parent Suspense owns loading/error UI):**
-
 ```vue
 <script setup>
-import { onErrorCaptured, ref } from 'vue';
-import AsyncDashboard from './AsyncDashboard.vue';
+import { onErrorCaptured, ref } from 'vue'
+import AsyncDashboard from './AsyncDashboard.vue'
 
-const error = ref(null);
+const error = ref(null)
 
 onErrorCaptured((err) => {
-  error.value = err;
-  return false;
-});
+  error.value = err
+  return false
+})
 </script>
 
 <template>

@@ -7,6 +7,7 @@ import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, ge
 import { getPackageJson } from "../../core/packageJson.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import { safeJsonParse, safeReadFileSync, safeRmSync, tryOrNull } from "../../core/safeUtils.js";
+import { FALLOW_RUNTIME_COMPANIONS } from "./validate_fallow.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -436,11 +437,14 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 		const fallowIgnoredDeps = this.resolveFallowIgnoredDependencies();
 		const scriptReferencedDeps = Array.from(extractReferencedScriptDependencies(this.projectRoot));
 		const implicitTestDeps = this.resolveImplicitCoverageDependencies();
+		const pkg = getPackageJson(this.projectRoot);
+		const fallowCompanionDeps = Boolean(pkg?.dependencies?.fallow || pkg?.devDependencies?.fallow) ? Array.from(FALLOW_RUNTIME_COMPANIONS) : [];
 		const allIgnoredDeps = Array.from(/* @__PURE__ */ new Set([
 			...customIgnoredDeps,
 			...fallowIgnoredDeps,
 			...scriptReferencedDeps,
-			...implicitTestDeps
+			...implicitTestDeps,
+			...fallowCompanionDeps
 		]));
 		const customIgnoredBinaries = config.packageHygiene?.ignoreBinaries ?? [];
 		const ownBinaries = Array.from(extractOwnPackageBinaries(this.projectRoot));

@@ -21,11 +21,11 @@ Measure before optimizing. Performance work without measurement is guessing — 
 
 ## Core Web Vitals Targets
 
-| Metric                              | Good    | Needs Improvement | Poor    |
-| ----------------------------------- | ------- | ----------------- | ------- |
-| **LCP** (Largest Contentful Paint)  | ≤ 2.5s  | ≤ 4.0s            | > 4.0s  |
-| **INP** (Interaction to Next Paint) | ≤ 200ms | ≤ 500ms           | > 500ms |
-| **CLS** (Cumulative Layout Shift)   | ≤ 0.1   | ≤ 0.25            | > 0.25  |
+| Metric | Good | Needs Improvement | Poor |
+|--------|------|-------------------|------|
+| **LCP** (Largest Contentful Paint) | ≤ 2.5s | ≤ 4.0s | > 4.0s |
+| **INP** (Interaction to Next Paint) | ≤ 200ms | ≤ 500ms | > 500ms |
+| **CLS** (Cumulative Layout Shift) | ≤ 0.1 | ≤ 0.25 | > 0.25 |
 
 ## The Optimization Workflow
 
@@ -45,7 +45,6 @@ Two complementary approaches — use both:
 - **RUM (web-vitals library, CrUX):** Real user data in real conditions. Required to validate that a fix actually improved user experience.
 
 **Frontend:**
-
 ```javascript
 // Synthetic: Lighthouse in Chrome DevTools (or CI)
 // Chrome DevTools → Performance tab → Record
@@ -60,7 +59,6 @@ onCLS(console.log);
 ```
 
 **Backend:**
-
 ```javascript
 // Response time logging
 // Application Performance Monitoring (APM)
@@ -104,21 +102,21 @@ Common bottlenecks by category:
 
 **Frontend:**
 
-| Symptom           | Likely Cause                                                 | Investigation                         |
-| ----------------- | ------------------------------------------------------------ | ------------------------------------- |
-| Slow LCP          | Large images, render-blocking resources, slow server         | Check network waterfall, image sizes  |
-| High CLS          | Images without dimensions, late-loading content, font shifts | Check layout shift attribution        |
-| Poor INP          | Heavy JavaScript on main thread, large DOM updates           | Check long tasks in Performance trace |
-| Slow initial load | Large bundle, many network requests                          | Check bundle size, code splitting     |
+| Symptom | Likely Cause | Investigation |
+|---------|-------------|---------------|
+| Slow LCP | Large images, render-blocking resources, slow server | Check network waterfall, image sizes |
+| High CLS | Images without dimensions, late-loading content, font shifts | Check layout shift attribution |
+| Poor INP | Heavy JavaScript on main thread, large DOM updates | Check long tasks in Performance trace |
+| Slow initial load | Large bundle, many network requests | Check bundle size, code splitting |
 
 **Backend:**
 
-| Symptom            | Likely Cause                                         | Investigation                    |
-| ------------------ | ---------------------------------------------------- | -------------------------------- |
-| Slow API responses | N+1 queries, missing indexes, unoptimized queries    | Check database query log         |
-| Memory growth      | Leaked references, unbounded caches, large payloads  | Heap snapshot analysis           |
-| CPU spikes         | Synchronous heavy computation, regex backtracking    | CPU profiling                    |
-| High latency       | Missing caching, redundant computation, network hops | Trace requests through the stack |
+| Symptom | Likely Cause | Investigation |
+|---------|-------------|---------------|
+| Slow API responses | N+1 queries, missing indexes, unoptimized queries | Check database query log |
+| Memory growth | Leaked references, unbounded caches, large payloads | Heap snapshot analysis |
+| CPU spikes | Synchronous heavy computation, regex backtracking | CPU profiling |
+| High latency | Missing caching, redundant computation, network hops | Trace requests through the stack |
 
 ### Step 3: Fix the Bottleneck
 
@@ -129,7 +127,7 @@ Fix the one thing Step 2 identified, nothing else. The anti-patterns below are t
 - **N+1 queries.** One query per row is the most common backend bottleneck. Fetch the relation in the same query (join/include) instead of in the loop. [Pattern](references/optimization-patterns.md#n1-queries-backend).
 - **Unbounded data fetching.** Every list endpoint paginates with a limit and a stable order. [Pattern](references/optimization-patterns.md#unbounded-data-fetching).
 - **Queries that ignore their index.** "Add an index" is the guess; `EXPLAIN ANALYZE` is the measurement. A `Seq Scan` where you expected an index, a `rows=` estimate off by an order of magnitude, and a `Sort` node above the scan each call for a different fix; a bad `rows=` estimate means stale statistics, so run `ANALYZE` rather than adding an index. Index for the shape of the query (equality columns first, then the range or sort column). A plain index will not help a query on a low-selectivity dominant value (a partial index serves the rare value), a leading wildcard (needs trigram or full-text), or a function applied to the column (index the expression, as in `WHERE lower(email) = ?`), and every index taxes every write. Re-run the plan afterwards; an index that did not change it is a revert. [Pattern](references/optimization-patterns.md#queries-that-ignore-their-index).
-- **Connection pool exhaustion.** Signature: _every_ endpoint slows at once, time is spent waiting for a connection rather than executing, and the database shows mostly idle sessions. One pool per process, sized so `instances × max` stays under the database's connection ceiling. Bigger is not faster; it relocates the queue to the database where it is harder to see. With unbounded instance counts (serverless, autoscaling), multiplex through a proxy (pgbouncer, RDS Proxy) instead of raising `max`. [Pattern](references/optimization-patterns.md#connection-pool-exhaustion).
+- **Connection pool exhaustion.** Signature: *every* endpoint slows at once, time is spent waiting for a connection rather than executing, and the database shows mostly idle sessions. One pool per process, sized so `instances × max` stays under the database's connection ceiling. Bigger is not faster; it relocates the queue to the database where it is harder to see. With unbounded instance counts (serverless, autoscaling), multiplex through a proxy (pgbouncer, RDS Proxy) instead of raising `max`. [Pattern](references/optimization-patterns.md#connection-pool-exhaustion).
 - **Missing caching.** Cache what is expensive to produce and read far more often than it changes; caching an already-fast query adds a network hop and a staleness bug in exchange for nothing. Pick the layer deliberately (in-process, shared, CDN). Every input that changes the response belongs in the key (tenant, locale, permissions, feature flags): a key that omits the viewer is how one user's data gets served to another. Choose one invalidation strategy (TTL, event or tag based, versioned keys) and state the acceptable staleness window explicitly. Guard hot keys against the stampede: serve stale while one request recomputes, or coalesce concurrent misses behind a single in-flight promise. Never cache what must be fresh (balances, permissions, inventory at checkout). [Pattern](references/optimization-patterns.md#missing-caching-backend); request coalescing, write strategies, and negative caching in `../../references/performance-checklist.md`.
 
 **Frontend**
@@ -150,26 +148,26 @@ A fix is a hypothesis until you re-measure. This step decides whether it survive
 
 Then decide, strictly:
 
-| Result vs. baseline                 | Action                                                         |
-| ----------------------------------- | -------------------------------------------------------------- |
-| Past the threshold, tests green     | **Keep.** Commit with the before/after numbers in the message. |
-| Within noise (no measurable change) | **Revert.**                                                    |
-| Worse                               | **Revert.**                                                    |
-| Improved, but a test went red       | **Revert.** A regression wearing a win's clothing.             |
+| Result vs. baseline | Action |
+|---|---|
+| Past the threshold, tests green | **Keep.** Commit with the before/after numbers in the message. |
+| Within noise (no measurable change) | **Revert.** |
+| Worse | **Revert.** |
+| Improved, but a test went red | **Revert.** A regression wearing a win's clothing. |
 
 **"Neutral" is a revert, not a keep.** This is the step teams skip: the change is already written, throwing it away feels wasteful, so it lands unmeasured, and the codebase accretes complexity that never bought anything. Code you keep, you maintain forever. Make it pay for itself.
 
-**Correctness gates the metric.** The suite stays green _and_ the number moves. An "optimization" that wins by dropping work the product needed (skipping a validation, caching something that must be fresh, removing an `await` that was load-bearing) is a regression, not a win.
+**Correctness gates the metric.** The suite stays green *and* the number moves. An "optimization" that wins by dropping work the product needed (skipping a validation, caching something that must be fresh, removing an `await` that was load-bearing) is a regression, not a win.
 
 #### Log every attempt, including the reverted ones
 
 Reverted work leaves no trace in git history, which is exactly why the same dead idea gets tried again next quarter. Keep a short ledger so a discarded idea stays discarded:
 
-| Idea                         | Baseline → Result | Verdict  | Why                                                |
-| ---------------------------- | ----------------- | -------- | -------------------------------------------------- |
-| Memoize the row component    | INP 240ms → 235ms | reverted | Inside noise (±15ms). Rows weren't the bottleneck. |
-| Virtualize the list          | INP 240ms → 90ms  | kept     | Long tasks gone from the trace.                    |
-| Preconnect to the API origin | LCP 2.8s → 2.8s   | reverted | Already same-origin.                               |
+| Idea | Baseline → Result | Verdict | Why |
+|---|---|---|---|
+| Memoize the row component | INP 240ms → 235ms | reverted | Inside noise (±15ms). Rows weren't the bottleneck. |
+| Virtualize the list | INP 240ms → 90ms | kept | Long tasks gone from the trace. |
+| Preconnect to the API origin | LCP 2.8s → 2.8s | reverted | Already same-origin. |
 
 A section in the PR description or a `PERF.md` in the repo both work. What matters is that the next person (or the next agent) reads it before proposing an experiment, and doesn't re-run one that already failed.
 
@@ -203,7 +201,6 @@ Lighthouse Performance score: ≥ 90
 ```
 
 **Enforce in CI:**
-
 ```bash
 # Bundle size check
 npx bundlesize --config bundlesize.config.json
@@ -216,21 +213,22 @@ npx --package=@lhci/cli lhci autorun
 
 For detailed performance checklists, optimization commands, and anti-pattern reference, see `../../references/performance-checklist.md`.
 
+
 ## Common Rationalizations
 
-| Rationalization                                         | Reality                                                                                                                           |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| "We'll optimize later"                                  | Performance debt compounds. Fix obvious anti-patterns now, defer micro-optimizations.                                             |
-| "It's fast on my machine"                               | Your machine isn't the user's. Profile on representative hardware and networks.                                                   |
-| "This optimization is obvious"                          | If you didn't measure, you don't know. Profile first.                                                                             |
-| "Users won't notice 100ms"                              | Research shows 100ms delays impact conversion rates. Users notice more than you think.                                            |
-| "The framework handles performance"                     | Frameworks prevent some issues but can't fix N+1 queries or oversized bundles.                                                    |
-| "The query is slow, add an index"                       | Read the plan first. The index may already exist and be unusable, and every index taxes writes forever.                           |
-| "Just cache it"                                         | Caching an already-cheap call buys nothing and adds a staleness bug. Cache what is expensive _and_ re-read far more than written. |
-| "Raise the pool size, we're running out of connections" | A pool bigger than the database can serve moves the queue somewhere less visible. Find what holds connections.                    |
-| "It didn't help much, but it doesn't hurt"              | Neutral changes are a revert. You pay maintenance on them forever and got nothing back.                                           |
-| "We already wrote it, may as well keep it"              | Sunk cost. The measurement doesn't care how long the change took to write.                                                        |
-| "The improvement is obvious, no need to re-measure"     | Then re-measuring is cheap and proves it. Unmeasured wins are how neutral complexity lands.                                       |
+| Rationalization | Reality |
+|---|---|
+| "We'll optimize later" | Performance debt compounds. Fix obvious anti-patterns now, defer micro-optimizations. |
+| "It's fast on my machine" | Your machine isn't the user's. Profile on representative hardware and networks. |
+| "This optimization is obvious" | If you didn't measure, you don't know. Profile first. |
+| "Users won't notice 100ms" | Research shows 100ms delays impact conversion rates. Users notice more than you think. |
+| "The framework handles performance" | Frameworks prevent some issues but can't fix N+1 queries or oversized bundles. |
+| "The query is slow, add an index" | Read the plan first. The index may already exist and be unusable, and every index taxes writes forever. |
+| "Just cache it" | Caching an already-cheap call buys nothing and adds a staleness bug. Cache what is expensive *and* re-read far more than written. |
+| "Raise the pool size, we're running out of connections" | A pool bigger than the database can serve moves the queue somewhere less visible. Find what holds connections. |
+| "It didn't help much, but it doesn't hurt" | Neutral changes are a revert. You pay maintenance on them forever and got nothing back. |
+| "We already wrote it, may as well keep it" | Sunk cost. The measurement doesn't care how long the change took to write. |
+| "The improvement is obvious, no need to re-measure" | Then re-measuring is cheap and proves it. Unmeasured wins are how neutral complexity lands. |
 
 ## Red Flags
 

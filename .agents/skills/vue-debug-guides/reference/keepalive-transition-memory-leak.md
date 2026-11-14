@@ -31,7 +31,6 @@ tags: [vue3, keepalive, transition, memory-leak, animation]
 ```
 
 When switching between components repeatedly:
-
 - Component instances accumulate in memory
 - References prevent garbage collection
 - Memory usage grows with each switch
@@ -64,7 +63,10 @@ Use Chrome DevTools to detect the leak:
 ```vue
 <template>
   <KeepAlive :max="5">
-    <component :is="currentView" :class="{ 'fade-enter': isTransitioning }" />
+    <component
+      :is="currentView"
+      :class="{ 'fade-enter': isTransitioning }"
+    />
   </KeepAlive>
 </template>
 
@@ -74,12 +76,8 @@ Use Chrome DevTools to detect the leak:
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 </style>
 ```
@@ -104,14 +102,14 @@ Force fresh instances when needed:
 
 ```vue
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'
 
-const currentView = ref('Dashboard');
-const cacheKey = ref(0);
+const currentView = ref('Dashboard')
+const cacheKey = ref(0)
 
 function switchViewFresh(view) {
-  currentView.value = view;
-  cacheKey.value++; // Force new instance
+  currentView.value = view
+  cacheKey.value++ // Force new instance
 }
 </script>
 
@@ -141,7 +139,6 @@ npm update vue
 5. **Keep Vue updated** - Bug fixes are released periodically
 
 ## Reference
-
 - [GitHub Issue #9842: Memory leak with transition and keep-alive](https://github.com/vuejs/vue/issues/9842)
 - [GitHub Issue #9840: Memory leak with transition and keep-alive](https://github.com/vuejs/vue/issues/9840)
 - [Vue.js KeepAlive Documentation](https://vuejs.org/guide/built-ins/keep-alive.html)

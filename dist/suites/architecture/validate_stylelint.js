@@ -99,6 +99,8 @@ function buildStylelintConfig(configFile, customRules) {
 				ignoreFunctions: ["v-bind"]
 			}],
 			[SASS_TRAPS_RULE_NAME]: true,
+			"at-charset-rule-no-invalid": true,
+			"value-no-invalid": true,
 			...customRules
 		}
 	};
@@ -284,6 +286,7 @@ async function fixStylelint(context) {
 		await stylelint.lint({
 			config: lintConfig,
 			files: filesToLint,
+			cwd: context.projectRoot,
 			ignoreDisables: true,
 			reportNeedlessDisables: true,
 			cache: true,
@@ -438,10 +441,8 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		try {
 			linterResult = await stylelint.lint({
 				files: filesGlobs,
-				globbyOptions: {
-					cwd: this.projectRoot,
-					ignore: ignoreGlobs
-				},
+				cwd: this.projectRoot,
+				globbyOptions: { ignore: ignoreGlobs },
 				config: lintConfig,
 				cache: true,
 				cacheLocation,

@@ -4,7 +4,7 @@ description: Schema validation with Valibot, the modular and type-safe schema li
 license: MIT
 metadata:
   author: open-circle
-  version: '1.0'
+  version: "1.0"
 ---
 
 # Valibot
@@ -61,21 +61,21 @@ const result = v.parse(Schema, data);
 ```typescript
 // ❌ WRONG - Zod-style optional
 const Schema = v.object({
-  name: v.string().optional()
+  name: v.string().optional(),
 });
 
 // ✅ CORRECT - Valibot wraps with optional()
 const Schema = v.object({
-  name: v.optional(v.string())
+  name: v.optional(v.string()),
 });
 ```
 
 ```typescript
 // ❌ WRONG - Zod-style default
-const Schema = v.string().default('hello');
+const Schema = v.string().default("hello");
 
 // ✅ CORRECT - Valibot uses second argument
-const Schema = v.optional(v.string(), 'hello');
+const Schema = v.optional(v.string(), "hello");
 ```
 
 ## Installation
@@ -90,13 +90,13 @@ bun add valibot         # bun
 Import with a wildcard (recommended):
 
 ```typescript
-import * as v from 'valibot';
+import * as v from "valibot";
 ```
 
 Or with individual imports:
 
 ```typescript
-import { object, string, pipe, email, parse } from 'valibot';
+import { object, string, pipe, email, parse } from "valibot";
 ```
 
 ## Mental Model
@@ -108,7 +108,7 @@ Valibot's API is divided into three main concepts:
 Schemas define the expected data type. They are the starting point.
 
 ```typescript
-import * as v from 'valibot';
+import * as v from "valibot";
 
 // Primitive schemas
 const StringSchema = v.string();
@@ -120,7 +120,7 @@ const DateSchema = v.date();
 const ArraySchema = v.array(v.string());
 const ObjectSchema = v.object({
   name: v.string(),
-  age: v.number()
+  age: v.number(),
 });
 ```
 
@@ -130,8 +130,8 @@ Methods help you use or modify schemas. The schema is always the first argument.
 
 ```typescript
 // Parsing
-const result = v.parse(StringSchema, 'hello');
-const safeResult = v.safeParse(StringSchema, 'hello');
+const result = v.parse(StringSchema, "hello");
+const safeResult = v.safeParse(StringSchema, "hello");
 
 // Type guard
 if (v.is(StringSchema, data)) {
@@ -145,7 +145,12 @@ Actions validate or transform data within a `pipe()`. They MUST be used inside p
 
 ```typescript
 // Actions are used in pipe()
-const EmailSchema = v.pipe(v.string(), v.trim(), v.email(), v.endsWith('@example.com'));
+const EmailSchema = v.pipe(
+  v.string(),
+  v.trim(),
+  v.email(),
+  v.endsWith("@example.com"),
+);
 ```
 
 ## Pipelines
@@ -153,21 +158,24 @@ const EmailSchema = v.pipe(v.string(), v.trim(), v.email(), v.endsWith('@example
 Pipelines extend schemas with validation and transformation actions. A pipeline always starts with a schema, followed by actions.
 
 ```typescript
-import * as v from 'valibot';
+import * as v from "valibot";
 
 const UsernameSchema = v.pipe(
   v.string(),
   v.trim(),
-  v.minLength(3, 'Username must be at least 3 characters'),
-  v.maxLength(20, 'Username must be at most 20 characters'),
-  v.regex(/^[a-z0-9_]+$/i, 'Username can only contain letters, numbers, and underscores')
+  v.minLength(3, "Username must be at least 3 characters"),
+  v.maxLength(20, "Username must be at most 20 characters"),
+  v.regex(
+    /^[a-z0-9_]+$/i,
+    "Username can only contain letters, numbers, and underscores",
+  ),
 );
 
 const AgeSchema = v.pipe(
   v.number(),
-  v.integer('Age must be a whole number'),
-  v.minValue(0, 'Age cannot be negative'),
-  v.maxValue(150, 'Age cannot exceed 150')
+  v.integer("Age must be a whole number"),
+  v.minValue(0, "Age cannot be negative"),
+  v.maxValue(150, "Age cannot exceed 150"),
 );
 ```
 
@@ -213,8 +221,11 @@ const AgeSchema = v.pipe(
 const PasswordSchema = v.pipe(
   v.string(),
   v.minLength(8),
-  v.check((input) => /[A-Z]/.test(input), 'Password must contain an uppercase letter'),
-  v.check((input) => /[0-9]/.test(input), 'Password must contain a number')
+  v.check(
+    (input) => /[A-Z]/.test(input),
+    "Password must contain an uppercase letter",
+  ),
+  v.check((input) => /[0-9]/.test(input), "Password must contain a number"),
 );
 ```
 
@@ -236,7 +247,12 @@ These actions modify the value without changing its type:
 - `v.toMaxValue(n)` — Clamp to maximum value (if greater than n, set to n)
 
 ```typescript
-const NormalizedEmailSchema = v.pipe(v.string(), v.trim(), v.toLowerCase(), v.email());
+const NormalizedEmailSchema = v.pipe(
+  v.string(),
+  v.trim(),
+  v.toLowerCase(),
+  v.email(),
+);
 
 // Clamp number to range 0-100
 const PercentageSchema = v.pipe(v.number(), v.toMinValue(0), v.toMaxValue(100));
@@ -271,19 +287,19 @@ For custom transformations, use `v.transform()`:
 const DateStringSchema = v.pipe(
   v.string(),
   v.isoDate(),
-  v.transform((input) => new Date(input))
+  v.transform((input) => new Date(input)),
 );
 
 // Custom object transformation
 const UserSchema = v.pipe(
   v.object({
     firstName: v.string(),
-    lastName: v.string()
+    lastName: v.string(),
   }),
   v.transform((input) => ({
     ...input,
-    fullName: `${input.firstName} ${input.lastName}`
-  }))
+    fullName: `${input.firstName} ${input.lastName}`,
+  })),
 );
 ```
 
@@ -296,7 +312,7 @@ const UserSchema = v.object({
   id: v.number(),
   name: v.string(),
   email: v.pipe(v.string(), v.email()),
-  age: v.optional(v.number())
+  age: v.optional(v.number()),
 });
 
 type User = v.InferOutput<typeof UserSchema>;
@@ -317,7 +333,7 @@ const StrictObjectSchema = v.strictObject({ key: v.string() });
 // Object with rest - validates unknown keys against a schema
 const ObjectWithRestSchema = v.objectWithRest(
   { key: v.string() },
-  v.number() // unknown keys must be numbers
+  v.number(), // unknown keys must be numbers
 );
 ```
 
@@ -332,7 +348,7 @@ const ProfileSchema = v.object({
   nickname: v.optional(v.string()),
 
   // Optional with default
-  role: v.optional(v.string(), 'user'),
+  role: v.optional(v.string(), "user"),
 
   // Nullable (can be null)
   avatar: v.nullable(v.string()),
@@ -341,7 +357,7 @@ const ProfileSchema = v.object({
   bio: v.nullish(v.string()),
 
   // Nullish with default
-  theme: v.nullish(v.string(), 'light')
+  theme: v.nullish(v.string(), "light"),
 });
 ```
 
@@ -352,14 +368,14 @@ const BaseSchema = v.object({
   id: v.number(),
   name: v.string(),
   email: v.string(),
-  password: v.string()
+  password: v.string(),
 });
 
 // Pick specific keys
-const PublicUserSchema = v.pick(BaseSchema, ['id', 'name']);
+const PublicUserSchema = v.pick(BaseSchema, ["id", "name"]);
 
 // Omit specific keys
-const UserWithoutPasswordSchema = v.omit(BaseSchema, ['password']);
+const UserWithoutPasswordSchema = v.omit(BaseSchema, ["password"]);
 
 // Make all optional
 const PartialUserSchema = v.partial(BaseSchema);
@@ -370,7 +386,7 @@ const RequiredUserSchema = v.required(PartialUserSchema);
 // Merge objects
 const ExtendedUserSchema = v.object({
   ...BaseSchema.entries,
-  createdAt: v.date()
+  createdAt: v.date(),
 });
 ```
 
@@ -380,16 +396,16 @@ const ExtendedUserSchema = v.object({
 const RegistrationSchema = v.pipe(
   v.object({
     password: v.pipe(v.string(), v.minLength(8)),
-    confirmPassword: v.string()
+    confirmPassword: v.string(),
   }),
   v.forward(
     v.partialCheck(
-      [['password'], ['confirmPassword']],
+      [["password"], ["confirmPassword"]],
       (input) => input.password === input.confirmPassword,
-      'Passwords do not match'
+      "Passwords do not match",
     ),
-    ['confirmPassword']
-  )
+    ["confirmPassword"],
+  ),
 );
 ```
 
@@ -400,16 +416,16 @@ const RegistrationSchema = v.pipe(
 ```typescript
 const TagsSchema = v.pipe(
   v.array(v.string()),
-  v.minLength(1, 'At least one tag required'),
-  v.maxLength(10, 'Maximum 10 tags allowed')
+  v.minLength(1, "At least one tag required"),
+  v.maxLength(10, "Maximum 10 tags allowed"),
 );
 
 // Array of objects
 const UsersSchema = v.array(
   v.object({
     id: v.number(),
-    name: v.string()
-  })
+    name: v.string(),
+  }),
 );
 ```
 
@@ -423,7 +439,7 @@ const CoordinatesSchema = v.tuple([v.number(), v.number()]);
 // Tuple with rest
 const ArgsSchema = v.tupleWithRest(
   [v.string()], // first arg is string
-  v.number() // rest are numbers
+  v.number(), // rest are numbers
 );
 // Type: [string, ...number[]]
 ```
@@ -435,14 +451,18 @@ const ArgsSchema = v.tupleWithRest(
 ```typescript
 const StringOrNumberSchema = v.union([v.string(), v.number()]);
 
-const StatusSchema = v.union([v.literal('pending'), v.literal('active'), v.literal('inactive')]);
+const StatusSchema = v.union([
+  v.literal("pending"),
+  v.literal("active"),
+  v.literal("inactive"),
+]);
 ```
 
 ### Picklist (for string/number literals)
 
 ```typescript
 // Simpler than union of literals
-const StatusSchema = v.picklist(['pending', 'active', 'inactive']);
+const StatusSchema = v.picklist(["pending", "active", "inactive"]);
 
 const PrioritySchema = v.picklist([1, 2, 3]);
 ```
@@ -452,20 +472,20 @@ const PrioritySchema = v.picklist([1, 2, 3]);
 Use `variant` for better performance with discriminated unions:
 
 ```typescript
-const EventSchema = v.variant('type', [
+const EventSchema = v.variant("type", [
   v.object({
-    type: v.literal('click'),
+    type: v.literal("click"),
     x: v.number(),
-    y: v.number()
+    y: v.number(),
   }),
   v.object({
-    type: v.literal('keypress'),
-    key: v.string()
+    type: v.literal("keypress"),
+    key: v.string(),
   }),
   v.object({
-    type: v.literal('scroll'),
-    direction: v.picklist(['up', 'down'])
-  })
+    type: v.literal("scroll"),
+    direction: v.picklist(["up", "down"]),
+  }),
 ]);
 ```
 
@@ -474,12 +494,12 @@ const EventSchema = v.variant('type', [
 ### parse() — Throws on Error
 
 ```typescript
-import * as v from 'valibot';
+import * as v from "valibot";
 
 const EmailSchema = v.pipe(v.string(), v.email());
 
 try {
-  const email = v.parse(EmailSchema, 'jane@example.com');
+  const email = v.parse(EmailSchema, "jane@example.com");
   console.log(email); // 'jane@example.com'
 } catch (error) {
   console.error(error); // ValiError
@@ -519,12 +539,12 @@ v.parse(Schema, data, { abortPipeEarly: true });
 ## Type Inference
 
 ```typescript
-import * as v from 'valibot';
+import * as v from "valibot";
 
 const UserSchema = v.object({
   name: v.string(),
   age: v.pipe(v.string(), v.transform(Number)),
-  role: v.optional(v.string(), 'user')
+  role: v.optional(v.string(), "user"),
 });
 
 // Output type (after transformations and defaults)
@@ -546,15 +566,15 @@ type UserIssue = v.InferIssue<typeof UserSchema>;
 ```typescript
 const LoginSchema = v.object({
   email: v.pipe(
-    v.string('Email must be a string'),
-    v.nonEmpty('Please enter your email'),
-    v.email('Invalid email format')
+    v.string("Email must be a string"),
+    v.nonEmpty("Please enter your email"),
+    v.email("Invalid email format"),
   ),
   password: v.pipe(
-    v.string('Password must be a string'),
-    v.nonEmpty('Please enter your password'),
-    v.minLength(8, 'Password must be at least 8 characters')
-  )
+    v.string("Password must be a string"),
+    v.nonEmpty("Please enter your password"),
+    v.minLength(8, "Password must be at least 8 characters"),
+  ),
 });
 ```
 
@@ -586,7 +606,7 @@ Each issue contains:
 ```typescript
 // Static fallback
 const NumberSchema = v.fallback(v.number(), 0);
-v.parse(NumberSchema, 'invalid'); // Returns 0
+v.parse(NumberSchema, "invalid"); // Returns 0
 
 // Dynamic fallback
 const DateSchema = v.fallback(v.date(), () => new Date());
@@ -595,7 +615,7 @@ const DateSchema = v.fallback(v.date(), () => new Date());
 ## Recursive Schemas
 
 ```typescript
-import * as v from 'valibot';
+import * as v from "valibot";
 
 type TreeNode = {
   value: string;
@@ -604,7 +624,7 @@ type TreeNode = {
 
 const TreeNodeSchema: v.GenericSchema<TreeNode> = v.object({
   value: v.string(),
-  children: v.lazy(() => v.array(TreeNodeSchema))
+  children: v.lazy(() => v.array(TreeNodeSchema)),
 });
 ```
 
@@ -613,7 +633,7 @@ const TreeNodeSchema: v.GenericSchema<TreeNode> = v.object({
 For async operations (e.g., database checks), use async variants:
 
 ```typescript
-import * as v from 'valibot';
+import * as v from "valibot";
 
 const isUsernameAvailable = async (username: string) => {
   // Check database
@@ -623,18 +643,18 @@ const isUsernameAvailable = async (username: string) => {
 const UsernameSchema = v.pipeAsync(
   v.string(),
   v.minLength(3),
-  v.checkAsync(isUsernameAvailable, 'Username is already taken')
+  v.checkAsync(isUsernameAvailable, "Username is already taken"),
 );
 
 // Must use parseAsync
-const username = await v.parseAsync(UsernameSchema, 'john');
+const username = await v.parseAsync(UsernameSchema, "john");
 ```
 
 ## JSON Schema Conversion
 
 ```typescript
-import { toJsonSchema } from '@valibot/to-json-schema';
-import * as v from 'valibot';
+import { toJsonSchema } from "@valibot/to-json-schema";
+import * as v from "valibot";
 
 const EmailSchema = v.pipe(v.string(), v.email());
 const jsonSchema = toJsonSchema(EmailSchema);
@@ -648,7 +668,7 @@ const jsonSchema = toJsonSchema(EmailSchema);
 ```typescript
 export const User = v.object({
   name: v.string(),
-  email: v.pipe(v.string(), v.email())
+  email: v.pipe(v.string(), v.email()),
 });
 
 export type User = v.InferOutput<typeof User>;
@@ -663,7 +683,7 @@ users.push(v.parse(User, data));
 ```typescript
 export const UserSchema = v.object({
   name: v.string(),
-  age: v.pipe(v.string(), v.transform(Number))
+  age: v.pipe(v.string(), v.transform(Number)),
 });
 
 export type UserInput = v.InferInput<typeof UserSchema>;
@@ -678,32 +698,32 @@ export type UserOutput = v.InferOutput<typeof UserSchema>;
 const LoginSchema = v.object({
   email: v.pipe(
     v.string(),
-    v.nonEmpty('Please enter your email'),
-    v.email('Invalid email address')
+    v.nonEmpty("Please enter your email"),
+    v.email("Invalid email address"),
   ),
   password: v.pipe(
     v.string(),
-    v.nonEmpty('Please enter your password'),
-    v.minLength(8, 'Password must be at least 8 characters')
-  )
+    v.nonEmpty("Please enter your password"),
+    v.minLength(8, "Password must be at least 8 characters"),
+  ),
 });
 ```
 
 ### API Response
 
 ```typescript
-const ApiResponseSchema = v.variant('status', [
+const ApiResponseSchema = v.variant("status", [
   v.object({
-    status: v.literal('success'),
-    data: v.unknown()
+    status: v.literal("success"),
+    data: v.unknown(),
   }),
   v.object({
-    status: v.literal('error'),
+    status: v.literal("error"),
     error: v.object({
       code: v.string(),
-      message: v.string()
-    })
-  })
+      message: v.string(),
+    }),
+  }),
 ]);
 ```
 
@@ -711,10 +731,10 @@ const ApiResponseSchema = v.variant('status', [
 
 ```typescript
 const EnvSchema = v.object({
-  NODE_ENV: v.picklist(['development', 'production', 'test']),
+  NODE_ENV: v.picklist(["development", "production", "test"]),
   PORT: v.pipe(v.string(), v.transform(Number), v.integer(), v.minValue(1)),
   DATABASE_URL: v.pipe(v.string(), v.url()),
-  API_KEY: v.pipe(v.string(), v.minLength(32))
+  API_KEY: v.pipe(v.string(), v.minLength(32)),
 });
 
 const env = v.parse(EnvSchema, process.env);
@@ -727,11 +747,14 @@ const env = v.parse(EnvSchema, process.env);
 const DateFromStringSchema = v.pipe(
   v.string(),
   v.isoDate(),
-  v.transform((input) => new Date(input))
+  v.transform((input) => new Date(input)),
 );
 
 // Date validation
-const FutureDateSchema = v.pipe(v.date(), v.minValue(new Date(), 'Date must be in the future'));
+const FutureDateSchema = v.pipe(
+  v.date(),
+  v.minValue(new Date(), "Date must be in the future"),
+);
 ```
 
 ## Additional Resources

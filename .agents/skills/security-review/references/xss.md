@@ -6,11 +6,11 @@ XSS occurs when applications include untrusted data in web pages without proper 
 
 ## XSS Types
 
-| Type          | Description                                | Example                                |
-| ------------- | ------------------------------------------ | -------------------------------------- |
-| **Reflected** | Malicious script from current HTTP request | URL parameter rendered in response     |
-| **Stored**    | Malicious script stored in target server   | Comment field saved and displayed      |
-| **DOM-based** | Vulnerability in client-side code          | JavaScript reads URL and writes to DOM |
+| Type | Description | Example |
+|------|-------------|---------|
+| **Reflected** | Malicious script from current HTTP request | URL parameter rendered in response |
+| **Stored** | Malicious script stored in target server | Comment field saved and displayed |
+| **DOM-based** | Vulnerability in client-side code | JavaScript reads URL and writes to DOM |
 
 ## Output Encoding by Context
 
@@ -28,30 +28,28 @@ document.createTextNode(userInput);
 ```
 
 **HTML Entity Encoding**
-
 | Character | Encoding |
-| --------- | -------- |
-| `<`       | `&lt;`   |
-| `>`       | `&gt;`   |
-| `&`       | `&amp;`  |
-| `"`       | `&quot;` |
-| `'`       | `&#x27;` |
+|-----------|----------|
+| `<` | `&lt;` |
+| `>` | `&gt;` |
+| `&` | `&amp;` |
+| `"` | `&quot;` |
+| `'` | `&#x27;` |
 
 ### HTML Attribute Context
 
 ```html
 <!-- VULNERABLE: Unquoted attribute -->
-<input value="${userInput}" />
+<input value=${userInput}>
 
 <!-- VULNERABLE: Event handler with user data -->
 <button onclick="doSomething('${userInput}')">
-  <!-- SAFE: Quoted attribute with encoding -->
-  <input value="${htmlEncode(userInput)}" />
-</button>
+
+<!-- SAFE: Quoted attribute with encoding -->
+<input value="${htmlEncode(userInput)}">
 ```
 
 **Rules:**
-
 - Always quote attribute values
 - Never place user input in event handlers (`onclick`, `onerror`, etc.)
 - Use `setAttribute()` which auto-encodes
@@ -66,7 +64,7 @@ eval(userInput);
 setTimeout("doSomething('" + userInput + "')", 1000);
 
 // VULNERABLE: Function constructor
-new Function('return ' + userInput)();
+new Function("return " + userInput)();
 
 // SAFE: JSON encoding for data
 const data = JSON.parse(jsonString);
@@ -76,7 +74,6 @@ setTimeout(() => doSomething(userInput), 1000);
 ```
 
 **Safe JavaScript Locations** (with proper encoding):
-
 - Inside quoted string values only
 - Never directly in script blocks
 
@@ -103,18 +100,13 @@ const encoded = encodeURIComponent(userInput);
 
 ```css
 /* VULNERABLE: User input in style */
-.element {
-  background: url(${userInput});
-}
+.element { background: url(${userInput}); }
 
 /* VULNERABLE: Expression in CSS */
-.element {
-  behavior: expression(${userInput});
-}
+.element { behavior: expression(${userInput}); }
 ```
 
 **Rules:**
-
 - Place user data only in CSS property values
 - Never allow user input in selectors or URLs
 
@@ -123,29 +115,27 @@ const encoded = encodeURIComponent(userInput);
 ## Safe DOM Sinks
 
 **Use These:**
-
 ```javascript
 elem.textContent = variable;
 elem.insertAdjacentText('beforeend', variable);
-elem.className = variable; // for class names
+elem.className = variable;  // for class names
 elem.setAttribute('data-value', variable);
 formField.value = variable;
 document.createTextNode(variable);
 ```
 
 **Avoid These:**
-
 ```javascript
-elem.innerHTML = variable; // XSS
-elem.outerHTML = variable; // XSS
-document.write(variable); // XSS
-document.writeln(variable); // XSS
-eval(variable); // Code execution
-setTimeout(variable); // If string argument
-setInterval(variable); // If string argument
-new Function(variable); // Code execution
-elem.insertAdjacentHTML(); // XSS
-elem.onevent = variable; // Event handler
+elem.innerHTML = variable;        // XSS
+elem.outerHTML = variable;        // XSS
+document.write(variable);         // XSS
+document.writeln(variable);       // XSS
+eval(variable);                   // Code execution
+setTimeout(variable);             // If string argument
+setInterval(variable);            // If string argument
+new Function(variable);           // Code execution
+elem.insertAdjacentHTML();        // XSS
+elem.onevent = variable;          // Event handler
 ```
 
 ---
@@ -220,13 +210,12 @@ const clean = DOMPurify.sanitize(dirty);
 
 // With configuration
 const clean = DOMPurify.sanitize(dirty, {
-  ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a'],
-  ALLOWED_ATTR: ['href']
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a'],
+    ALLOWED_ATTR: ['href']
 });
 ```
 
 **Key Points:**
-
 - Keep sanitization libraries updated
 - Configure allowed tags/attributes based on needs
 - Sanitize on output, not just input
@@ -252,11 +241,11 @@ Content-Security-Policy:
 ```html
 <!-- Server generates unique nonce per request -->
 <script nonce="r4nd0m123">
-  // Allowed script
+    // Allowed script
 </script>
 
 <script>
-  // Blocked - no nonce
+    // Blocked - no nonce
 </script>
 ```
 
@@ -290,7 +279,7 @@ element.innerHTML = location.hash.slice(1);
 // SAFE: Validate and encode
 const hash = location.hash.slice(1);
 if (/^[a-zA-Z0-9-]+$/.test(hash)) {
-  element.textContent = hash;
+    element.textContent = hash;
 }
 ```
 
@@ -318,7 +307,6 @@ grep -rn "mark_safe\|SafeString" --include="*.py"
 ## Testing Payloads
 
 **Basic:**
-
 ```
 <script>alert('XSS')</script>
 <img src=x onerror=alert('XSS')>
@@ -326,14 +314,12 @@ grep -rn "mark_safe\|SafeString" --include="*.py"
 ```
 
 **Attribute Escape:**
-
 ```
 " onmouseover="alert('XSS')
 ' onclick='alert("XSS")
 ```
 
 **JavaScript Context:**
-
 ```
 ';alert('XSS')//
 \';alert(\'XSS\')//

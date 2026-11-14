@@ -9,15 +9,15 @@ Reactive current timestamp
 ## Usage
 
 ```ts
-import { useTimestamp } from '@vueuse/core';
+import { useTimestamp } from '@vueuse/core'
 
-const timestamp = useTimestamp({ offset: 0 });
+const timestamp = useTimestamp({ offset: 0 })
 ```
 
 ```ts
-import { useTimestamp } from '@vueuse/core';
+import { useTimestamp } from '@vueuse/core'
 // ---cut---
-const { timestamp, pause, resume } = useTimestamp({ controls: true });
+const { timestamp, pause, resume } = useTimestamp({ controls: true })
 ```
 
 ## Component Usage
@@ -26,8 +26,12 @@ const { timestamp, pause, resume } = useTimestamp({ controls: true });
 <template>
   <UseTimestamp v-slot="{ timestamp, pause, resume }">
     Current Time: {{ timestamp }}
-    <button @click="pause()">Pause</button>
-    <button @click="resume()">Resume</button>
+    <button @click="pause()">
+      Pause
+    </button>
+    <button @click="resume()">
+      Resume
+    </button>
   </UseTimestamp>
 </template>
 ```
@@ -35,37 +39,41 @@ const { timestamp, pause, resume } = useTimestamp({ controls: true });
 ## Type Declarations
 
 ```ts
-export interface UseTimestampOptions<Controls extends boolean> extends ConfigurableScheduler {
+export interface UseTimestampOptions<
+  Controls extends boolean,
+> extends ConfigurableScheduler {
   /**
    * Expose more controls
    *
    * @default false
    */
-  controls?: Controls;
+  controls?: Controls
   /**
    * Offset value adding to the value
    *
    * @default 0
    */
-  offset?: number;
+  offset?: number
   /**
    * Callback on each update
    */
-  callback?: (timestamp: number) => void;
+  callback?: (timestamp: number) => void
 }
 export type UseTimestampReturn<Controls extends boolean> = Controls extends true
   ? {
-      timestamp: ShallowRef<number>;
+      timestamp: ShallowRef<number>
     } & Pausable
-  : ShallowRef<number>;
+  : ShallowRef<number>
 /**
  * Reactive current timestamp.
  *
  * @see https://vueuse.org/useTimestamp
  * @param options
  */
-export declare function useTimestamp(options?: UseTimestampOptions<false>): ShallowRef<number>;
+export declare function useTimestamp(
+  options?: UseTimestampOptions<false>,
+): ShallowRef<number>
 export declare function useTimestamp(options: UseTimestampOptions<true>): {
-  timestamp: ShallowRef<number>;
-} & Pausable;
+  timestamp: ShallowRef<number>
+} & Pausable
 ```

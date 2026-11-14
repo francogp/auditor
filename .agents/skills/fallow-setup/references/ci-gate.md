@@ -4,10 +4,10 @@ Add one gate to the CI provider that the project already uses. Exit code 0 means
 
 ## Select the gate
 
-| Gate               | Command        | Fails on                                                 | Baseline                                       |
-| ------------------ | -------------- | -------------------------------------------------------- | ---------------------------------------------- |
-| Changed-code gate  | `fallow audit` | Findings that the change introduces in the changed files | Not necessary                                  |
-| Whole-project gate | `fallow`       | Every error-severity finding in the project              | Necessary when the first run has many findings |
+| Gate | Command | Fails on | Baseline |
+|---|---|---|---|
+| Changed-code gate | `fallow audit` | Findings that the change introduces in the changed files | Not necessary |
+| Whole-project gate | `fallow` | Every error-severity finding in the project | Necessary when the first run has many findings |
 
 Start with the changed-code gate. `fallow audit` uses `--gate new-only` by default, so findings that existed before the change do not fail it. The audit needs the git history of the base ref. In CI, fetch the full history.
 
@@ -33,7 +33,7 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_COMMAND: 'audit'
+    FALLOW_COMMAND: "audit"
 ```
 
 Replace `<version>` with the installed Fallow version. When the runners cannot reach `raw.githubusercontent.com`, run `fallow ci-template gitlab --vendor` and include the vendored files locally.
@@ -43,7 +43,7 @@ Replace `<version>` with the installed Fallow version. When the runners cannot r
 Run the CLI directly after the dependencies are installed:
 
 ```bash
-npx fallow audit --base origin/main --format json --quiet
+npx fallow@3.42.0 audit --base origin/main --format json --quiet
 ```
 
 Use the runner of the detected package manager, for example `pnpm exec fallow`.

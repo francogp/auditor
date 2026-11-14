@@ -249,8 +249,9 @@ function mapUnusedExportFindings(exports, projectRoot) {
 		severity: "error"
 	}));
 }
+const FALLOW_RUNTIME_COMPANIONS = /* @__PURE__ */ new Set(["fallow-similar-code"]);
 function mapUnusedDepFindings(deps, projectRoot) {
-	return (deps || []).map((d) => ({
+	return (deps || []).filter((d) => !FALLOW_RUNTIME_COMPANIONS.has(d.package_name)).map((d) => ({
 		file: path.resolve(projectRoot, d.path || "package.json"),
 		line: d.line || 1,
 		message: `Unused dependency in package.json (Fallow): '${d.package_name}'`,
@@ -568,4 +569,4 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new FallowArchitectureAuditor());
-export { DEFAULT_FALLOW_HEALTH_MAX_COGNITIVE, DEFAULT_FALLOW_HEALTH_MAX_CYCLOMATIC, FALLOW_ALL_PRIORITY_THRESHOLD, FALLOW_CRITICAL_PRIORITY_THRESHOLD, FALLOW_HIGH_PRIORITY_THRESHOLD, FALLOW_LOW_PRIORITY_THRESHOLD, FALLOW_MEDIUM_PRIORITY_THRESHOLD, FALLOW_MODERATE_PRIORITY_THRESHOLD, FALLOW_PRIORITY_MIN_THRESHOLDS, FALLOW_RULES, FALLOW_RULE_CAPABILITIES, FALLOW_RULE_DESCRIPTIONS, FALLOW_RULE_REMEDIATIONS, FALLOW_RULE_REMEDIATION_PHASES, FallowArchitectureAuditor, mapFallowJson, resolveFallowTargetMinThreshold };
+export { DEFAULT_FALLOW_HEALTH_MAX_COGNITIVE, DEFAULT_FALLOW_HEALTH_MAX_CYCLOMATIC, FALLOW_ALL_PRIORITY_THRESHOLD, FALLOW_CRITICAL_PRIORITY_THRESHOLD, FALLOW_HIGH_PRIORITY_THRESHOLD, FALLOW_LOW_PRIORITY_THRESHOLD, FALLOW_MEDIUM_PRIORITY_THRESHOLD, FALLOW_MODERATE_PRIORITY_THRESHOLD, FALLOW_PRIORITY_MIN_THRESHOLDS, FALLOW_RULES, FALLOW_RULE_CAPABILITIES, FALLOW_RULE_DESCRIPTIONS, FALLOW_RULE_REMEDIATIONS, FALLOW_RULE_REMEDIATION_PHASES, FALLOW_RUNTIME_COMPANIONS, FallowArchitectureAuditor, mapFallowJson, resolveFallowTargetMinThreshold };

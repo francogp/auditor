@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "10.11.6-build.20261113-192534",
+  "version": "10.12.0-build.20261114-003838",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -299,30 +299,31 @@
     "auditor:bundle-budget": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts task=validate_bundle_budget"
   },
   "dependencies": {
-    "@ast-grep/napi": "^0.51.1",
+    "@ast-grep/napi": "^0.51.2",
     "boxen": "^9.0.0",
     "citty": "^0.2.2",
     "cli-table3": "^0.6.5",
-    "fallow": "^3.42.0",
+    "fallow": "^3.43.0",
+    "fallow-similar-code": "^3.43.0",
     "franc-min": "^6.2.0",
-    "html-validate": "^11.21.0",
+    "html-validate": "^11.21.1",
     "html-validate-vue": "^9.3.1",
-    "jsdom": "^31.0.0",
-    "knip": "^6.44.2",
+    "jsdom": "^31.0.1",
+    "knip": "^6.45.1",
     "magic-string": "^1.4.5",
     "markdownlint-cli": "^0.50.0",
     "mermaid": "^12.3.0",
     "postcss-html": "^2.0.0",
     "postcss-value-parser": "^4.2.0",
     "semver": "^7.8.6",
-    "string-width": "^8.3.0",
-    "stylelint": "^17.16.0",
-    "stylelint-config-standard": "^40.0.0",
-    "stylelint-config-standard-scss": "^17.0.0",
+    "string-width": "^9.0.0",
+    "stylelint": "^18.0.0",
+    "stylelint-config-standard": "^41.0.0",
+    "stylelint-config-standard-scss": "^18.0.0",
     "stylelint-config-standard-vue": "^2.0.0",
-    "stylelint-declaration-strict-value": "^1.12.1",
+    "stylelint-declaration-strict-value": "^1.13.0",
     "stylelint-order": "^8.1.3",
-    "stylelint-scss": "^7.4.0",
+    "stylelint-scss": "^7.5.0",
     "ts-morph": "^28.0.0",
     "type-coverage": "^2.31.2",
     "typescript": "^6.0.3",
@@ -337,25 +338,26 @@
     "@vitest/coverage-v8": "^5.1.0",
     "pinia": "^4.1.0",
     "publint": "^0.3.25",
-    "vite-plus": "^1.5.1"
+    "vite-plus": "^1.6.0"
   },
   "peerDependencies": {
-    "@playwright/test": "^1.65.0",
+    "@playwright/test": "^1.65.1",
     "@types/node": "^26.6.6",
-    "@vitejs/plugin-vue": "^6.0.10",
+    "@vitejs/plugin-vue": "^6.0.11",
     "@vitest/coverage-v8": "^5.1.0",
     "citty": "^0.2.2",
-    "fallow": "^3.42.0",
+    "fallow": "^3.43.0",
+    "fallow-similar-code": "^3.43.0",
     "gsap": "^3.15.1",
-    "html-validate": "^11.21.0",
+    "html-validate": "^11.21.1",
     "markdownlint-cli": "^0.50.0",
     "pinia": "^4.1.0",
-    "sass": "^1.108.0",
+    "sass": "^1.108.2",
     "typescript": "^6.0.3",
     "valibot": "^1.5.0",
-    "vite-plus": "^1.5.1",
+    "vite-plus": "^1.6.0",
     "vue": "^3.5.45",
-    "vue-router": "^5.4.0"
+    "vue-router": "^5.5.1"
   },
   "peerDependenciesMeta": {
     "citty": {
@@ -403,15 +405,15 @@
     "fallow": {
       "optional": true
     },
+    "fallow-similar-code": {
+      "optional": true
+    },
     "@playwright/test": {
       "optional": true
     }
   },
   "overrides": {
-    "js-yaml": "^5.5.0",
-    "katex": "^0.19.1",
-    "smol-toml": "^1.9.1",
-    "stylelint-config-recommended": "^18.0.0"
+    "katex": "^0.19.1"
   },
   "engines": {
     "node": ">=26.13.0",

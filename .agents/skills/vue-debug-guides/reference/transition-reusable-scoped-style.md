@@ -18,7 +18,6 @@ tags: [vue3, transition, scoped-css, slot, reusable-component]
 - [ ] Test that transitions work when component is used in different contexts
 
 **Problematic Code:**
-
 ```vue
 <!-- MyFadeTransition.vue -->
 <template>
@@ -56,7 +55,6 @@ applied by Vue won't match the scoped CSS selectors
 ```
 
 **Correct Code:**
-
 ```vue
 <!-- MyFadeTransition.vue -->
 <template>
@@ -174,9 +172,12 @@ defineProps({
     type: Boolean,
     default: false
   }
-});
+})
 
-defineEmits(['before-enter', 'enter', 'after-enter', 'before-leave', 'leave', 'after-leave']);
+defineEmits([
+  'before-enter', 'enter', 'after-enter',
+  'before-leave', 'leave', 'after-leave'
+])
 </script>
 
 <template>
@@ -199,9 +200,7 @@ defineEmits(['before-enter', 'enter', 'after-enter', 'before-leave', 'leave', 'a
 <style>
 .slide-enter-active,
 .slide-leave-active {
-  transition:
-    transform 0.3s ease,
-    opacity 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .slide-enter-from {
@@ -217,11 +216,12 @@ defineEmits(['before-enter', 'enter', 'after-enter', 'before-leave', 'leave', 'a
 ```
 
 Usage:
-
 ```vue
 <template>
   <SlideTransition>
-    <div v-if="show" class="content">This will properly animate!</div>
+    <div v-if="show" class="content">
+      This will properly animate!
+    </div>
   </SlideTransition>
 </template>
 ```
@@ -241,6 +241,5 @@ Vue's scoped styles work by adding a unique data attribute (e.g., `data-v-7ba5bd
 Slotted content comes from the parent component and gets the parent's data attribute, not the transition component's attribute. So the selectors never match.
 
 ## Reference
-
 - [Vue.js Reusable Transitions](https://vuejs.org/guide/built-ins/transition.html#reusable-transitions)
 - [Vue.js Scoped CSS](https://vuejs.org/api/sfc-css-features.html#scoped-css)

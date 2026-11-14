@@ -134,6 +134,7 @@ export interface FallowFindingItem {
   readonly ruleId: FallowRuleId;
   readonly severity: FindingSeverity;
 }
+export declare const FALLOW_RUNTIME_COMPANIONS: ReadonlySet<string>;
 export declare function mapFallowJson(command: string, data: FallowAuditData, projectRoot?: string): FallowFindingItem[];
 export interface FallowArchitectureAuditorOptions {
   readonly projectRoot?: string;

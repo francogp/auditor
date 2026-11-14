@@ -19,7 +19,6 @@ This gotcha commonly causes off-by-one errors when the generated numbers are use
 - [ ] Consider creating a computed array if you need 0-based indices
 
 **Incorrect Assumption:**
-
 ```html
 <!-- Developer expects 0-9, but gets 1-10 -->
 <span v-for="n in 10">{{ n }}</span>
@@ -27,13 +26,11 @@ This gotcha commonly causes off-by-one errors when the generated numbers are use
 
 <!-- WRONG: Off-by-one error when used for array access -->
 <li v-for="n in items.length" :key="n">
-  {{ items[n].name }}
-  <!-- Error! items[10] is undefined when length is 10 -->
+  {{ items[n].name }}  <!-- Error! items[10] is undefined when length is 10 -->
 </li>
 ```
 
 **Correct:**
-
 ```html
 <!-- Correct understanding: 1-based range -->
 <span v-for="n in 10" :key="n">{{ n }}</span>
@@ -41,20 +38,20 @@ This gotcha commonly causes off-by-one errors when the generated numbers are use
 
 <!-- CORRECT: Adjust index for array access -->
 <li v-for="n in items.length" :key="n">
-  {{ items[n - 1].name }}
-  <!-- n-1 converts to 0-based -->
+  {{ items[n - 1].name }}  <!-- n-1 converts to 0-based -->
 </li>
 
 <!-- BETTER: Just iterate the array directly -->
 <li v-for="(item, index) in items" :key="item.id">
-  {{ index + 1 }}. {{ item.name }}
-  <!-- index is 0-based, add 1 for display -->
+  {{ index + 1 }}. {{ item.name }}  <!-- index is 0-based, add 1 for display -->
 </li>
 ```
 
 ```html
 <!-- Range for repeating elements (no array involved) -->
-<div v-for="n in 3" :key="n" class="skeleton-row">Loading placeholder {{ n }} of 3...</div>
+<div v-for="n in 3" :key="n" class="skeleton-row">
+  Loading placeholder {{ n }} of 3...
+</div>
 <!-- Output: Loading placeholder 1 of 3, 2 of 3, 3 of 3 -->
 ```
 
@@ -66,5 +63,4 @@ This gotcha commonly causes off-by-one errors when the generated numbers are use
 - Repeating template structures a set number of times
 
 ## Reference
-
 - [Vue.js List Rendering - v-for with a Range](https://vuejs.org/guide/essentials/list.html#v-for-with-a-range)

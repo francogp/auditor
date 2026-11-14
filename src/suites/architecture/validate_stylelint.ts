@@ -141,6 +141,8 @@ export function buildStylelintConfig(
         }
       ],
       [SASS_TRAPS_RULE_NAME]: true,
+      'at-charset-rule-no-invalid': true,
+      'value-no-invalid': true,
       ...customRules
     }
   };
@@ -401,6 +403,7 @@ export async function fixStylelint(context: RuleFixContext<StylelintRuleId>): Pr
     await stylelint.lint({
       config: lintConfig,
       files: filesToLint,
+      cwd: context.projectRoot,
       ignoreDisables: true,
       reportNeedlessDisables: true,
       cache: true,
@@ -642,8 +645,8 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     try {
       linterResult = await stylelint.lint({
         files: filesGlobs,
+        cwd: this.projectRoot,
         globbyOptions: {
-          cwd: this.projectRoot,
           ignore: ignoreGlobs
         },
         config: lintConfig,
