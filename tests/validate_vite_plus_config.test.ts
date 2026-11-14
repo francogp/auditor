@@ -2244,4 +2244,127 @@ export default defineConfig({
       ).toBe(true);
     });
   });
+
+  describe('SSoT Coverage Include & Zero-Hardcoded Globs Canary', () => {
+    it('flags outdated test.coverage.include against SSoT, repairs it, and prunes conflicting thresholds via synchronizeViteConfigAst', () => {
+      const customAuditConfig = defineAuditConfig({
+        name: 'ssot-coverage-test',
+        paths: {
+          srcRoots: ['src'],
+          testRoots: ['tests'],
+          cliRoots: ['src/cli']
+        },
+        testCoverage: {
+          enabled: true,
+          threshold: 85,
+          roots: ['src'],
+          extensions: ['.ts', '.vue']
+        }
+      });
+
+      const staleViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        import { plugins } from './vite.plugins.ts';
+
+        export default defineConfig({
+          plugins,
+          lint: {
+            options: { typeAware: true, typeCheck: true },
+            plugins: ['vitest', 'node', 'promise', 'unicorn', 'typescript', 'vue', 'import', 'jsx-a11y'],
+            jsPlugins: ['@francogp/auditor/domain-type-plugin'],
+            rules: {},
+            ignorePatterns: [],
+            overrides: []
+          },
+          fmt: { sortPackageJson: true, sortImports: true, ignorePatterns: [] },
+          test: {
+            include: ['tests/**/*.{test,spec}.ts'],
+            coverage: {
+              provider: 'v8',
+              reportsDirectory: 'scratch/coverage',
+              include: ['src/**/*.ts'],
+              thresholds: {
+                lines: 80,
+                functions: 80,
+                branches: 80,
+                statements: 80
+              }
+            }
+          }
+        });
+      `;
+
+      const findingsBefore = auditVitePlusConfigContent(
+        staleViteConfig,
+        'vite.config.ts',
+        customAuditConfig
+      );
+      expect(
+        findingsBefore.some(
+          (f) => f.ruleId === 'vite-plus-config-ts' && f.context === 'test.coverage.include'
+        )
+      ).toBe(true);
+
+      const synced = synchronizeViteConfigAst(
+        staleViteConfig,
+        customAuditConfig,
+        [],
+        [],
+        null,
+        tempDir
+      );
+      expect(synced.modified).toBe(true);
+      expect(synced.content).toContain("include: ['src/**/*.{ts,vue}']");
+      expect(synced.content).not.toContain('thresholds:');
+
+      const idempotent = synchronizeViteConfigAst(
+        synced.content,
+        customAuditConfig,
+        [],
+        [],
+        null,
+        tempDir
+      );
+      expect(idempotent.modified).toBe(false);
+
+      const findingsAfter = auditVitePlusConfigContent(
+        synced.content,
+        'vite.config.ts',
+        customAuditConfig
+      );
+      expect(findingsAfter.some((f) => f.context === 'test.coverage.include')).toBe(false);
+    });
+
+    it('generates canonical vite.config.ts from SSoT without hardcoded auditor-specific pack entries or single-extension coverage', () => {
+      const libDir = path.join(tempDir, 'lib');
+      fs.mkdirSync(libDir, { recursive: true });
+      fs.writeFileSync(path.join(libDir, 'index.ts'), 'export const ok = true;\n', 'utf-8');
+
+      const libAuditConfig = defineAuditConfig({
+        name: 'ssot-lib-test',
+        paths: {
+          srcRoots: ['lib'],
+          testRoots: ['spec'],
+          cliRoots: []
+        },
+        packageDistribution: {
+          enabled: true
+        },
+        testCoverage: {
+          enabled: true,
+          threshold: 90,
+          roots: ['lib'],
+          extensions: ['.ts', '.vue']
+        }
+      });
+
+      const generated = buildCanonicalVitePlusConfig(libAuditConfig, tempDir);
+      expect(generated).toContain("'lib/**/*.{ts,vue}'");
+      expect(generated).toContain("'spec/**/*.{test,spec}.ts'");
+      expect(generated).not.toContain('thresholds:');
+      expect(generated).not.toContain('src/suites/**/*.ts');
+      expect(generated).not.toContain('src/cli/*.ts');
+      expect(generated).toContain("'lib/index.ts'");
+    });
+  });
 });

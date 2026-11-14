@@ -31,6 +31,8 @@ import {
   getPropertyKeyName,
   parseTsSourceFile,
   buildAllowedCoverageExcludes,
+  buildExpectedCoverageIncludeGlobs,
+  areStringArraysEqual,
   resolveEffectiveLintOverrides,
   type ParsedVitePlusConfigSummary
 } from '../../core/viteConfigAst.ts';
@@ -1381,6 +1383,24 @@ function validateSynchronizedLintAndFmt(
         col: 1,
         context: `lint.plugins.${plugin}`,
         message: `Undeclared linter plugin '${plugin}' in vite.config.ts. To legitimize this plugin, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.plugins', or remove it from vite.config.ts.`
+      });
+    }
+  }
+
+  if (summary.hasTestCoverageInclude) {
+    const expectedInclude = buildExpectedCoverageIncludeGlobs(auditConfig);
+    if (!areStringArraysEqual(summary.testCoverageInclude, expectedInclude)) {
+      findings.push({
+        suiteId: 'validate_vite_plus_config',
+        suiteName: 'Vite+ Unified Configuration Validator',
+        ruleId: 'vite-plus-config-ts',
+        ruleDescription: 'Vite+: TypeScript and test synchronization',
+        severity: 'error',
+        file: fileName,
+        line: 1,
+        col: 1,
+        context: 'test.coverage.include',
+        message: `test.coverage.include (${summary.testCoverageInclude.join(', ')}) does not match SSoT testCoverage configuration (${expectedInclude.join(', ')}). Run 'npm run auditor:fix' to synchronize vite.config.ts from .auditor/audit.config.ts.`
       });
     }
   }

@@ -270,37 +270,63 @@ function extractPackSummaryFromAst(packExpr, sf) {
 		hasPackAttw
 	};
 }
-function extractTestSummaryFromAst(testExpr, sf) {
-	let hasRootTestInclude = false;
-	let rootTestInclude = [];
-	const testProjects = [];
+function extractCoverageSummaryFromAst(coverageProp, sf) {
+	let testCoverageInclude = [];
+	let hasTestCoverageInclude = false;
 	let testCoverageExclude = [];
-	if (testExpr && ts.isObjectLiteralExpression(testExpr)) {
-		if (findPropertyAssignment(testExpr, "include", sf)) {
-			hasRootTestInclude = true;
-			rootTestInclude = extractStringArrayProp(testExpr, "include", sf);
-		}
-		const coverageProp = findPropertyAssignment(testExpr, "coverage", sf);
-		if (coverageProp && ts.isObjectLiteralExpression(coverageProp.initializer)) testCoverageExclude = extractStringArrayProp(coverageProp.initializer, "exclude", sf);
-		const projectsProp = findPropertyAssignment(testExpr, "projects", sf);
-		if (projectsProp && ts.isArrayLiteralExpression(projectsProp.initializer)) for (const el of projectsProp.initializer.elements) {
-			if (!ts.isObjectLiteralExpression(el)) continue;
-			const info = extractProjectInfoFromElement(el, sf);
-			if (info.name || info.include.length > 0) testProjects.push({
-				name: info.name,
-				include: info.include
-			});
-		}
+	if (!coverageProp || !ts.isObjectLiteralExpression(coverageProp.initializer)) return {
+		testCoverageInclude,
+		hasTestCoverageInclude,
+		testCoverageExclude
+	};
+	const coverageObj = coverageProp.initializer;
+	if (findPropertyAssignment(coverageObj, "include", sf)) {
+		hasTestCoverageInclude = true;
+		testCoverageInclude = extractStringArrayProp(coverageObj, "include", sf);
 	}
+	testCoverageExclude = extractStringArrayProp(coverageObj, "exclude", sf);
+	return {
+		testCoverageInclude,
+		hasTestCoverageInclude,
+		testCoverageExclude
+	};
+}
+function extractTestProjectsFromAst(projectsProp, sf) {
+	const testProjects = [];
+	if (!projectsProp || !ts.isArrayLiteralExpression(projectsProp.initializer)) return testProjects;
+	for (const el of projectsProp.initializer.elements) {
+		if (!ts.isObjectLiteralExpression(el)) continue;
+		const info = extractProjectInfoFromElement(el, sf);
+		if (info.name || info.include.length > 0) testProjects.push({
+			name: info.name,
+			include: info.include
+		});
+	}
+	return testProjects;
+}
+function extractTestSummaryFromAst(testExpr, sf) {
+	if (!testExpr || !ts.isObjectLiteralExpression(testExpr)) return {
+		hasRootTestInclude: false,
+		rootTestInclude: [],
+		testProjects: [],
+		hasTestProjects: false,
+		testInclude: [],
+		testCoverageInclude: [],
+		hasTestCoverageInclude: false,
+		testCoverageExclude: []
+	};
+	const hasRootTestInclude = Boolean(findPropertyAssignment(testExpr, "include", sf));
+	const rootTestInclude = hasRootTestInclude ? extractStringArrayProp(testExpr, "include", sf) : [];
+	const coverage = extractCoverageSummaryFromAst(findPropertyAssignment(testExpr, "coverage", sf), sf);
+	const testProjects = extractTestProjectsFromAst(findPropertyAssignment(testExpr, "projects", sf), sf);
 	const hasTestProjects = testProjects.length > 0;
-	const testInclude = hasTestProjects ? Array.from(/* @__PURE__ */ new Set([...rootTestInclude, ...testProjects.flatMap((p) => p.include)])) : rootTestInclude;
 	return {
 		hasRootTestInclude,
 		rootTestInclude,
 		testProjects,
 		hasTestProjects,
-		testInclude,
-		testCoverageExclude
+		testInclude: hasTestProjects ? Array.from(/* @__PURE__ */ new Set([...rootTestInclude, ...testProjects.flatMap((p) => p.include)])) : rootTestInclude,
+		...coverage
 	};
 }
 function extractParsedConfigSummary(fileContent) {
@@ -310,7 +336,7 @@ function extractParsedConfigSummary(fileContent) {
 	const { lintRules, lintOptions, lintPlugins, lintJsPlugins, lintIgnorePatterns, lintOverrides } = extractLintSummaryFromAst(sections.get("lint"), sf);
 	const { fmtConfig, fmtIgnorePatterns } = extractFmtSummaryFromAst(sections.get("fmt"), sf);
 	const { packConfig, hasPackAttw } = extractPackSummaryFromAst(sections.get("pack"), sf);
-	const { hasRootTestInclude, rootTestInclude, testProjects, hasTestProjects, testInclude, testCoverageExclude } = extractTestSummaryFromAst(sections.get("test"), sf);
+	const { hasRootTestInclude, rootTestInclude, testProjects, hasTestProjects, testInclude, testCoverageInclude, hasTestCoverageInclude, testCoverageExclude } = extractTestSummaryFromAst(sections.get("test"), sf);
 	return {
 		definesFromVitePlus,
 		hasSection: (name) => sections.has(name),
@@ -329,6 +355,8 @@ function extractParsedConfigSummary(fileContent) {
 		hasTestProjects,
 		hasRootTestInclude,
 		rootTestInclude,
+		testCoverageInclude,
+		hasTestCoverageInclude,
 		testCoverageExclude
 	};
 }
@@ -375,18 +403,54 @@ function resolveKnownViteFunctionReturnType(name) {
 	if (name === "outExtensions") return createPackOutExtensionsReturnType();
 	return null;
 }
-function buildPackAstObject() {
+const DEFAULT_TEST_FILE_EXT_GLOB = "ts";
+/**
+* Derives canonical `test.coverage.include` globs from SSoT (`testCoverage.roots` + `testCoverage.extensions`).
+*/
+function buildExpectedCoverageIncludeGlobs(auditConfig) {
+	const configuredRoots = auditConfig.testCoverage?.roots;
+	const rawRoots = configuredRoots && configuredRoots.length > 0 ? configuredRoots : auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+	const roots = Array.from(new Set(rawRoots.map((r) => normalizePosixRoot(r)).filter(Boolean)));
+	const rawExts = auditConfig.testCoverage?.extensions && auditConfig.testCoverage.extensions.length > 0 ? auditConfig.testCoverage.extensions : DEFAULT_AUDIT_CONFIG.testCoverage?.extensions ?? [".ts"];
+	const exts = Array.from(new Set(rawExts.map((ext) => ext.replace(/^\.+/, "").trim()).filter(Boolean)));
+	const extGlob = exts.length === 1 ? exts[0] : `{${exts.join(",")}}`;
+	return roots.map((r) => `${r}/**/*.${extGlob}`);
+}
+/**
+* Derives agnostic `pack.entry` globs from `paths.srcRoots`, `paths.cliRoots`, and existing files on disk.
+*/
+function buildPackEntryGlobs(auditConfig, projectRoot) {
+	const rootDir = projectRoot ?? process.cwd();
+	const srcRoots = auditConfig?.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+	const cliRoots = auditConfig?.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
+	const entries = [];
+	for (const srcRoot of srcRoots) {
+		const normalized = normalizePosixRoot(srcRoot);
+		if (!normalized) continue;
+		const indexCandidate = path.resolve(rootDir, normalized, "index.ts");
+		if (fs.existsSync(indexCandidate)) entries.push(`${normalized}/index.ts`);
+		else entries.push(`${normalized}/**/*.ts`);
+	}
+	for (const cliRoot of cliRoots) {
+		const normalizedCli = normalizePosixRoot(cliRoot);
+		if (!normalizedCli) continue;
+		const cliDir = path.resolve(rootDir, normalizedCli);
+		if (fs.existsSync(cliDir)) entries.push(`${normalizedCli}/*.ts`);
+	}
+	const defaultSrcRoot = normalizePosixRoot(DEFAULT_AUDIT_CONFIG.paths.srcRoots[0] ?? "src");
+	return entries.length > 0 ? Array.from(new Set(entries)) : [`${defaultSrcRoot}/index.ts`];
+}
+function areStringArraysEqual(a, b) {
+	return a.length === b.length && b.every((item, idx) => a[idx] === item);
+}
+function buildPackAstObject(auditConfig, projectRoot) {
 	const returnType = createPackOutExtensionsReturnType();
 	const outExtensionsArrow = ts.factory.createArrowFunction(void 0, void 0, [], returnType, ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken), ts.factory.createParenthesizedExpression(valueToAstExpression({
 		js: ".js",
 		dts: ".d.ts"
 	})));
 	return ts.factory.createObjectLiteralExpression([
-		ts.factory.createPropertyAssignment("entry", valueToAstExpression([
-			"src/index.ts",
-			"src/cli/*.ts",
-			"src/suites/**/*.ts"
-		])),
+		ts.factory.createPropertyAssignment("entry", valueToAstExpression(buildPackEntryGlobs(auditConfig, projectRoot))),
 		ts.factory.createPropertyAssignment("unbundle", ts.factory.createTrue()),
 		ts.factory.createPropertyAssignment("dts", ts.factory.createTrue()),
 		ts.factory.createPropertyAssignment("publint", ts.factory.createTrue()),
@@ -537,34 +601,26 @@ function resolveVitestRoots(auditConfig) {
 	return vitestRoots.length > 0 ? vitestRoots : DEFAULT_AUDIT_CONFIG.paths.testRoots;
 }
 function buildTestAstObject(auditConfig) {
-	const coverageThreshold = auditConfig.testCoverage?.threshold ?? 80;
 	const rawTestRoots = auditConfig.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots;
 	const e2eRootsList = auditConfig.paths?.e2eRoots ?? DEFAULT_AUDIT_CONFIG.paths.e2eRoots ?? ["e2e"];
 	const testRoots = resolveVitestRoots(auditConfig);
-	const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
 	const cliRoots = auditConfig.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
 	const testProjectsConfig = auditConfig.vitePlusConfig?.test?.projects;
 	return valueToAstExpression({
 		environment: "node",
 		...Boolean(testProjectsConfig && Object.keys(testProjectsConfig).length > 0) && testProjectsConfig ? { projects: Object.entries(testProjectsConfig).map(([projName, roots]) => ({ test: {
 			name: projName,
-			include: roots.map((r) => r.includes("*") ? r : `${r}/**/*.{test,spec}.ts`)
-		} })) } : { include: testRoots.map((r) => `${r}/**/*.{test,spec}.ts`) },
+			include: roots.map((r) => toTestGlobPattern(r))
+		} })) } : { include: testRoots.map((r) => toTestGlobPattern(r)) },
 		coverage: {
 			provider: "v8",
 			reportsDirectory: "scratch/coverage",
-			include: srcRoots.map((r) => `${r}/**/*.ts`),
+			include: buildExpectedCoverageIncludeGlobs(auditConfig),
 			exclude: [
 				...cliRoots.map((r) => `${r}/**`),
 				...rawTestRoots.map((r) => `${r}/**`),
 				...e2eRootsList.map((r) => `${r}/**`)
-			],
-			thresholds: {
-				lines: coverageThreshold,
-				functions: coverageThreshold,
-				branches: coverageThreshold,
-				statements: coverageThreshold
-			}
+			]
 		}
 	});
 }
@@ -595,7 +651,7 @@ function buildCanonicalVitePlusAstSource(auditConfig, lintIgnores, fmtIgnores, l
 	const rootProps = [];
 	const pluginsFileExists = projectRoot ? fs.existsSync(path.resolve(projectRoot, "vite.plugins.ts")) : false;
 	if (pluginsFileExists) rootProps.push(ts.factory.createShorthandPropertyAssignment(ts.factory.createIdentifier("plugins")));
-	if (isLibrary) rootProps.push(ts.factory.createPropertyAssignment("pack", buildPackAstObject()));
+	if (isLibrary) rootProps.push(ts.factory.createPropertyAssignment("pack", buildPackAstObject(auditConfig, projectRoot)));
 	rootProps.push(ts.factory.createPropertyAssignment("run", buildRunAstObject(auditConfig)), ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores)), ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores, lockedSkillsIgnores)), legacyTestProperty ?? ts.factory.createPropertyAssignment("test", buildTestAstObject(auditConfig)), ts.factory.createPropertyAssignment("staged", buildStagedAstObject(auditConfig)));
 	const importDecl = ts.factory.createImportDeclaration(void 0, ts.factory.createImportClause(false, void 0, ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, void 0, ts.factory.createIdentifier("defineConfig"))])), ts.factory.createStringLiteral("vite-plus", true));
 	const exportDefault = ts.factory.createExportAssignment(void 0, false, ts.factory.createCallExpression(ts.factory.createIdentifier("defineConfig"), void 0, [ts.factory.createObjectLiteralExpression(rootProps, true)]));
@@ -953,9 +1009,10 @@ function syncTestIncludeAst(props, auditConfig, sf) {
 	}
 	const missingRoots = [];
 	for (const root of testRoots) {
-		const pattern = `${root}/**/*.{test,spec}.ts`;
+		const pattern = toTestGlobPattern(root);
+		const legacyPattern = `${root}/**/*.{test,spec}.ts`;
 		const simple = `${root}/**/*.test.ts`;
-		if (!existingIncludes.some((inc) => inc === pattern || inc === simple || isPathUnderRoot(inc, root))) missingRoots.push(pattern);
+		if (!existingIncludes.some((inc) => inc === pattern || inc === legacyPattern || inc === simple || isPathUnderRoot(inc, root))) missingRoots.push(pattern);
 	}
 	if (missingRoots.length > 0 || includeProp && modified) return {
 		props: updateObjectProperty(props, "include", valueToAstExpression(Array.from(/* @__PURE__ */ new Set([...existingIncludes, ...missingRoots]))), sf),
@@ -1026,10 +1083,25 @@ function syncCoverageExcludePropertyAst(covProps, covObj, auditConfig, sf, proje
 		modified: true
 	};
 }
+function syncCoverageIncludePropertyAst(covProps, covObj, auditConfig, sf) {
+	const expectedInclude = buildExpectedCoverageIncludeGlobs(auditConfig);
+	if (areStringArraysEqual(extractStringArrayProp(covObj, "include", sf), expectedInclude)) return {
+		props: covProps,
+		modified: false
+	};
+	return {
+		props: updateObjectProperty(covProps, "include", valueToAstExpression(expectedInclude), sf),
+		modified: true
+	};
+}
 function syncTestCoverageAst(props, auditConfig, sf, projectRoot) {
 	const coverageProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "coverage", sf);
 	if (!coverageProp) return {
-		props: updateObjectProperty(props, "coverage", ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("provider", ts.factory.createStringLiteral("v8", true)), ts.factory.createPropertyAssignment("reportsDirectory", ts.factory.createStringLiteral("scratch/coverage", true))], true), sf),
+		props: updateObjectProperty(props, "coverage", valueToAstExpression({
+			provider: "v8",
+			reportsDirectory: "scratch/coverage",
+			include: buildExpectedCoverageIncludeGlobs(auditConfig)
+		}), sf),
 		modified: true
 	};
 	if (!ts.isObjectLiteralExpression(coverageProp.initializer)) return {
@@ -1038,8 +1110,10 @@ function syncTestCoverageAst(props, auditConfig, sf, projectRoot) {
 	};
 	const covObj = coverageProp.initializer;
 	const coreRes = syncCoverageCorePropertiesAst(covObj, sf);
-	const excludeRes = syncCoverageExcludePropertyAst(coreRes.props, covObj, auditConfig, sf, projectRoot);
-	if (!(coreRes.modified || excludeRes.modified)) return {
+	const includeRes = syncCoverageIncludePropertyAst(coreRes.props, covObj, auditConfig, sf);
+	const pruneThresholdsRes = removeObjectProperty(includeRes.props, "thresholds", sf);
+	const excludeRes = syncCoverageExcludePropertyAst(pruneThresholdsRes.props, covObj, auditConfig, sf, projectRoot);
+	if (!(coreRes.modified || includeRes.modified || pruneThresholdsRes.modified || excludeRes.modified)) return {
 		props,
 		modified: false
 	};
@@ -1049,7 +1123,7 @@ function syncTestCoverageAst(props, auditConfig, sf, projectRoot) {
 	};
 }
 function toTestGlobPattern(root) {
-	return root.includes("*") ? root : `${root}/**/*.{test,spec}.ts`;
+	return root.includes("*") ? root : `${root}/**/*.{test,spec}.${DEFAULT_TEST_FILE_EXT_GLOB}`;
 }
 function findPropInList(props, propName, sf) {
 	for (const prop of props) if (ts.isPropertyAssignment(prop) && getPropertyKeyName(prop.name, sf) === propName) return prop;
@@ -2093,4 +2167,4 @@ function sanitizeEmptyCatchClausesInViteConfig(content) {
 		modified: true
 	};
 }
-export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, collectCanonicalConfiguredRules, createPropertyNameNode, createVitePluginsImportDeclaration, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveDynamicDemoExemptGlobs, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, toCanonicalLintRuleName, valueToAstExpression };
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, areStringArraysEqual, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildExpectedCoverageIncludeGlobs, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildPackEntryGlobs, buildRunAstObject, buildStagedAstObject, buildTestAstObject, collectCanonicalConfiguredRules, createPropertyNameNode, createVitePluginsImportDeclaration, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveDynamicDemoExemptGlobs, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, toCanonicalLintRuleName, valueToAstExpression };

@@ -487,7 +487,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'json-summary'],
       reportsDirectory: 'scratch/coverage',
-      include: ['src/**/*.ts'],
+      include: ['src/**/*.{ts,vue,js,jsx,tsx,mjs,cjs}'],
       exclude: ['src/**/*.d.ts', 'dist/**']
     }
   },

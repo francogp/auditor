@@ -35,12 +35,23 @@ export interface ParsedVitePlusConfigSummary {
   readonly hasTestProjects: boolean;
   readonly hasRootTestInclude: boolean;
   readonly rootTestInclude: readonly string[];
+  readonly testCoverageInclude: readonly string[];
+  readonly hasTestCoverageInclude: boolean;
   readonly testCoverageExclude: readonly string[];
 }
 export declare function extractParsedConfigSummary(fileContent: string): ParsedVitePlusConfigSummary;
 export declare function extractEslintIgnoresFromAst(rawContent: string): string[];
 export declare function resolveKnownViteFunctionReturnType(name: string): ts.TypeNode | null;
-export declare function buildPackAstObject(): ts.ObjectLiteralExpression;
+/**
+ * Derives canonical `test.coverage.include` globs from SSoT (`testCoverage.roots` + `testCoverage.extensions`).
+ */
+export declare function buildExpectedCoverageIncludeGlobs(auditConfig: AuditConfig): string[];
+/**
+ * Derives agnostic `pack.entry` globs from `paths.srcRoots`, `paths.cliRoots`, and existing files on disk.
+ */
+export declare function buildPackEntryGlobs(auditConfig?: AuditConfig, projectRoot?: string): string[];
+export declare function areStringArraysEqual(a: readonly string[], b: readonly string[]): boolean;
+export declare function buildPackAstObject(auditConfig?: AuditConfig, projectRoot?: string): ts.ObjectLiteralExpression;
 export declare function resolveDynamicTestExemptGlobs(auditConfig: AuditConfig): readonly string[];
 export declare function resolveDynamicDemoExemptGlobs(auditConfig: AuditConfig): readonly string[];
 export declare function resolveEffectiveLintOverrides(auditConfig: AuditConfig): readonly {

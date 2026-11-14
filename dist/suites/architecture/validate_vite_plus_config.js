@@ -6,7 +6,7 @@ import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { isPathContained, stripGlobSuffix, toPosixRelative } from "../../core/safePath.js";
 import { isPatternContainedInGlobs } from "../../core/globContainment.js";
 import "../../core/satelliteGlobMatcher.js";
-import { buildAllowedCoverageExcludes, detectInlineVitePlugins, extractParsedConfigSummary, findConfigRootObject, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseTsSourceFile, resolveEffectiveLintOverrides, resolveVitestRoots, toCanonicalLintRuleName } from "../../core/viteConfigAst.js";
+import { areStringArraysEqual, buildAllowedCoverageExcludes, buildExpectedCoverageIncludeGlobs, detectInlineVitePlugins, extractParsedConfigSummary, findConfigRootObject, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseTsSourceFile, resolveEffectiveLintOverrides, resolveVitestRoots, toCanonicalLintRuleName } from "../../core/viteConfigAst.js";
 import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, findHomebrewCompressionFiles, isVueProject, migrateHomebrewCompressionInViteConfig, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -1208,6 +1208,21 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 		context: `lint.plugins.${plugin}`,
 		message: `Undeclared linter plugin '${plugin}' in vite.config.ts. To legitimize this plugin, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.plugins', or remove it from vite.config.ts.`
 	});
+	if (summary.hasTestCoverageInclude) {
+		const expectedInclude = buildExpectedCoverageIncludeGlobs(auditConfig);
+		if (!areStringArraysEqual(summary.testCoverageInclude, expectedInclude)) findings.push({
+			suiteId: "validate_vite_plus_config",
+			suiteName: "Vite+ Unified Configuration Validator",
+			ruleId: "vite-plus-config-ts",
+			ruleDescription: "Vite+: TypeScript and test synchronization",
+			severity: "error",
+			file: fileName,
+			line: 1,
+			col: 1,
+			context: "test.coverage.include",
+			message: `test.coverage.include (${summary.testCoverageInclude.join(", ")}) does not match SSoT testCoverage configuration (${expectedInclude.join(", ")}). Run 'npm run auditor:fix' to synchronize vite.config.ts from .auditor/audit.config.ts.`
+		});
+	}
 	if (summary.testCoverageExclude && summary.testCoverageExclude.length > 0) {
 		const effectiveGlobs = getEffectiveIgnoreGlobs(projectRoot ?? process.cwd());
 		const allowedCoverageExcludes = buildAllowedCoverageExcludes(auditConfig, projectRoot);
