@@ -38,6 +38,7 @@ export declare class ValidateStylelintConfigAuditor extends BaseAuditor<Stylelin
   private auditUndeclaredStrictProperties;
   private auditUndeclaredIgnoreValues;
   private auditUndeclaredEntries;
+  private pruneRemovedStylelint18Rules;
   runAudit(): Promise<void>;
 }
 export { ValidateStylelintConfigAuditor as StylelintConfigAuditor };

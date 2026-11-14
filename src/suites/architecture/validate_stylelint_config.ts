@@ -20,6 +20,7 @@ import 'stylelint-declaration-strict-value';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
+  type AnyRuleFixerFn,
   BaseAuditor,
   createUniformRemediationPhases,
   createRuleCapabilities
@@ -308,12 +309,22 @@ export interface StylelintConfigAuditorOptions {
   readonly projectRoot?: string;
 }
 
+const STYLELINT_18_REMOVED_RULES: ReadonlySet<string> = new Set([
+  'declaration-block-single-line-max-declarations'
+]);
+
+const STYLELINT_CONFIG_FIXERS: Partial<Record<StylelintConfigRuleId, AnyRuleFixerFn>> = {
+  'stylelint-config-missing-order': (): void => {
+    // Auto-repair runs inside runAudit() when isFixActive() is true
+  }
+};
+
 export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigRuleId> {
   public constructor(options: StylelintConfigAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
 
     super({
-      ruleFixers: {},
+      ruleFixers: STYLELINT_CONFIG_FIXERS,
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(STYLELINT_CONFIG_RULES, {
@@ -672,6 +683,49 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
     this.auditUndeclaredIgnoreValues(optionsObj, targetFile, config);
   }
 
+  private pruneRemovedStylelint18Rules(
+    parsedConfig: Record<string, unknown>,
+    targetFile: string
+  ): boolean {
+    let modified = false;
+    const ruleMaps: Record<string, unknown>[] = [];
+    if (typeof parsedConfig.rules === 'object' && parsedConfig.rules !== null) {
+      ruleMaps.push(parsedConfig.rules as Record<string, unknown>);
+    }
+    if (Array.isArray(parsedConfig.overrides)) {
+      for (const ov of parsedConfig.overrides) {
+        if (
+          ov &&
+          typeof ov === 'object' &&
+          typeof (ov as Record<string, unknown>).rules === 'object'
+        ) {
+          const ovRules = (ov as Record<string, unknown>).rules;
+          if (ovRules !== null) ruleMaps.push(ovRules as Record<string, unknown>);
+        }
+      }
+    }
+    for (const rulesObj of ruleMaps) {
+      for (const removedRule of STYLELINT_18_REMOVED_RULES) {
+        if (Object.hasOwn(rulesObj, removedRule)) {
+          if (this.isFixActive()) {
+            delete rulesObj[removedRule];
+            modified = true;
+          } else {
+            this.addViolation({
+              ruleId: 'stylelint-undeclared-config-entry',
+              severity: 'error',
+              file: toPosixRelative(this.projectRoot, targetFile),
+              line: 1,
+              message: `Removed Stylelint 18 rule "${removedRule}" in .stylelintrc.json. Run 'npm run auditor:fix' to prune it.`,
+              context: removedRule
+            });
+          }
+        }
+      }
+    }
+    return modified;
+  }
+
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
     if (config.stylelint?.enabled === false && config.styles?.stylelint?.enabled === false) {
@@ -737,7 +791,9 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       strictModified = this.auditStrictRule(parsedConfig, targetFile, config);
     });
 
+    let removedModified = false;
     this.runSubAuditorSync('stylelint-undeclared-config-entry', () => {
+      removedModified = this.pruneRemovedStylelint18Rules(parsedConfig, targetFile);
       this.auditUndeclaredEntries(parsedConfig, targetFile, config);
     });
 
@@ -759,7 +815,10 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       });
     }
 
-    if ((pluginModified || strictModified || orderModified) && this.isFixActive()) {
+    if (
+      (pluginModified || strictModified || orderModified || removedModified) &&
+      this.isFixActive()
+    ) {
       fs.writeFileSync(targetFile, JSON.stringify(parsedConfig, null, 2) + '\n', 'utf-8');
     }
   }

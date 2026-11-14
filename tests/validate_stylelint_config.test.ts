@@ -134,7 +134,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       const config = {
         extends: ['./node_modules/@francogp/auditor/.stylelintrc.json'],
         rules: {
-          'declaration-block-single-line-max-declarations': null
+          'block-no-empty': true
         }
       };
       await fs.writeFile(
@@ -689,6 +689,41 @@ export default {
       expect(violations[0]?.message).toContain(
         "Undeclared ignoreValue 'unauthorized-z-val' for property 'z-index'"
       );
+    });
+
+    it('detects removed Stylelint 18 rules in audit mode and prunes them in fix mode', async () => {
+      const config = {
+        extends: ['./node_modules/@francogp/auditor/.stylelintrc.json'],
+        rules: {
+          'declaration-block-single-line-max-declarations': null,
+          'block-no-empty': true
+        }
+      };
+      const configPath = path.join(tempDir, '.stylelintrc.json');
+      await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+
+      const checkAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const checkResult = await checkAuditor.audit();
+      const removedViolations = checkResult.findings.filter(
+        (f) =>
+          f.ruleId === 'stylelint-undeclared-config-entry' &&
+          f.message.includes('declaration-block-single-line-max-declarations')
+      );
+      expect(removedViolations).toHaveLength(1);
+      expect(removedViolations[0]?.severity).toBe('error');
+
+      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      await fixAuditor.fix();
+
+      const updatedRaw = await fs.readFile(configPath, 'utf-8');
+      const updated = JSON.parse(updatedRaw) as { rules?: Record<string, unknown> };
+      expect(updated.rules).toBeDefined();
+      expect(updated.rules).not.toHaveProperty('declaration-block-single-line-max-declarations');
+      expect(updated.rules).toHaveProperty('block-no-empty', true);
+
+      const recheckAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const recheckResult = await recheckAuditor.audit();
+      expect(recheckResult.findings.filter((f) => f.severity === 'error')).toHaveLength(0);
     });
   });
 });
