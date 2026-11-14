@@ -6,4 +6,4 @@
  * presets (e.g. `stylelint-config-standard-scss` inside `@francogp/auditor/node_modules`)
  * independently of npm hoisting or host `cwd`.
  */
-export declare function flattenStylelintJsonConfig(filePath: string, visited?: Set<string>): Record<string, unknown> | null;
+export declare function flattenStylelintJsonConfig(filePath: string, fallbackDir?: string, visited?: Set<string>): Promise<Record<string, unknown> | null>;

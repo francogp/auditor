@@ -634,7 +634,12 @@ describe('StylelintAuditor Suite', () => {
         await fs.mkdir(path.join(hostDir, 'src'), { recursive: true });
         await fs.writeFile(
           path.join(nestedPkg, 'package.json'),
-          JSON.stringify({ name: 'nested-scss-preset', version: '1.0.0', main: 'index.js' }),
+          JSON.stringify({
+            name: 'nested-scss-preset',
+            version: '1.0.0',
+            type: 'module',
+            main: 'index.js'
+          }),
           'utf-8'
         );
         await fs.writeFile(

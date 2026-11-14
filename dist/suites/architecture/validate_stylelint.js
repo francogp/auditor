@@ -82,7 +82,7 @@ function categorizeStylelintRule(ruleName) {
 	if (ruleName.startsWith("scss/")) return "scss-syntax-issue";
 	return "stylelint-issue";
 }
-function buildStylelintConfig(configFile, customRules) {
+async function buildStylelintConfig(configFile, customRules) {
 	const coreRules = {
 		"function-name-case": ["lower", { ignoreFunctions: [
 			"/^[A-Z]/",
@@ -100,7 +100,7 @@ function buildStylelintConfig(configFile, customRules) {
 		"at-charset-rule-no-invalid": true,
 		"value-no-invalid": true
 	};
-	const resolved = flattenStylelintJsonConfig(configFile);
+	const resolved = await flattenStylelintJsonConfig(configFile);
 	if (!resolved) return {
 		extends: [configFile],
 		plugins: [sassTrapsPlugin],
@@ -297,7 +297,7 @@ async function fixStylelint(context) {
 		return JSON.parse(fs.readFileSync(configFile, "utf8"));
 	});
 	const filesToLint = roots.map((r) => `${normalizePosixPath(r, context.projectRoot)}/**/*.{css,scss,sass,vue}`);
-	const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
+	const lintConfig = await buildStylelintConfig(configFile, stylelintConfig?.rules);
 	try {
 		await stylelint.lint({
 			config: lintConfig,
@@ -451,7 +451,7 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		fs.mkdirSync(cacheDir, { recursive: true });
 		const filesGlobs = roots.map((r) => `${normalizePosixPath(r, this.projectRoot)}/**/*.{css,scss,sass,vue}`);
 		const ignoreGlobs = buildStylelintIgnoreGlobs([...config.paths.ignoreGlobs ?? [], ...this.extraIgnorePatterns ?? []], stylelintConfig?.ignoreGlobs, [...this.exemptPaths ?? [], ...stylelintConfig?.exemptPaths ?? []], stylelintConfig?.exemptFiles);
-		const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
+		const lintConfig = await buildStylelintConfig(configFile, stylelintConfig?.rules);
 		if (isFixMode) repairDeprecatedCssPropertiesInRoots(this.projectRoot, roots);
 		let linterResult;
 		try {
@@ -460,6 +460,7 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 				cwd: this.projectRoot,
 				globbyOptions: { ignore: ignoreGlobs },
 				config: lintConfig,
+				configBasedir: this.projectRoot,
 				cache: true,
 				cacheLocation,
 				cacheStrategy: "content",

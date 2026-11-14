@@ -119,10 +119,10 @@ export function categorizeStylelintRule(ruleName: string | undefined): Stylelint
   return 'stylelint-issue';
 }
 
-export function buildStylelintConfig(
+export async function buildStylelintConfig(
   configFile: string,
   customRules?: Record<string, unknown>
-): stylelint.Config {
+): Promise<stylelint.Config> {
   const coreRules: Record<string, unknown> = {
     'function-name-case': [
       'lower',
@@ -143,7 +143,7 @@ export function buildStylelintConfig(
     'value-no-invalid': true
   };
 
-  const resolved = flattenStylelintJsonConfig(configFile);
+  const resolved = await flattenStylelintJsonConfig(configFile);
   if (!resolved) {
     return {
       extends: [configFile],
@@ -418,7 +418,7 @@ export async function fixStylelint(context: RuleFixContext<StylelintRuleId>): Pr
   const filesToLint = roots.map(
     (r) => `${normalizePosixPath(r, context.projectRoot)}/**/*.{css,scss,sass,vue}`
   );
-  const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
+  const lintConfig = await buildStylelintConfig(configFile, stylelintConfig?.rules);
 
   try {
     await stylelint.lint({
@@ -656,7 +656,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       [...(this.exemptPaths ?? []), ...(stylelintConfig?.exemptPaths ?? [])],
       stylelintConfig?.exemptFiles
     );
-    const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
+    const lintConfig = await buildStylelintConfig(configFile, stylelintConfig?.rules);
 
     if (isFixMode) {
       repairDeprecatedCssPropertiesInRoots(this.projectRoot, roots);
@@ -671,6 +671,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
           ignore: ignoreGlobs
         },
         config: lintConfig,
+        configBasedir: this.projectRoot,
         cache: true,
         cacheLocation,
         cacheStrategy: 'content',
