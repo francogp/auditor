@@ -181,6 +181,7 @@ Architecture & Tooling Engineers.
 - [`scriptCommandExtractors.ts`](./scriptCommandExtractors.ts): AST and syntax-aware command extractors for Shell, YAML workflows, Dockerfiles, PowerShell/Batch, and TypeScript scripts.
 - [`streamingFormat.ts`](./streamingFormat.ts): Presentation, badge formatting, and severity resolution for streaming task execution output.
 - [`streamingRunner.ts`](./streamingRunner.ts): Streaming auditor execution engine.
+- [`stylelintConfigResolver.ts`](./stylelintConfigResolver.ts): Pre-resolves Stylelint JSON configs (`extends`, `plugins`, and `overrides[*].extends`) relative to each config file's directory for nested `node_modules` compatibility.
 - [`subAuditorSeverity.ts`](./subAuditorSeverity.ts): Severity evaluation and effective counts resolution for sub-auditors and task streams.
 - [`suiteGating.ts`](./suiteGating.ts): Single Source of Truth for suite enablement evaluation and CLI list filter options.
 - [`suppressionDirectives.ts`](./suppressionDirectives.ts): Centralized registry and multiline matcher for forbidden ESLint directives and prohibited linter/type suppressions.

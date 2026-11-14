@@ -42,6 +42,7 @@ import {
 import { CANONICAL_IGNORE_DIRS } from '../../core/canonicalIgnoreRegistry.ts';
 import { normalizePosixPath } from '../../core/reportUtils.ts';
 import { safeReadFileSync, safeJsonParse, tryOrNull } from '../../core/safeUtils.ts';
+import { flattenStylelintJsonConfig } from '../../core/stylelintConfigResolver.ts';
 import { sassTrapsPlugin, SASS_TRAPS_RULE_NAME } from './stylelintSassTrapsPlugin.ts';
 
 enableCompileCache();
@@ -122,27 +123,47 @@ export function buildStylelintConfig(
   configFile: string,
   customRules?: Record<string, unknown>
 ): stylelint.Config {
+  const coreRules: Record<string, unknown> = {
+    'function-name-case': [
+      'lower',
+      {
+        ignoreFunctions: ['/^[A-Z]/', 'Drop-Shadow', 'Drop-shadow', 'hue-Rotate', 'Hue-Rotate']
+      }
+    ],
+    'value-keyword-case': [
+      'lower',
+      {
+        camelCaseSvgKeywords: true,
+        ignoreProperties: ['/--.*/'],
+        ignoreFunctions: ['v-bind']
+      }
+    ],
+    [SASS_TRAPS_RULE_NAME]: true,
+    'at-charset-rule-no-invalid': true,
+    'value-no-invalid': true
+  };
+
+  const resolved = flattenStylelintJsonConfig(configFile);
+  if (!resolved) {
+    return {
+      extends: [configFile],
+      plugins: [sassTrapsPlugin],
+      rules: { ...coreRules, ...customRules }
+    };
+  }
+
+  const existingPlugins = Array.isArray(resolved.plugins) ? resolved.plugins : [];
+  const existingRules =
+    resolved.rules && typeof resolved.rules === 'object'
+      ? (resolved.rules as Record<string, unknown>)
+      : {};
+
   return {
-    extends: [configFile],
-    plugins: [sassTrapsPlugin],
+    ...resolved,
+    plugins: [...existingPlugins, sassTrapsPlugin] as stylelint.Config['plugins'],
     rules: {
-      'function-name-case': [
-        'lower',
-        {
-          ignoreFunctions: ['/^[A-Z]/', 'Drop-Shadow', 'Drop-shadow', 'hue-Rotate', 'Hue-Rotate']
-        }
-      ],
-      'value-keyword-case': [
-        'lower',
-        {
-          camelCaseSvgKeywords: true,
-          ignoreProperties: ['/--.*/'],
-          ignoreFunctions: ['v-bind']
-        }
-      ],
-      [SASS_TRAPS_RULE_NAME]: true,
-      'at-charset-rule-no-invalid': true,
-      'value-no-invalid': true,
+      ...existingRules,
+      ...coreRules,
       ...customRules
     }
   };

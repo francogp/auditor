@@ -7,6 +7,7 @@ import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUnif
 import { CANONICAL_IGNORE_DIRS } from "../../core/canonicalIgnoreRegistry.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { safeJsonParse, safeReadFileSync, tryOrNull } from "../../core/safeUtils.js";
+import { flattenStylelintJsonConfig } from "../../core/stylelintConfigResolver.js";
 import { SASS_TRAPS_RULE_NAME, sassTrapsPlugin } from "./stylelintSassTrapsPlugin.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -82,25 +83,40 @@ function categorizeStylelintRule(ruleName) {
 	return "stylelint-issue";
 }
 function buildStylelintConfig(configFile, customRules) {
-	return {
+	const coreRules = {
+		"function-name-case": ["lower", { ignoreFunctions: [
+			"/^[A-Z]/",
+			"Drop-Shadow",
+			"Drop-shadow",
+			"hue-Rotate",
+			"Hue-Rotate"
+		] }],
+		"value-keyword-case": ["lower", {
+			camelCaseSvgKeywords: true,
+			ignoreProperties: ["/--.*/"],
+			ignoreFunctions: ["v-bind"]
+		}],
+		[SASS_TRAPS_RULE_NAME]: true,
+		"at-charset-rule-no-invalid": true,
+		"value-no-invalid": true
+	};
+	const resolved = flattenStylelintJsonConfig(configFile);
+	if (!resolved) return {
 		extends: [configFile],
 		plugins: [sassTrapsPlugin],
 		rules: {
-			"function-name-case": ["lower", { ignoreFunctions: [
-				"/^[A-Z]/",
-				"Drop-Shadow",
-				"Drop-shadow",
-				"hue-Rotate",
-				"Hue-Rotate"
-			] }],
-			"value-keyword-case": ["lower", {
-				camelCaseSvgKeywords: true,
-				ignoreProperties: ["/--.*/"],
-				ignoreFunctions: ["v-bind"]
-			}],
-			[SASS_TRAPS_RULE_NAME]: true,
-			"at-charset-rule-no-invalid": true,
-			"value-no-invalid": true,
+			...coreRules,
+			...customRules
+		}
+	};
+	const existingPlugins = Array.isArray(resolved.plugins) ? resolved.plugins : [];
+	const existingRules = resolved.rules && typeof resolved.rules === "object" ? resolved.rules : {};
+	return {
+		...resolved,
+		plugins: [...existingPlugins, sassTrapsPlugin],
+		rules: {
+			...existingRules,
+			...coreRules,
 			...customRules
 		}
 	};

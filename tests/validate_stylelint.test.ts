@@ -623,5 +623,49 @@ describe('StylelintAuditor Suite', () => {
         await fs.rm(tempDir, { recursive: true, force: true });
       }
     });
+
+    it('resolves overrides.extends from nested node_modules relative to the extended config directory', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-sl-nested-'));
+      try {
+        const nestedBase = path.join(tempDir, 'nested/base');
+        const nestedPkg = path.join(nestedBase, 'node_modules/nested-scss-preset');
+        const hostDir = path.join(tempDir, 'host');
+        await fs.mkdir(nestedPkg, { recursive: true });
+        await fs.mkdir(path.join(hostDir, 'src'), { recursive: true });
+        await fs.writeFile(
+          path.join(nestedPkg, 'package.json'),
+          JSON.stringify({ name: 'nested-scss-preset', version: '1.0.0', main: 'index.js' }),
+          'utf-8'
+        );
+        await fs.writeFile(
+          path.join(nestedPkg, 'index.js'),
+          'export default { rules: { "color-no-invalid-hex": true } };\n',
+          'utf-8'
+        );
+        await fs.writeFile(
+          path.join(nestedBase, '.stylelintrc.json'),
+          JSON.stringify({
+            overrides: [{ files: ['**/*.scss'], extends: ['nested-scss-preset'] }]
+          }),
+          'utf-8'
+        );
+        await fs.writeFile(
+          path.join(hostDir, '.stylelintrc.json'),
+          JSON.stringify({ extends: ['../nested/base/.stylelintrc.json'] }),
+          'utf-8'
+        );
+        await fs.writeFile(path.join(hostDir, 'src/test.scss'), '.a { color: #12345; }\n', 'utf-8');
+
+        const auditor = new StylelintAuditor({ projectRoot: hostDir });
+        const result = await auditor.audit();
+        expect(result.status).toBe('failed');
+        expect(result.findings.some((f) => f.context === 'color-no-invalid-hex')).toBe(true);
+        expect(
+          result.findings.some((f) => f.message.includes('Could not find "nested-scss-preset"'))
+        ).toBe(false);
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    });
   });
 });
