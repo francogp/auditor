@@ -104,7 +104,7 @@ function ensureVirginConfigScaffolded(projectRoot, tasks) {
 	ensurePackageJsonModule(projectRoot);
 	ensureInitialSourceAndTests(projectRoot);
 	const pkgName = resolvePackageName(projectRoot);
-	const content = createDefaultAuditConfigContent(pkgName, tasks);
+	const content = createDefaultAuditConfigContent(pkgName, tasks, projectRoot);
 	const targetConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_FILE);
 	fs.mkdirSync(path.dirname(targetConfigPath), { recursive: true });
 	fs.writeFileSync(targetConfigPath, content, "utf-8");
@@ -197,7 +197,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.12.6-build.20261114-164434")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.12.7-build.20261116-081844")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}
@@ -208,6 +208,7 @@ async function ensureProjectBootstrapped(options = {}) {
 	const agentsRegistered = ensureAgentSkillRegistered(projectRoot);
 	const envScriptsSynced = ensureEnvScriptsSynchronized(projectRoot);
 	const gitIgnoreUpdated = await ensureGitIgnoreSynchronized(projectRoot);
+	if (configCreated) await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 	return {
 		configCreated,
 		configUpdated: sectionsInjected.length > 0 || versionUpdated,

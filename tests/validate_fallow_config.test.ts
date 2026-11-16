@@ -475,7 +475,7 @@ describe('ValidateFallowConfigAuditor', () => {
 
       const projected = projectFallowConfigFromAuditConfig(mockAuditConfig);
       expect(projected.minimumVersion).toBe('3.42.0');
-      expect(projected.architecture).toEqual({ sharedState: true });
+      expect(projected.architecture).toBeUndefined();
       expect(projected.mutation).toEqual({
         runner: 'vitest',
         runnerConfig: 'vitest.unit.config.ts',
@@ -521,9 +521,8 @@ describe('ValidateFallowConfigAuditor', () => {
 
       // After auto-fix, minimumVersion is bumped to canonical default 3.42.0
       expect(badConfig.minimumVersion).toBe('3.42.0');
-      // Unapproved architecture key was pruned
-      const arch = badConfig.architecture as Record<string, unknown>;
-      expect(arch.unapprovedKey).toBeUndefined();
+      // Unsupported architecture block is pruned from .fallowrc.json
+      expect(badConfig.architecture).toBeUndefined();
       // Because mutation is disabled by default in audit.config, undeclared mutation block is safely pruned
       expect(badConfig.mutation).toBeUndefined();
     });

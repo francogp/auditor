@@ -1,10 +1,9 @@
-import { scanCliContractAst } from "../../analyzers/cliContracts/cliContractScanner.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
+import { scanCliContractAst } from "../../analyzers/cliContracts/cliContractScanner.js";
 import { CLI_CONTRACT_RULES } from "../../analyzers/cliContracts/cliContractTypes.js";
-import "../../core/auditConfig.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import "../../core/auditConfig.js";
 import "../../core/auditCoverage.js";
 import { BaseAuditor, FileScanAuditor, SCANNABLE_EXTENSIONS, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
@@ -52,7 +51,7 @@ function auditCliContracts(targetDir = process.cwd()) {
 	assertSafePathComponent(targetDir);
 	const auditCfg = getAuditConfig(targetDir);
 	const ignoredGlobs = [...auditCfg.paths?.ignoreGlobs ?? [], ...auditCfg.paths?.ignoredPatterns ?? []];
-	const configuredRoots = auditCfg.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
+	const configuredRoots = auditCfg.paths.codeRoots;
 	const candidateFiles = [];
 	for (const rootRel of configuredRoots) {
 		const absRoot = path.resolve(targetDir, rootRel);
@@ -128,7 +127,7 @@ const CLI_CONTRACT_FIXERS = { "cli-contracts-missing-citty-dependency": fixCliCo
 var CliContractsAuditor = class extends FileScanAuditor {
 	cliViolationsByDoc = /* @__PURE__ */ new WeakMap();
 	constructor(options = {}) {
-		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => cfg.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots);
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => cfg.paths.codeRoots);
 		super({
 			ruleFixers: CLI_CONTRACT_FIXERS,
 			usesThirdPartyTool: false,

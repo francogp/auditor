@@ -24,7 +24,6 @@ import path from 'node:path';
 import stylelint, { type LinterResult, type LintResult } from 'stylelint';
 
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import {
   type GitIgnoreRequirement,
   type FindingSeverity,
@@ -609,10 +608,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     const config = getAuditConfig(this.projectRoot);
     const stylelintConfig = config.stylelint ?? config.styles?.stylelint;
 
-    const roots =
-      this.roots.length > 0
-        ? this.roots
-        : (config.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
+    const roots = this.roots.length > 0 ? this.roots : config.paths.srcRoots;
     this.redeclareCoverage({
       include: [
         ...deriveCoverageFromRoots(

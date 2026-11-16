@@ -27,25 +27,25 @@ export interface AuditPathsConfig extends BaseAuditSubsystemConfig {
   readonly migrationsDir: string;
   readonly scriptsRoots: readonly string[];
   readonly codeRoots: readonly string[];
-  readonly cliRoots?: readonly string[];
-  readonly dataRoots?: readonly string[];
-  readonly demoRoots?: readonly string[];
-  readonly componentsRoots?: readonly string[];
-  readonly viewsRoots?: readonly string[];
-  readonly storesRoots?: readonly string[];
-  readonly composablesRoots?: readonly string[];
-  readonly typesRoots?: readonly string[];
-  readonly stylesRoots?: readonly string[];
-  readonly logicRoots?: readonly string[];
-  readonly loggerFiles?: readonly string[];
-  readonly toolingFiles?: readonly string[];
-  readonly exemptFiles?: readonly string[];
-  readonly includeTestsInCodeAudit?: boolean;
+  readonly cliRoots: readonly string[];
+  readonly dataRoots: readonly string[];
+  readonly demoRoots: readonly string[];
+  readonly componentsRoots: readonly string[];
+  readonly viewsRoots: readonly string[];
+  readonly storesRoots: readonly string[];
+  readonly composablesRoots: readonly string[];
+  readonly typesRoots: readonly string[];
+  readonly stylesRoots: readonly string[];
+  readonly logicRoots: readonly string[];
+  readonly loggerFiles: readonly string[];
+  readonly toolingFiles: readonly string[];
+  readonly exemptFiles: readonly string[];
+  readonly includeTestsInCodeAudit: boolean;
   readonly minTestFileLines?: number;
-  readonly ignoreGlobs?: readonly string[];
-  readonly ignoredDirs?: readonly string[];
-  readonly unignoreDirs?: readonly string[];
-  readonly ignoredPatterns?: readonly string[];
+  readonly ignoreGlobs: readonly string[];
+  readonly ignoredDirs: readonly string[];
+  readonly unignoreDirs: readonly string[];
+  readonly ignoredPatterns: readonly string[];
   readonly testFilePatterns?: readonly string[];
   readonly testFragmentationWhitelist?: readonly string[];
   readonly skillsLockFile?: string;
@@ -72,7 +72,7 @@ export interface AuditPersistenceConfig extends BaseAuditSubsystemConfig {
   readonly allowedDatabaseFiles?: readonly string[];
   readonly supabaseDir?: string;
   readonly dockerContainer?: string;
-  readonly allowedHosts?: readonly string[];
+  readonly allowedHosts: readonly string[];
   readonly prohibitedTemplateIdentifiers?: readonly string[];
   readonly exemptRlsTables?: readonly string[];
 }
@@ -95,7 +95,7 @@ export interface AuditDomainConfig extends BaseAuditSubsystemConfig {
   readonly exemptCollections?: readonly string[];
   readonly caseNormalizationExemptTokens?: readonly string[];
   readonly exemptComparisonTokens?: readonly string[];
-  readonly allowedStoreSetterPrefixes?: readonly string[];
+  readonly allowedStoreSetterPrefixes: readonly string[];
   readonly allowedNumericConstantPrefixes?: readonly string[];
   readonly textualFields?: readonly string[];
   readonly exemptPaths?: readonly string[];
@@ -345,9 +345,9 @@ export interface AuditFallowConfig extends BaseAuditSubsystemConfig {
 }
 export declare const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;
 export interface AuditRunnerConfig extends BaseAuditSubsystemConfig {
-  readonly timeoutMs?: number;
+  readonly timeoutMs: number;
   readonly concurrency?: number;
-  readonly maxStalenessMinutes?: number;
+  readonly maxStalenessMinutes: number;
 }
 export interface AuditPackageHygieneConfig extends BaseAuditSubsystemConfig {
   readonly ignoreDependencies?: readonly string[];

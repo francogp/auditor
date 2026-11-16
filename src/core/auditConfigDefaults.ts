@@ -469,6 +469,23 @@ export const DEFAULT_VITE_PLUS_AUDIT_CONFIG: Readonly<AuditVitePlusConfig> = {
   }
 };
 
+export const DEFAULT_SQLITE_MIGRATIONS_DIR = 'database/migrations';
+
+export function isConfigurableSectionEntry(
+  key: string,
+  val: unknown
+): val is Record<string, unknown> {
+  return (
+    key !== 'name' &&
+    key !== 'auditorVersion' &&
+    !key.startsWith('_') &&
+    typeof val === 'object' &&
+    val !== null &&
+    !Array.isArray(val) &&
+    Object.keys(val).length > 0
+  );
+}
+
 export const DEFAULT_AUDIT_PATHS_CONFIG: AuditPathsConfig = {
   enabled: true,
   srcRoots: ['src'],
@@ -512,6 +529,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     dockerContainer: 'supabase-db',
     allowedDatabaseDirs: ['backups', 'migrations', 'schemas'],
     allowedDatabaseFiles: ['AGENTS.md', '.gitkeep'],
+    allowedHosts: ['localhost', '127.0.0.1'],
     exemptRlsTables: ['_migrations', 'schema_migrations', 'supabase_migrations']
   },
   valibot: {

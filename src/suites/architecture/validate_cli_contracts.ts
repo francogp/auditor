@@ -28,7 +28,6 @@ import {
 } from '../../analyzers/cliContracts/cliContractTypes.ts';
 import type { SharedAstContext } from '../../core/astContext.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import type {
   RemediationPhaseId,
   RuleFixContext,
@@ -93,7 +92,7 @@ export function auditCliContracts(targetDir = process.cwd()): CliContractsAuditR
     ...(auditCfg.paths?.ignoreGlobs ?? []),
     ...(auditCfg.paths?.ignoredPatterns ?? [])
   ];
-  const configuredRoots = auditCfg.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
+  const configuredRoots = auditCfg.paths.codeRoots;
   const candidateFiles: string[] = [];
   for (const rootRel of configuredRoots) {
     const absRoot = path.resolve(targetDir, rootRel);
@@ -239,7 +238,7 @@ export class CliContractsAuditor extends FileScanAuditor<CliContractRuleId> {
   public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
-      (cfg) => cfg.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots
+      (cfg) => cfg.paths.codeRoots
     );
     super({
       ruleFixers: CLI_CONTRACT_FIXERS,

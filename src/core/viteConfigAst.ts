@@ -19,7 +19,7 @@ function isValidViteConfigContract(candidate: unknown): candidate is InferredVit
   return candidate !== null && candidate !== undefined;
 }
 
-import type { AuditConfig } from './auditConfig.ts';
+import { getAuditConfig, type AuditConfig } from './auditConfig.ts';
 import {
   CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES,
   CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES,
@@ -729,9 +729,7 @@ const DEFAULT_TEST_FILE_EXT_GLOB = 'ts';
 export function buildExpectedCoverageIncludeGlobs(auditConfig: AuditConfig): string[] {
   const configuredRoots = auditConfig.testCoverage?.roots;
   const rawRoots =
-    configuredRoots && configuredRoots.length > 0
-      ? configuredRoots
-      : (auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
+    configuredRoots && configuredRoots.length > 0 ? configuredRoots : auditConfig.paths.srcRoots;
   const roots = Array.from(new Set(rawRoots.map((r) => normalizePosixRoot(r)).filter(Boolean)));
 
   const rawExts =
@@ -751,8 +749,9 @@ export function buildExpectedCoverageIncludeGlobs(auditConfig: AuditConfig): str
  */
 export function buildPackEntryGlobs(auditConfig?: AuditConfig, projectRoot?: string): string[] {
   const rootDir = projectRoot ?? process.cwd();
-  const srcRoots = auditConfig?.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
-  const cliRoots = auditConfig?.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
+  const cfg = auditConfig ?? getAuditConfig(rootDir);
+  const srcRoots = cfg.paths.srcRoots;
+  const cliRoots = cfg.paths.cliRoots;
   const entries: string[] = [];
 
   for (const srcRoot of srcRoots) {
@@ -1154,23 +1153,21 @@ export function buildFmtAstObject(
 }
 
 export function resolveVitestRoots(auditConfig: AuditConfig): readonly string[] {
-  const rawTestRoots = auditConfig.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots;
-  const e2eRootsList = auditConfig.paths?.e2eRoots ??
-    DEFAULT_AUDIT_CONFIG.paths.e2eRoots ?? ['e2e'];
+  const rawTestRoots = auditConfig.paths.testRoots;
+  const e2eRootsList = auditConfig.paths.e2eRoots;
   const normalizedE2eRoots = e2eRootsList.map(normalizePosixRoot);
   const vitestRoots = rawTestRoots.filter((r) => {
     const normR = normalizePosixRoot(r);
     return !normalizedE2eRoots.some((e2e) => isPathUnderRoot(normR, e2e)) && normR !== 'e2e';
   });
-  return vitestRoots.length > 0 ? vitestRoots : DEFAULT_AUDIT_CONFIG.paths.testRoots;
+  return vitestRoots.length > 0 ? vitestRoots : auditConfig.paths.testRoots;
 }
 
 export function buildTestAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression {
-  const rawTestRoots = auditConfig.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots;
-  const e2eRootsList = auditConfig.paths?.e2eRoots ??
-    DEFAULT_AUDIT_CONFIG.paths.e2eRoots ?? ['e2e'];
+  const rawTestRoots = auditConfig.paths.testRoots;
+  const e2eRootsList = auditConfig.paths.e2eRoots;
   const testRoots = resolveVitestRoots(auditConfig);
-  const cliRoots = auditConfig.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
+  const cliRoots = auditConfig.paths.cliRoots;
   const testProjectsConfig = auditConfig.vitePlusConfig?.test?.projects;
   const hasProjects = Boolean(testProjectsConfig && Object.keys(testProjectsConfig).length > 0);
 
@@ -1867,7 +1864,7 @@ function syncTestIncludeAst(
   sf: ts.SourceFile
 ): { props: ts.ObjectLiteralElementLike[]; modified: boolean } {
   let modified = false;
-  const e2eRootsList = auditConfig.paths?.e2eRoots ?? ['e2e'];
+  const e2eRootsList = auditConfig.paths.e2eRoots;
   const normalizedE2eRoots = e2eRootsList.map(normalizePosixRoot);
   const testRoots = resolveVitestRoots(auditConfig);
   const includeProp = findPropertyAssignment(
@@ -1919,7 +1916,7 @@ export function buildAllowedCoverageExcludes(
   projectRoot?: string
 ): Set<string> {
   const root = projectRoot ?? process.cwd();
-  const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+  const srcRoots = auditConfig.paths.srcRoots;
   const coverageExemptGlobs = (auditConfig.coverage?.exemptGlobs ?? []).map((e) => e.glob);
   const rawAllowedGlobs: string[] = [
     '**/*.d.ts',

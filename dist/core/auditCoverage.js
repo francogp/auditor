@@ -1,4 +1,3 @@
-import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import { COVERAGE_SOURCES } from "./auditContract.js";
 import { CANONICAL_BINARY_EXTENSIONS } from "./canonicalIgnoreRegistry.js";
@@ -59,7 +58,7 @@ function isDeclaredByCoverage(relPosixPath, declaration) {
 /** Derives a coverage declaration from scan roots + extensions (used by FileScanAuditor). */
 function deriveCoverageFromRoots(roots, extensions, projectRoot = process.cwd()) {
 	const config = getAuditConfig(projectRoot);
-	const effectiveRoots = roots.length > 0 ? roots : [...config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots, ...config.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots];
+	const effectiveRoots = roots.length > 0 ? roots : [...config.paths.codeRoots, ...config.paths.testRoots];
 	const include = [];
 	for (const root of effectiveRoots) {
 		const cleanRoot = toPosixRelative(projectRoot, root);

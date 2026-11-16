@@ -9,8 +9,9 @@ export declare function buildTaskExpectedConfigTree(tasks: readonly AuditTaskDef
 }>;
 export declare function collectConfigSectionsFromTasks(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>>;
 export declare function buildUnifiedExpectedConfigTree(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>>;
+export declare function applyFilesystemConstraintsToExpectedTree(unified: Record<string, Record<string, unknown>>, rawConfig: unknown, projectRoot?: string): void;
 export declare function syncAuditorVersionInConfigFile(configFilePath: string, version: string): boolean;
-export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[]): string;
+export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[], projectRoot?: string): string;
 export interface MissingSectionEntry {
   tasks: AuditTaskDefinition[];
   defaultConfig: Record<string, unknown>;
@@ -19,7 +20,7 @@ export interface MissingSectionEntry {
 }
 export declare function computeMissingConfigDiff(expected: unknown, current: unknown, _isRootLevel?: boolean, rootKey?: string): unknown;
 export declare function extractMissingConfigPaths(prefix: string, missingTree: Record<string, unknown>, currentVal?: unknown): string[];
-export declare function collectMissingSections(tasks: readonly AuditTaskDefinition[], rawConfig: unknown, _projectRoot?: string): Map<string, MissingSectionEntry>;
+export declare function collectMissingSections(tasks: readonly AuditTaskDefinition[], rawConfig: unknown, projectRoot?: string): Map<string, MissingSectionEntry>;
 export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field' | 'audit-config-critical-violation' | 'audit-config-unacknowledged-degradation' | 'audit-config-ratchet-relaxation' | 'audit-config-duplicate-key' | 'audit-config-duplicate-entry' | 'audit-config-missing-enabled';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
 export declare const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[];

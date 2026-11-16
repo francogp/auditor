@@ -41,7 +41,7 @@ export function scanProjectSourceFiles(
   if (!fs.existsSync(normalizedDir)) return [];
 
   const config = getAuditConfig(normalizedDir);
-  const configuredRoots = config.paths.codeRoots ?? ['src', 'scripts'];
+  const configuredRoots = config.paths.codeRoots;
   const hasConfiguredRoots = configuredRoots.some((r) =>
     fs.existsSync(path.resolve(normalizedDir, r))
   );

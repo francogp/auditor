@@ -344,7 +344,7 @@ export default defineConfig({
     plugins: ['vitest', 'node', 'promise', 'unicorn', 'typescript', 'vue', 'import', 'jsx-a11y'],
     overrides: [
       {
-        files: ['**/tests/**', '**/tests/e2e/**', '**/tests/integration/**'],
+        files: ['**/tests/**'],
         rules: {
           'typescript/explicit-function-return-type': 'off',
           'vitest/prefer-to-be-truthy': 'off',
@@ -400,7 +400,13 @@ export default defineConfig({
         }
       },
       {
-        files: ['**/src/cli/**', '**/src/core/**', '**/src/suites/**', '**/src/analyzers/**'],
+        files: [
+          '**/src/cli/**',
+          '**/scripts/**',
+          '**/src/core/**',
+          '**/src/suites/**',
+          '**/src/analyzers/**'
+        ],
         rules: {
           'no-console': 'off',
           'unicorn/prefer-global-this': 'off',
@@ -423,20 +429,6 @@ export default defineConfig({
           '@francogp/domain-type/no-homebrew-file-walker': 'off',
           '@francogp/domain-type/auditor-rule-description-limit': 'off',
           '@francogp/domain-type/no-raw-session-storage': 'off'
-        }
-      },
-      {
-        files: ['vite.plugins.ts'],
-        rules: {
-          'no-console': 'off',
-          'unicorn/prefer-global-this': 'off',
-          'typescript/no-floating-promises': 'off'
-        }
-      },
-      {
-        files: ['**/tests/integration/**'],
-        rules: {
-          '@francogp/domain-type/no-tautological-integration-mocks': 'error'
         }
       }
     ]

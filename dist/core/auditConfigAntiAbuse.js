@@ -43,10 +43,10 @@ function normalizeRootPath(p) {
 }
 function getExemptRootsForPolicy(policy, paths) {
 	switch (policy) {
-		case "scripts": return paths.scriptsRoots ?? ["scripts"];
-		case "cli": return paths.cliRoots ?? ["scripts"];
-		case "demo": return paths.demoRoots ?? [];
-		case "data": return paths.dataRoots ?? [];
+		case "scripts": return paths.scriptsRoots;
+		case "cli": return paths.cliRoots;
+		case "demo": return paths.demoRoots;
+		case "data": return paths.dataRoots;
 		default: return [];
 	}
 }

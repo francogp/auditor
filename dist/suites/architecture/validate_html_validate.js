@@ -1,6 +1,5 @@
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import "../../core/auditConfig.js";
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, isPathIgnored } from "../../core/auditorBase.js";
@@ -100,7 +99,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 		const projectRoot = options.projectRoot ?? process.cwd();
 		const config = getAuditConfig(projectRoot);
 		const targetRoots = Array.from(/* @__PURE__ */ new Set([
-			...config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots,
+			...config.paths.srcRoots,
 			...config.paths.codeRoots ?? [],
 			...config.paths.demoRoots ?? []
 		]));
@@ -156,7 +155,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 		const reportFile = path.resolve(this.projectRoot, "scratch/audits/architecture/html-validate-raw.json");
 		fs.mkdirSync(path.dirname(reportFile), { recursive: true });
 		const scannableRoots = Array.from(/* @__PURE__ */ new Set([
-			...config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots,
+			...config.paths.srcRoots,
 			...config.paths.codeRoots ?? [],
 			...config.paths.demoRoots ?? []
 		])).filter((r) => fs.existsSync(path.resolve(this.projectRoot, r)));

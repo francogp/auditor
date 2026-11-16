@@ -1,11 +1,11 @@
 import { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES, isSupabaseExclusivePersistenceKey } from "../../core/auditConfigTypes.js";
 import { collectAllGitIgnoreRequirements, discoverAuditors } from "../../cli/auditScanner.js";
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
-import { normalizePosixPath } from "../../core/reportUtils.js";
 import { dtoValueToTsExpression, formatTsNodeTwoSpaceIndent } from "../../core/astContext.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
-import { loadAuditConfig } from "../../core/auditConfigLoader.js";
+import { DEFAULT_AUDIT_CONFIG, isConfigurableSectionEntry } from "../../core/auditConfigDefaults.js";
+import { loadAuditConfig, resetAuditConfig } from "../../core/auditConfigLoader.js";
 import { detectUnacknowledgedDegradations } from "../../core/auditConfigDegradations.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
@@ -97,14 +97,41 @@ function collectConfigSectionsFromTasks(tasks) {
 }
 function buildUnifiedExpectedConfigTree(tasks) {
 	const unified = {};
-	unified.paths = structuredClone(DEFAULT_AUDIT_CONFIG.paths);
+	for (const [key, val] of Object.entries(DEFAULT_AUDIT_CONFIG)) if (isConfigurableSectionEntry(key, val)) unified[key] = structuredClone(val);
 	const taskSections = collectConfigSectionsFromTasks(tasks);
 	for (const [rootKey, taskTree] of Object.entries(taskSections)) if (!unified[rootKey]) unified[rootKey] = structuredClone(taskTree);
 	else deepMergeDefaultsObject(unified[rootKey], taskTree);
-	if (tasks.length === 0) {
-		for (const [key, val] of Object.entries(DEFAULT_AUDIT_CONFIG)) if (key !== "name" && key !== "auditorVersion" && typeof val === "object" && val !== null && !Array.isArray(val) && Object.keys(val).length > 0 && !unified[key]) unified[key] = structuredClone(val);
-	}
 	return unified;
+}
+function filterPathsArrayOnDisk(container, key, projectRoot) {
+	const val = container[key];
+	if (!Array.isArray(val)) return;
+	container[key] = val.filter((item) => typeof item === "string" && fs.existsSync(path.resolve(projectRoot, item)));
+}
+function pruneEmptyFilteredPaths(container, key, projectRoot) {
+	filterPathsArrayOnDisk(container, key, projectRoot);
+	if (Array.isArray(container[key]) && container[key].length === 0) delete container[key];
+}
+function applyFilesystemConstraintsToExpectedTree(unified, rawConfig, projectRoot) {
+	if (!projectRoot) return;
+	const rawObj = typeof rawConfig === "object" && rawConfig !== null ? rawConfig : {};
+	const rawPersistence = typeof rawObj.persistence === "object" && rawObj.persistence !== null ? rawObj.persistence : {};
+	const engine = typeof rawPersistence.engine === "string" ? rawPersistence.engine : void 0;
+	const pathsTree = unified.paths;
+	if (pathsTree) {
+		for (const rootKey of PATH_ROOT_KEYS) filterPathsArrayOnDisk(pathsTree, String(rootKey), projectRoot);
+		filterPathsArrayOnDisk(pathsTree, "toolingFiles", projectRoot);
+		const rawMigrationsDir = typeof pathsTree.migrationsDir === "string" ? pathsTree.migrationsDir : "";
+		const expectedMigrations = engine === "sqlite" ? "database/migrations" : rawMigrationsDir;
+		if (engine === "none" || !expectedMigrations || !fs.existsSync(path.resolve(projectRoot, expectedMigrations))) delete pathsTree.migrationsDir;
+		else pathsTree.migrationsDir = expectedMigrations;
+	}
+	const persistenceTree = unified.persistence;
+	if (persistenceTree) {
+		const supabaseDir = typeof persistenceTree.supabaseDir === "string" ? persistenceTree.supabaseDir : "supabase";
+		if (!fs.existsSync(path.resolve(projectRoot, supabaseDir))) delete persistenceTree.supabaseDir;
+		for (const dbPathKey of ["allowedDatabaseDirs", "allowedDatabaseFiles"]) pruneEmptyFilteredPaths(persistenceTree, dbPathKey, projectRoot);
+	}
 }
 function syncAuditorVersionInConfigFile(configFilePath, version) {
 	if (!fs.existsSync(configFilePath)) return false;
@@ -120,17 +147,13 @@ function syncAuditorVersionInConfigFile(configFilePath, version) {
 	}
 	return syncAuditorVersionInTsFile(configFilePath, version);
 }
-function createDefaultAuditConfigContent(packageName = "Project", tasks = []) {
+function createDefaultAuditConfigContent(packageName = "Project", tasks = [], projectRoot) {
+	const unified = buildUnifiedExpectedConfigTree(tasks);
+	applyFilesystemConstraintsToExpectedTree(unified, {}, projectRoot);
 	const defaultDto = {
 		name: packageName,
 		auditorVersion: AUDITOR_VERSION,
-		paths: {
-			enabled: true,
-			srcRoots: [...DEFAULT_AUDIT_CONFIG.paths.srcRoots],
-			testRoots: [...DEFAULT_AUDIT_CONFIG.paths.testRoots],
-			scriptsRoots: [...DEFAULT_AUDIT_CONFIG.paths.scriptsRoots]
-		},
-		...collectConfigSectionsFromTasks(tasks)
+		...unified
 	};
 	const importDecl = ts.factory.createImportDeclaration(void 0, ts.factory.createImportClause(false, void 0, ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, void 0, ts.factory.createIdentifier("defineAuditConfig"))])), ts.factory.createStringLiteral("@francogp/auditor", true));
 	const exportDecl = ts.factory.createExportAssignment(void 0, false, ts.factory.createCallExpression(ts.factory.createIdentifier("defineAuditConfig"), void 0, [dtoValueToTsExpression(defaultDto)]));
@@ -147,11 +170,15 @@ function computePropertyMissingDiff(expectedVal, currentVal, rootKey) {
 	}
 	if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal)) return computeMissingConfigDiff(expectedVal, currentVal, false, rootKey);
 }
-function filterEmptyDefaults(expected) {
+const EMPTY_ARRAY_MATERIALIZED_SECTIONS = /* @__PURE__ */ new Set(["paths"]);
+function shouldPreserveEmptyArrays(rootKey) {
+	return rootKey !== void 0 && EMPTY_ARRAY_MATERIALIZED_SECTIONS.has(rootKey);
+}
+function filterEmptyDefaults(expected, preserveEmptyArrays = false) {
 	const filtered = {};
 	for (const [k, v] of Object.entries(expected)) {
 		if (v === void 0) continue;
-		if (Array.isArray(v) && v.length === 0) continue;
+		if (!preserveEmptyArrays && Array.isArray(v) && v.length === 0) continue;
 		if (typeof v === "object" && v !== null && !Array.isArray(v) && Object.keys(v).length === 0) continue;
 		filtered[k] = structuredClone(v);
 	}
@@ -169,9 +196,10 @@ function isSupabaseExclusiveKey(key, current, rootKey) {
 }
 function diffObjectProperties(expected, current, rootKey) {
 	const missingObj = {};
+	const preserveEmptyArrays = shouldPreserveEmptyArrays(rootKey);
 	for (const [key, expectedVal] of Object.entries(expected)) {
 		if (expectedVal === void 0) continue;
-		if (Array.isArray(expectedVal) && expectedVal.length === 0) continue;
+		if (!preserveEmptyArrays && Array.isArray(expectedVal) && expectedVal.length === 0) continue;
 		if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal) && Object.keys(expectedVal).length === 0) continue;
 		if (isSupabaseExclusiveKey(key, current, rootKey)) continue;
 		const diff = computePropertyMissingDiff(expectedVal, Reflect.get(current, key), rootKey);
@@ -181,7 +209,7 @@ function diffObjectProperties(expected, current, rootKey) {
 }
 function computeMissingConfigDiff(expected, current, _isRootLevel = true, rootKey) {
 	if (current === void 0) {
-		if (typeof expected === "object" && expected !== null && !Array.isArray(expected)) return filterEmptyDefaults(expected);
+		if (typeof expected === "object" && expected !== null && !Array.isArray(expected)) return filterEmptyDefaults(expected, shouldPreserveEmptyArrays(rootKey));
 		return expected;
 	}
 	if (isSectionDisabled(current)) return;
@@ -201,10 +229,13 @@ function extractMissingConfigPaths(prefix, missingTree, currentVal) {
 	}
 	return paths;
 }
-function collectMissingSections(tasks, rawConfig, _projectRoot) {
+function collectMissingSections(tasks, rawConfig, projectRoot) {
 	const missingByRootKey = /* @__PURE__ */ new Map();
 	const byRoot = buildTaskExpectedConfigTree(tasks);
-	for (const [rootKey, { tasks: rootTasks, expectedTree }] of byRoot.entries()) {
+	const unified = buildUnifiedExpectedConfigTree(tasks);
+	applyFilesystemConstraintsToExpectedTree(unified, rawConfig, projectRoot);
+	for (const [rootKey, expectedTree] of Object.entries(unified)) {
+		const rootTasks = byRoot.get(rootKey)?.tasks ?? [];
 		let currentVal;
 		if (typeof rawConfig === "object" && rawConfig !== null) {
 			if (rootKey === "stylelint") {
@@ -273,7 +304,7 @@ const AUDIT_CONFIG_REQUIREMENT = {
 			projectRoot: ctx.projectRoot,
 			withBuild: true,
 			speed: "full"
-		})).catch(() => []));
+		})).catch(() => []), ctx.projectRoot);
 	},
 	customMissingMessage: (ctx, file) => {
 		const legacy = LEGACY_ROOT_CONFIG_FILES.find((f) => fs.existsSync(path.resolve(ctx.projectRoot, f)));
@@ -597,10 +628,11 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		const sectionsToInsert = {};
 		for (const [rootKey, entry] of missingByRootKey.entries()) sectionsToInsert[rootKey] = Object.keys(entry.missingTree).length > 0 ? entry.missingTree : Object.keys(entry.defaultConfig).length > 0 ? entry.defaultConfig : { enabled: true };
 		appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert);
+		resetAuditConfig();
 	}
 	reportMissingSectionViolations(missingByRootKey, rawConfig) {
 		for (const [rootKey, entry] of missingByRootKey.entries()) {
-			const suiteNames = entry.tasks.map((t) => t.id).join(", ");
+			const suiteNames = entry.tasks.map((t) => t.id).join(", ") || "framework core";
 			if (typeof rawConfig !== "object" || rawConfig === null || Reflect.get(rawConfig, rootKey) === void 0) this.addViolation({
 				ruleId: "audit-config-missing-section",
 				severity: "error",
@@ -1000,4 +1032,4 @@ async function enforceCriticalConfigurations(projectRoot, tasks) {
 	}
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateAuditConfigAuditor());
-export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, buildTaskExpectedConfigTree, buildUnifiedExpectedConfigTree, collectConfigSectionsFromTasks, collectMissingSections, computeMissingConfigDiff, createDefaultAuditConfigContent, deepMergeDefaultsObject, enforceCriticalConfigurations, extractMissingConfigPaths, syncAuditorVersionInConfigFile };
+export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, applyFilesystemConstraintsToExpectedTree, buildTaskExpectedConfigTree, buildUnifiedExpectedConfigTree, collectConfigSectionsFromTasks, collectMissingSections, computeMissingConfigDiff, createDefaultAuditConfigContent, deepMergeDefaultsObject, enforceCriticalConfigurations, extractMissingConfigPaths, syncAuditorVersionInConfigFile };

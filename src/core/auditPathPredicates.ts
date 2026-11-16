@@ -14,7 +14,7 @@ import { matchesAnyRoot } from './auditRootMatcher.ts';
 export function isDataPath(filePath: string, config = getAuditConfig()): boolean {
   if (!filePath) return false;
   const norm = filePath.split('\\').join('/').toLowerCase();
-  const dataRoots = config?.paths?.dataRoots ?? ['src/data'];
+  const dataRoots = config.paths.dataRoots;
 
   return matchesAnyRoot(norm, dataRoots);
 }
@@ -26,7 +26,7 @@ export function isDataPath(filePath: string, config = getAuditConfig()): boolean
 export function isDemoPath(filePath: string, config = getAuditConfig()): boolean {
   if (!filePath) return false;
   const norm = filePath.split('\\').join('/').toLowerCase();
-  const demoRoots = config?.paths?.demoRoots ?? [];
+  const demoRoots = config.paths.demoRoots;
 
   return matchesAnyRoot(norm, demoRoots);
 }
@@ -37,7 +37,7 @@ export function isDemoPath(filePath: string, config = getAuditConfig()): boolean
 export function isExemptFile(filePath: string, config = getAuditConfig()): boolean {
   if (!filePath) return false;
   const norm = filePath.split('\\').join('/').toLowerCase();
-  const exemptFiles = config?.paths?.exemptFiles ?? [];
+  const exemptFiles = config.paths.exemptFiles;
   return exemptFiles.some((f) => {
     const clean = f.replace(/^\/+|\/+$/g, '').toLowerCase();
     return norm === clean || norm.endsWith('/' + clean);

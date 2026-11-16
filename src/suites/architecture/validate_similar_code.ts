@@ -31,7 +31,6 @@ import {
   AUDIT_CONFIG_FILE,
   type AuditFallowSimilarCodeConfig
 } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import {
   type AuditorRuleCapabilities,
   SATELLITE_CONFIG_EXPLANATIONS
@@ -308,7 +307,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
   public constructor(options: { projectRoot?: string } = {}) {
     const projectRoot = options.projectRoot || process.cwd();
     const config = getAuditConfig(projectRoot);
-    const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
+    const codeRoots = config.paths.codeRoots;
 
     super({
       ruleFixers: {},

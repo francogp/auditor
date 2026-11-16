@@ -66,7 +66,7 @@ async function safeReadFile(filePath, encoding = "utf-8") {
 */
 async function safeFetch(rawUrl, options, allowedHosts) {
 	const config = getAuditConfig();
-	const hosts = allowedHosts ?? config?.persistence?.allowedHosts ?? ["localhost", "127.0.0.1"];
+	const hosts = allowedHosts ?? config.persistence.allowedHosts ?? [];
 	const parsed = new URL(rawUrl);
 	if (parsed.protocol !== "https:") throw new Error(`Security Violation CWE-SSRF: Non-HTTPS protocol '${parsed.protocol}' rejected`);
 	const host = parsed.hostname.toLowerCase();

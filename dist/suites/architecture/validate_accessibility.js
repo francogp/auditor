@@ -1,8 +1,7 @@
 import { MODERN_ACCESSIBILITY_RULES, analyzeModernAccessibility, fixViewportZoomLockContent } from "../../analyzers/accessibilityModernAnalyzer.js";
-import { SharedAstContext } from "../../core/astContext.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { SharedAstContext } from "../../core/astContext.js";
 import "../../core/auditConfig.js";
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { toPosixRelative } from "../../core/safePath.js";
@@ -126,7 +125,7 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 		const scannableRoots = [
 			...config.paths.componentsRoots ?? [],
 			...config.paths.viewsRoots ?? [],
-			...config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots
+			...config.paths.srcRoots
 		];
 		super({
 			ruleFixers: {},

@@ -12,6 +12,11 @@ import {
   assertNoLegacyRootConfig,
   loadAuditConfig
 } from '../src/core/auditConfig.ts';
+import {
+  DEFAULT_AUDIT_CONFIG,
+  DEFAULT_AUDIT_PATHS_CONFIG,
+  isConfigurableSectionEntry
+} from '../src/core/auditConfigDefaults.ts';
 import { GitIgnoreRegistry } from '../src/core/gitIgnoreRegistry.ts';
 import { PackageScriptRegistry } from '../src/core/packageScriptRegistry.ts';
 import { toPosixPath } from '../src/core/safePath.ts';
@@ -24,57 +29,51 @@ const BASE_AUDITOR_PATH = toPosixPath(
   path.resolve(import.meta.dirname, '../src/core/auditorBase.ts')
 );
 
-const BASE_TEST_CONFIG_SECTIONS = `
-  persistence: { enabled: false, engine: 'none', schemaQualified: false },
-  styles: { enabled: false, zLayersEnabled: false },
-  stylelint: { enabled: false },
-  valibot: { enabled: true, targets: [] },
-  oxlint: { enabled: true },
-  oxfmt: { enabled: true },
-  vitePlusConfig: {
-    enabled: true,
-    run: { cache: true },
-    precompress: { enabled: false },
-    fmt: { enabled: false },
-    lint: { enabled: false },
-    test: { enabled: false },
-    staged: { enabled: false },
-    hooks: { enabled: false },
-    vscode: { enabled: false }
-  },
-  htmlValidate: { enabled: true },
-  domain: { enabled: false },
-  bundle: { enabled: false },
-  fallow: { enabled: false },
-  packageDistribution: { enabled: false },
-  packageHygiene: { enabled: false },
-  accessibility: { enabled: false },
-  typeCoverage: { enabled: false },
-  testCoverage: { enabled: false },
-  secretLeaks: { enabled: false },
-  dependencyVulnerabilities: { enabled: false },
-  constants: { enabled: false },
-  documentation: { enabled: false },
-  templates: { enabled: false, requireInputIds: false },
-  agentPlugin: { enabled: false },
-  environment: { enabled: false },
-  coverage: { enabled: false },
-  auditorHygiene: { enabled: false },
-  packageScripts: { enabled: true, enforceBuildAudit: true, recommendedScripts: true },
-  scriptExtensions: { enabled: false },
-  webPerformance: { enabled: false },
-  queryPerformance: { enabled: false },
-  securityHardening: { enabled: false },
-  codeSimplification: { enabled: false },
-  scssArchitecture: { enabled: false },
-  animation: { enabled: false },
-  types: { enabled: false },
-  dox: { enabled: false },
-  encoding: { enabled: false },
-  gitSafety: { enabled: false },
-  gitIgnore: { enabled: false },
-  scriptCommands: { enabled: false }
-`;
+function buildDynamicTestConfigSections(
+  extraOverrides: Record<string, Record<string, unknown> | string | undefined> = {}
+): string {
+  const activeOverrides: Record<string, Record<string, unknown> | string | undefined> = {
+    persistence: { enabled: false, engine: 'none', schemaQualified: false },
+    styles: { enabled: false, zLayersEnabled: false },
+    valibot: { enabled: true, targets: [] },
+    oxlint: { enabled: true },
+    oxfmt: { enabled: true },
+    vitePlusConfig: {
+      enabled: true,
+      run: { cache: true },
+      precompress: { enabled: false },
+      fmt: { enabled: false },
+      lint: { enabled: false },
+      test: { enabled: false },
+      staged: { enabled: false },
+      hooks: { enabled: false },
+      vscode: { enabled: false }
+    },
+    htmlValidate: { enabled: true },
+    templates: { enabled: false, requireInputIds: false },
+    packageScripts: { enabled: true, enforceBuildAudit: true, recommendedScripts: true },
+    ...extraOverrides
+  };
+  const lines: string[] = [];
+  for (const [key, val] of Object.entries(DEFAULT_AUDIT_CONFIG)) {
+    if (key === 'paths' || !isConfigurableSectionEntry(key, val)) continue;
+    if (key in extraOverrides && extraOverrides[key] === undefined) continue;
+    const resolved = key in activeOverrides ? activeOverrides[key] : { enabled: false };
+    const serialized = typeof resolved === 'string' ? resolved : JSON.stringify(resolved);
+    lines.push(`  ${key}: ${serialized}`);
+  }
+  return lines.join(',\n');
+}
+
+const BASE_TEST_CONFIG_SECTIONS = buildDynamicTestConfigSections();
+
+function formatTestPaths(overrides: Record<string, unknown> = {}): string {
+  const base: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(DEFAULT_AUDIT_PATHS_CONFIG)) {
+    base[k] = Array.isArray(v) ? [] : v;
+  }
+  return JSON.stringify({ ...base, srcRoots: ['src'], codeRoots: ['src'], ...overrides }, null, 2);
+}
 
 describe('ValidateAuditConfigAuditor', () => {
   let tempDir: string;
@@ -369,11 +368,11 @@ export default defineAuditConfig({
 import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'test-app',
-  paths: {
+  paths: ${formatTestPaths({
     srcRoots: ['src', 'non_existent_src'],
     testRoots: ['tests'],
     componentsRoots: ['src/non_existent_components']
-  },
+  })},
   ${BASE_TEST_CONFIG_SECTIONS}
 });
     `;
@@ -469,25 +468,38 @@ export default defineAuditConfig({
 import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'valid-app',
-  paths: {
+  paths: ${formatTestPaths({
     srcRoots: ['src'],
     testRoots: ['tests'],
     cliRoots: ['src/cli'],
     componentsRoots: ['src/components'],
+    stylesRoots: ['src/styles'],
+    scriptsRoots: ['scripts'],
+    codeRoots: ['src', 'scripts'],
     migrationsDir: 'migrations'
-  },
-  ${BASE_TEST_CONFIG_SECTIONS.replace(/persistence:\s*\{[^}]*\},?/, '').replace(/styles:\s*\{[^}]*\},?/, '')},
+  })},
+  ${buildDynamicTestConfigSections({ persistence: undefined, styles: undefined })},
   persistence: {
     enabled: true,
     engine: 'sqlite',
     schemaQualified: false,
+    allowedHosts: ['localhost', '127.0.0.1'],
+    allowedDatabaseDirs: ['migrations'],
     authorizedSaveFiles: ['src/save.ts']
   },
   styles: {
     enabled: true,
     enforceScss: true,
     zLayersEnabled: true,
-    baseScssFile: 'src/styles/_base.scss'
+    lineHeightOverlapCheck: true,
+    baseScssFile: 'src/styles/_base.scss',
+    stylelint: {
+      enabled: true,
+      order: {
+        enabled: true,
+        enforceHasBlockPartitioning: true
+      }
+    }
   },
   extensions: ['scripts/custom.ts']
 });
@@ -543,6 +555,7 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
     const result = await auditor.audit();
 
     // Mandatory clean path verification per Hermetic Testing Mandate
+    expect(result.findings).toEqual([]);
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
     expect(result.status).toBe('passed');
@@ -716,19 +729,25 @@ export default defineAuditConfig({
   });
 
   it('automatically injects missing sub-configurations recursively in fix mode (e.g. precompress)', async () => {
-    const configContent = `
+    const configWithoutPrecompress = `
 import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'test-app',
   paths: { srcRoots: ['src'] },
-  ${BASE_TEST_CONFIG_SECTIONS}
+  ${buildDynamicTestConfigSections({
+    vitePlusConfig: {
+      enabled: true,
+      run: { cache: true },
+      fmt: { enabled: false },
+      lint: { enabled: false },
+      test: { enabled: false },
+      staged: { enabled: false },
+      hooks: { enabled: false },
+      vscode: { enabled: false }
+    }
+  })}
 });
     `;
-    // Replace vitePlusConfig to not have precompress
-    const configWithoutPrecompress = configContent.replace(
-      'precompress: { enabled: false },\n',
-      ''
-    );
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
     await fs.writeFile(
       path.join(tempDir, '.auditor', 'audit.config.ts'),
@@ -777,12 +796,11 @@ import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'test-app',
   paths: { srcRoots: ['src'] },
-  ${BASE_TEST_CONFIG_SECTIONS.replace(
-    /vitePlusConfig:\s*\{[\s\S]*?\n  \},/,
-    `vitePlusConfig: {
+  ${buildDynamicTestConfigSections({
+    vitePlusConfig: `{
     enabled: true // Line comment without trailing comma
-  },`
-  )}
+  }`
+  })}
 });
     `;
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -978,7 +996,7 @@ export default defineAuditConfig({
   constants: {
     exemptGlobs: ['src/**/*.ts']
   },
-  ${BASE_TEST_CONFIG_SECTIONS.replace(/constants:\s*\{[^}]*\},/g, '')}
+  ${buildDynamicTestConfigSections({ constants: undefined })}
 });
     `;
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -1008,7 +1026,7 @@ export default defineAuditConfig({
       { pattern: 'index', maxBytes: 1200 * 1024 }
     ]
   },
-  ${BASE_TEST_CONFIG_SECTIONS.replace(/bundle:\s*\{[^}]*\},/g, '')}
+  ${buildDynamicTestConfigSections({ bundle: undefined })}
 });
     `;
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -1036,7 +1054,7 @@ export default defineAuditConfig({
     testRoots: ['tests'],
     scriptsRoots: ['scripts']
   },
-  ${BASE_TEST_CONFIG_SECTIONS.replace('coverage: { enabled: false },', 'coverage: { enabled: true },')}
+  ${buildDynamicTestConfigSections({ coverage: { enabled: true } })}
 });
     `;
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -1067,7 +1085,7 @@ export default defineAuditConfig({
     testRoots: ['tests'],
     scriptsRoots: ['scripts']
   },
-  ${BASE_TEST_CONFIG_SECTIONS.replace('coverage: { enabled: false },', 'coverage: { enabled: true },')}
+  ${buildDynamicTestConfigSections({ coverage: { enabled: true } })}
 });
     `;
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -1147,7 +1165,7 @@ import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'test-app',
   paths: { srcRoots: ['src'], testRoots: ['tests'] },
-  ${BASE_TEST_CONFIG_SECTIONS.replace('constants: { enabled: false },', 'constants: { exemptIdentifiers: [] },')}
+  ${buildDynamicTestConfigSections({ constants: { exemptIdentifiers: [] } })}
 });
     `;
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });

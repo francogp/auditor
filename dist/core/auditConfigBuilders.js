@@ -1,5 +1,5 @@
 import { assertCoverageReason, assertNarrowCoverageGlob, filterOutExemptRoots, getExemptRootsForPolicy } from "./auditConfigAntiAbuse.js";
-import { DEFAULT_AUDIT_CONFIG, collectDeclaredSubsystems } from "./auditConfigDefaults.js";
+import { DEFAULT_AUDIT_CONFIG, DEFAULT_SQLITE_MIGRATIONS_DIR, collectDeclaredSubsystems } from "./auditConfigDefaults.js";
 import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES, CANONICAL_RULE_SEVERITY_LEVELS } from "./auditConfigTypes.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import path from "node:path";
@@ -11,7 +11,7 @@ import path from "node:path";
 */
 function buildPathsConfig(raw, persistence) {
 	const p = raw ?? {};
-	const defaultMigrations = persistence?.engine === "sqlite" ? "database/migrations" : DEFAULT_AUDIT_CONFIG.paths.migrationsDir;
+	const defaultMigrations = persistence?.engine === "sqlite" ? DEFAULT_SQLITE_MIGRATIONS_DIR : DEFAULT_AUDIT_CONFIG.paths.migrationsDir;
 	return {
 		...DEFAULT_AUDIT_CONFIG.paths,
 		...p,
@@ -28,22 +28,9 @@ function buildPersistenceConfig(raw) {
 		...p,
 		forbiddenMockModules: p.forbiddenMockModules ?? [],
 		positionalArrayColumns: p.positionalArrayColumns ?? [],
-		allowedDatabaseDirs: p.allowedDatabaseDirs && p.allowedDatabaseDirs.length > 0 ? Array.from(/* @__PURE__ */ new Set([
-			"backups",
-			"migrations",
-			"schemas",
-			...p.allowedDatabaseDirs
-		])) : [
-			"backups",
-			"migrations",
-			"schemas"
-		],
-		allowedDatabaseFiles: p.allowedDatabaseFiles && p.allowedDatabaseFiles.length > 0 ? Array.from(/* @__PURE__ */ new Set([
-			"AGENTS.md",
-			".gitkeep",
-			...p.allowedDatabaseFiles
-		])) : ["AGENTS.md", ".gitkeep"],
-		allowedHosts: p.allowedHosts ?? ["localhost", "127.0.0.1"],
+		allowedDatabaseDirs: p.allowedDatabaseDirs && p.allowedDatabaseDirs.length > 0 ? Array.from(/* @__PURE__ */ new Set([...DEFAULT_AUDIT_CONFIG.persistence.allowedDatabaseDirs ?? [], ...p.allowedDatabaseDirs])) : DEFAULT_AUDIT_CONFIG.persistence.allowedDatabaseDirs ?? [],
+		allowedDatabaseFiles: p.allowedDatabaseFiles && p.allowedDatabaseFiles.length > 0 ? Array.from(/* @__PURE__ */ new Set([...DEFAULT_AUDIT_CONFIG.persistence.allowedDatabaseFiles ?? [], ...p.allowedDatabaseFiles])) : DEFAULT_AUDIT_CONFIG.persistence.allowedDatabaseFiles ?? [],
+		allowedHosts: p.allowedHosts ?? DEFAULT_AUDIT_CONFIG.persistence.allowedHosts ?? [],
 		prohibitedTemplateIdentifiers: p.prohibitedTemplateIdentifiers ?? []
 	};
 }
@@ -55,21 +42,18 @@ function buildDomainConfig(raw) {
 		enabled: d.enabled ?? true,
 		o1CatalogPatterns: d.o1CatalogPatterns ?? [],
 		caseNormalizationExemptTokens: d.caseNormalizationExemptTokens ?? [],
-		allowedStoreSetterPrefixes: d.allowedStoreSetterPrefixes ?? [
-			"set",
-			"update",
-			"clear"
-		],
+		allowedStoreSetterPrefixes: d.allowedStoreSetterPrefixes ?? DEFAULT_AUDIT_CONFIG.domain?.allowedStoreSetterPrefixes ?? [],
 		allowedNumericConstantPrefixes: d.allowedNumericConstantPrefixes ?? DEFAULT_AUDIT_CONFIG.domain?.allowedNumericConstantPrefixes ?? []
 	};
 }
 function buildTemplatesConfig(raw) {
 	const t = raw ?? {};
+	const def = DEFAULT_AUDIT_CONFIG.templates;
 	return {
-		...DEFAULT_AUDIT_CONFIG.templates,
+		...def,
 		...t,
-		enabled: t.enabled ?? DEFAULT_AUDIT_CONFIG.templates?.enabled ?? true,
-		requireInputIds: t.requireInputIds ?? DEFAULT_AUDIT_CONFIG.templates?.requireInputIds ?? true,
+		enabled: t.enabled ?? def.enabled,
+		requireInputIds: t.requireInputIds ?? def.requireInputIds,
 		tooltipComponents: t.tooltipComponents ?? [],
 		forbiddenTemplateCallPatterns: t.forbiddenTemplateCallPatterns ?? [],
 		safeTemplateFunctions: t.safeTemplateFunctions ?? []

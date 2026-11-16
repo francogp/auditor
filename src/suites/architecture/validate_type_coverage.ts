@@ -4,7 +4,6 @@ import path from 'node:path';
 
 import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { type AuditFinding, SATELLITE_CONFIG_EXPLANATIONS } from '../../core/auditContract.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
@@ -97,7 +96,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
   public constructor(options: { projectRoot?: string } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
-    const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
+    const codeRoots = config.paths.codeRoots;
     super({
       ruleFixers: {},
       usesThirdPartyTool: true,

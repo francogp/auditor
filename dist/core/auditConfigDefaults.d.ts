@@ -9,6 +9,8 @@ export declare const CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES: Readonly<Record<s
 export declare const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES: Readonly<Record<string, 'off'>>;
 export declare const CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES: Readonly<Record<string, 'off'>>;
 export declare const DEFAULT_VITE_PLUS_AUDIT_CONFIG: Readonly<AuditVitePlusConfig>;
+export declare const DEFAULT_SQLITE_MIGRATIONS_DIR = "database/migrations";
+export declare function isConfigurableSectionEntry(key: string, val: unknown): val is Record<string, unknown>;
 export declare const DEFAULT_AUDIT_PATHS_CONFIG: AuditPathsConfig;
 export declare const DEFAULT_AUDIT_CONFIG: AuditEngineConfig;
 export declare function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>): Set<string>;

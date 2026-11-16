@@ -20,6 +20,7 @@ import { migrateLegacyAuditConfig } from '../../cli/migrateAuditConfig.ts';
 import { dtoValueToTsExpression, formatTsNodeTwoSpaceIndent } from '../../core/astContext.ts';
 import {
   loadAuditConfig,
+  resetAuditConfig,
   AUDITOR_DIR,
   AUDIT_CONFIG_FILE,
   LEGACY_ROOT_CONFIG_FILES,
@@ -27,6 +28,7 @@ import {
   isSupabaseExclusivePersistenceKey,
   type AuditEngineConfig
 } from '../../core/auditConfig.ts';
+import { isConfigurableSectionEntry } from '../../core/auditConfigDefaults.ts';
 import { detectUnacknowledgedDegradations } from '../../core/auditConfigDegradations.ts';
 import type {
   GitIgnoreRequirement,
@@ -185,8 +187,12 @@ export function buildUnifiedExpectedConfigTree(
 ): Record<string, Record<string, unknown>> {
   const unified: Record<string, Record<string, unknown>> = {};
 
-  // Core foundational paths section
-  unified.paths = structuredClone(DEFAULT_AUDIT_CONFIG.paths);
+  // Always seed all canonical object sections from DEFAULT_AUDIT_CONFIG (zero implicit runtime defaults)
+  for (const [key, val] of Object.entries(DEFAULT_AUDIT_CONFIG)) {
+    if (isConfigurableSectionEntry(key, val)) {
+      unified[key] = structuredClone(val);
+    }
+  }
 
   // Dynamically merge sovereign subauditor defaultConfig contracts
   const taskSections = collectConfigSectionsFromTasks(tasks);
@@ -198,24 +204,81 @@ export function buildUnifiedExpectedConfigTree(
     }
   }
 
-  // When tasks is empty (e.g. isolated unit tests), fallback to all non-empty sections of DEFAULT_AUDIT_CONFIG
-  if (tasks.length === 0) {
-    for (const [key, val] of Object.entries(DEFAULT_AUDIT_CONFIG)) {
-      if (
-        key !== 'name' &&
-        key !== 'auditorVersion' &&
-        typeof val === 'object' &&
-        val !== null &&
-        !Array.isArray(val) &&
-        Object.keys(val).length > 0 &&
-        !unified[key]
-      ) {
-        unified[key] = structuredClone(val) as Record<string, unknown>;
-      }
+  return unified;
+}
+
+function filterPathsArrayOnDisk(
+  container: Record<string, unknown>,
+  key: string,
+  projectRoot: string
+): void {
+  const val = container[key];
+  if (!Array.isArray(val)) return;
+  container[key] = val.filter(
+    (item): item is string =>
+      typeof item === 'string' && fs.existsSync(path.resolve(projectRoot, item))
+  );
+}
+
+function pruneEmptyFilteredPaths(
+  container: Record<string, unknown>,
+  key: string,
+  projectRoot: string
+): void {
+  filterPathsArrayOnDisk(container, key, projectRoot);
+  if (Array.isArray(container[key]) && container[key].length === 0) {
+    delete container[key];
+  }
+}
+
+export function applyFilesystemConstraintsToExpectedTree(
+  unified: Record<string, Record<string, unknown>>,
+  rawConfig: unknown,
+  projectRoot?: string
+): void {
+  if (!projectRoot) return;
+  const rawObj =
+    typeof rawConfig === 'object' && rawConfig !== null
+      ? (rawConfig as Record<string, unknown>)
+      : {};
+  const rawPersistence =
+    typeof rawObj.persistence === 'object' && rawObj.persistence !== null
+      ? (rawObj.persistence as Record<string, unknown>)
+      : {};
+  const engine = typeof rawPersistence.engine === 'string' ? rawPersistence.engine : undefined;
+
+  const pathsTree = unified.paths;
+  if (pathsTree) {
+    for (const rootKey of PATH_ROOT_KEYS) {
+      filterPathsArrayOnDisk(pathsTree, String(rootKey), projectRoot);
+    }
+    filterPathsArrayOnDisk(pathsTree, 'toolingFiles', projectRoot);
+
+    const rawMigrationsDir =
+      typeof pathsTree.migrationsDir === 'string' ? pathsTree.migrationsDir : '';
+    const expectedMigrations = engine === 'sqlite' ? 'database/migrations' : rawMigrationsDir;
+    if (
+      engine === 'none' ||
+      !expectedMigrations ||
+      !fs.existsSync(path.resolve(projectRoot, expectedMigrations))
+    ) {
+      delete pathsTree.migrationsDir;
+    } else {
+      pathsTree.migrationsDir = expectedMigrations;
     }
   }
 
-  return unified;
+  const persistenceTree = unified.persistence;
+  if (persistenceTree) {
+    const supabaseDir =
+      typeof persistenceTree.supabaseDir === 'string' ? persistenceTree.supabaseDir : 'supabase';
+    if (!fs.existsSync(path.resolve(projectRoot, supabaseDir))) {
+      delete persistenceTree.supabaseDir;
+    }
+    for (const dbPathKey of ['allowedDatabaseDirs', 'allowedDatabaseFiles']) {
+      pruneEmptyFilteredPaths(persistenceTree, dbPathKey, projectRoot);
+    }
+  }
 }
 
 export function syncAuditorVersionInConfigFile(configFilePath: string, version: string): boolean {
@@ -239,18 +302,15 @@ export function syncAuditorVersionInConfigFile(configFilePath: string, version: 
 
 export function createDefaultAuditConfigContent(
   packageName = 'Project',
-  tasks: readonly AuditTaskDefinition[] = []
+  tasks: readonly AuditTaskDefinition[] = [],
+  projectRoot?: string
 ): string {
+  const unified = buildUnifiedExpectedConfigTree(tasks);
+  applyFilesystemConstraintsToExpectedTree(unified, {}, projectRoot);
   const defaultDto: Record<string, unknown> = {
     name: packageName,
     auditorVersion: AUDITOR_VERSION,
-    paths: {
-      enabled: true,
-      srcRoots: [...DEFAULT_AUDIT_CONFIG.paths.srcRoots],
-      testRoots: [...DEFAULT_AUDIT_CONFIG.paths.testRoots],
-      scriptsRoots: [...DEFAULT_AUDIT_CONFIG.paths.scriptsRoots]
-    },
-    ...collectConfigSectionsFromTasks(tasks)
+    ...unified
   };
 
   const importDecl = ts.factory.createImportDeclaration(
@@ -311,11 +371,20 @@ function computePropertyMissingDiff(
   return undefined;
 }
 
-function filterEmptyDefaults(expected: Record<string, unknown>): unknown {
+const EMPTY_ARRAY_MATERIALIZED_SECTIONS: ReadonlySet<string> = new Set(['paths']);
+
+function shouldPreserveEmptyArrays(rootKey?: string): boolean {
+  return rootKey !== undefined && EMPTY_ARRAY_MATERIALIZED_SECTIONS.has(rootKey);
+}
+
+function filterEmptyDefaults(
+  expected: Record<string, unknown>,
+  preserveEmptyArrays = false
+): unknown {
   const filtered: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(expected)) {
     if (v === undefined) continue;
-    if (Array.isArray(v) && v.length === 0) continue;
+    if (!preserveEmptyArrays && Array.isArray(v) && v.length === 0) continue;
     if (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length === 0)
       continue;
     filtered[k] = structuredClone(v);
@@ -345,10 +414,11 @@ function diffObjectProperties(
   rootKey?: string
 ): Record<string, unknown> | undefined {
   const missingObj: Record<string, unknown> = {};
+  const preserveEmptyArrays = shouldPreserveEmptyArrays(rootKey);
 
   for (const [key, expectedVal] of Object.entries(expected)) {
     if (expectedVal === undefined) continue;
-    if (Array.isArray(expectedVal) && expectedVal.length === 0) continue;
+    if (!preserveEmptyArrays && Array.isArray(expectedVal) && expectedVal.length === 0) continue;
     if (
       typeof expectedVal === 'object' &&
       expectedVal !== null &&
@@ -377,7 +447,10 @@ export function computeMissingConfigDiff(
 ): unknown {
   if (current === undefined) {
     if (typeof expected === 'object' && expected !== null && !Array.isArray(expected)) {
-      return filterEmptyDefaults(expected as Record<string, unknown>);
+      return filterEmptyDefaults(
+        expected as Record<string, unknown>,
+        shouldPreserveEmptyArrays(rootKey)
+      );
     }
     return expected;
   }
@@ -440,12 +513,15 @@ export function extractMissingConfigPaths(
 export function collectMissingSections(
   tasks: readonly AuditTaskDefinition[],
   rawConfig: unknown,
-  _projectRoot?: string
+  projectRoot?: string
 ): Map<string, MissingSectionEntry> {
   const missingByRootKey = new Map<string, MissingSectionEntry>();
   const byRoot = buildTaskExpectedConfigTree(tasks);
+  const unified = buildUnifiedExpectedConfigTree(tasks);
+  applyFilesystemConstraintsToExpectedTree(unified, rawConfig, projectRoot);
 
-  for (const [rootKey, { tasks: rootTasks, expectedTree }] of byRoot.entries()) {
+  for (const [rootKey, expectedTree] of Object.entries(unified)) {
+    const rootTasks = byRoot.get(rootKey)?.tasks ?? [];
     let currentVal: unknown;
     if (typeof rawConfig === 'object' && rawConfig !== null) {
       if (rootKey === 'stylelint') {
@@ -558,7 +634,7 @@ export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigR
         m.discoverAuditors({ projectRoot: ctx.projectRoot, withBuild: true, speed: 'full' })
       )
       .catch(() => []);
-    return createDefaultAuditConfigContent(pkgName, tasks);
+    return createDefaultAuditConfigContent(pkgName, tasks, ctx.projectRoot);
   },
   customMissingMessage: (ctx, file) => {
     const legacy = LEGACY_ROOT_CONFIG_FILES.find((f) =>
@@ -1082,6 +1158,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
             : { enabled: true };
     }
     appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert);
+    resetAuditConfig();
   }
 
   private reportMissingSectionViolations(
@@ -1089,7 +1166,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     rawConfig: Record<string, unknown>
   ): void {
     for (const [rootKey, entry] of missingByRootKey.entries()) {
-      const suiteNames = entry.tasks.map((t) => t.id).join(', ');
+      const suiteNames = entry.tasks.map((t) => t.id).join(', ') || 'framework core';
       const isEntireSectionMissing =
         typeof rawConfig !== 'object' ||
         rawConfig === null ||

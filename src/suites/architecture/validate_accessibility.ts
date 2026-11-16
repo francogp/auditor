@@ -11,7 +11,6 @@ import {
 } from '../../analyzers/accessibilityModernAnalyzer.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
@@ -150,7 +149,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
     const scannableRoots = [
       ...(config.paths.componentsRoots ?? []),
       ...(config.paths.viewsRoots ?? []),
-      ...(config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots)
+      ...config.paths.srcRoots
     ];
     super({
       ruleFixers: {},

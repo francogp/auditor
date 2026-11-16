@@ -350,7 +350,7 @@ function registerConformanceSuite(hooks, projectRoot) {
 		});
 		itFn("validates 100% of discovered sub-auditors and extensions against the strict 5-point contract", async () => {
 			const allFailures = [];
-			const testRoots = getAuditConfig(projectRoot).paths?.testRoots ?? ["tests"];
+			const testRoots = getAuditConfig(projectRoot).paths.testRoots;
 			for (const task of tasks) {
 				const errors = await evaluateTaskContract(task, projectRoot, testRoots, tempDir);
 				if (errors.length > 0) allFailures.push({

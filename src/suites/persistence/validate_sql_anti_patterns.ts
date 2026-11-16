@@ -32,7 +32,6 @@ import {
   createUniformRemediationPhases,
   createRuleCapabilities,
   getAuditConfig,
-  DEFAULT_AUDIT_CONFIG,
   deriveCoverageFromRoots,
   normalizePosixPath,
   safeReadFileSync
@@ -112,13 +111,8 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   public constructor(options: SqlAntiPatternsAuditorOptions = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
-    const defaultMigrations =
-      config.persistence?.engine === 'sqlite'
-        ? 'database/migrations'
-        : DEFAULT_AUDIT_CONFIG.paths.migrationsDir;
-    const migrationsDirRel =
-      options.customMigrationsDir || config.paths.migrationsDir || defaultMigrations;
-    const srcRoots = config.paths.srcRoots || DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+    const migrationsDirRel = options.customMigrationsDir || config.paths.migrationsDir;
+    const srcRoots = config.paths.srcRoots;
     const allowedDbDirs = (config.persistence?.allowedDatabaseDirs ?? []).map((d) =>
       config.persistence?.supabaseDir ? path.posix.join(config.persistence.supabaseDir, d) : d
     );
@@ -213,7 +207,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       return;
     }
 
-    const currentSrcRoots = config.paths.srcRoots || DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+    const currentSrcRoots = config.paths.srcRoots;
     const currentAllowedDbDirs = (config.persistence?.allowedDatabaseDirs ?? []).map((d) =>
       config.persistence?.supabaseDir ? path.posix.join(config.persistence.supabaseDir, d) : d
     );

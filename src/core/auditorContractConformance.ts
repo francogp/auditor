@@ -740,7 +740,7 @@ function registerConformanceSuite(hooks: ConformanceVitestHooks, projectRoot: st
       async () => {
         const allFailures: { taskId: string; errors: string[] }[] = [];
         const config = getAuditConfig(projectRoot);
-        const testRoots = config.paths?.testRoots ?? ['tests'];
+        const testRoots = config.paths.testRoots;
 
         for (const task of tasks) {
           const errors = await evaluateTaskContract(task, projectRoot, testRoots, tempDir);

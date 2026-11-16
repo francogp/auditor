@@ -544,7 +544,6 @@ function projectFallowConfigFromAuditConfig(auditConfig) {
 		file: item.file,
 		exports: [...item.exports]
 	}));
-	if (fallow?.architecture?.sharedState !== void 0) projected.architecture = { sharedState: fallow.architecture.sharedState };
 	const mutationCfg = projectMutationConfig(fallow?.mutation);
 	if (mutationCfg) projected.mutation = mutationCfg;
 	return projected;
@@ -581,7 +580,6 @@ function applyFallowConfigFixes(config, projected, auditConfig) {
 	if (projected.health) patch["health"] = projected.health;
 	if (projected.minimumVersion) patch["minimumVersion"] = projected.minimumVersion;
 	if (projected.entry) patch["entry"] = projected.entry;
-	if (projected.architecture) patch["architecture"] = projected.architecture;
 	if (projected.mutation) patch["mutation"] = projected.mutation;
 	let pruned = false;
 	if (projected.ignoreExports && JSON.stringify(config.ignoreExports ?? []) !== JSON.stringify(projected.ignoreExports)) {
@@ -612,7 +610,7 @@ function applyFallowConfigFixes(config, projected, auditConfig) {
 		delete config["mutation"];
 		pruned = true;
 	}
-	if (!projected.architecture && "architecture" in config) {
+	if ("architecture" in config) {
 		delete config["architecture"];
 		pruned = true;
 	}

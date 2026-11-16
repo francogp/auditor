@@ -7,11 +7,28 @@ export default defineAuditConfig({
     enabled: true,
     srcRoots: ['src'],
     testRoots: ['tests'],
-    scriptsRoots: ['src/cli'],
-    codeRoots: ['src'],
+    scriptsRoots: ['src/cli', 'scripts'],
+    codeRoots: ['src', 'scripts'],
     cliRoots: ['src/cli', 'src/core', 'src/suites', 'src/analyzers'],
     ignoreGlobs: ['node_modules/**', 'dist/**', 'scratch/**'],
-    ignoredDirs: []
+    ignoredDirs: [],
+    e2eRoots: [],
+    integrationRoots: [],
+    dataRoots: [],
+    demoRoots: [],
+    componentsRoots: [],
+    viewsRoots: [],
+    storesRoots: [],
+    composablesRoots: [],
+    typesRoots: [],
+    stylesRoots: [],
+    logicRoots: [],
+    loggerFiles: [],
+    toolingFiles: [],
+    exemptFiles: [],
+    includeTestsInCodeAudit: false,
+    unignoreDirs: [],
+    ignoredPatterns: []
   },
   coverage: {
     enabled: true,
@@ -152,16 +169,22 @@ export default defineAuditConfig({
     enabled: true,
     zLayersEnabled: false,
     stylelint: {
-      enabled: true
+      enabled: true,
+      order: {
+        enabled: true,
+        enforceHasBlockPartitioning: true
+      }
     },
-    enforceScss: true
+    enforceScss: true,
+    lineHeightOverlapCheck: true
   },
   templates: {
     enabled: true,
     requireInputIds: false
   },
   packageDistribution: {
-    enabled: true
+    enabled: true,
+    level: 'warning'
   },
   packageHygiene: {
     enabled: true,
@@ -257,7 +280,19 @@ export default defineAuditConfig({
       maxCyclomatic: 25,
       cyclomaticPolicy: 'standard'
     },
-    typeAware: false
+    typeAware: false,
+    minimumVersion: '3.42.0',
+    architecture: {
+      enabled: true,
+      sharedState: false
+    },
+    mutation: {
+      enabled: false,
+      runner: 'auto',
+      mutantsPerLine: 2,
+      functionScope: true,
+      typecheck: true
+    }
   },
   constants: {
     enabled: true,
@@ -407,7 +442,8 @@ export default defineAuditConfig({
   },
   runner: {
     enabled: true,
-    timeoutMs: 0 // 0 = disabled: allows all suites to complete without arbitrary timeouts
+    timeoutMs: 0, // 0 = disabled: allows all suites to complete without arbitrary timeouts
+    maxStalenessMinutes: 5
   },
 
   animation: {
@@ -438,5 +474,17 @@ export default defineAuditConfig({
   },
   scriptCommands: {
     enabled: true
+  },
+  security: {
+    enabled: true
+  },
+  version: {
+    enabled: true,
+    autoSyncPublicVersionJson: true
+  },
+  ratchet: {
+    enabled: true,
+    productionRef: 'origin/main',
+    baselineFile: '.auditor/audit-baseline.json'
   }
 });

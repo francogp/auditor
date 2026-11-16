@@ -141,12 +141,9 @@ export interface AuditorTestsAuditorOptions {
 
 function deriveAuditorTestsCoverage(projectRoot: string): { include: string[]; exclude: string[] } {
   const config = getAuditConfig(projectRoot);
-  const testRoots = config.paths?.testRoots?.length
-    ? config.paths.testRoots
-    : DEFAULT_AUDIT_CONFIG.paths.testRoots;
+  const testRoots = config.paths.testRoots;
   const isSelfRepo = isSelfProviderProject(projectRoot);
-  const defaultSrcRoot = DEFAULT_AUDIT_CONFIG.paths.srcRoots[0] ?? 'src';
-  const srcRoot = (config.paths?.srcRoots && config.paths.srcRoots[0]) || defaultSrcRoot;
+  const srcRoot = config.paths.srcRoots[0] ?? 'src';
   const suitesDir = path.posix.join(srcRoot, 'suites');
   const hasCoreSuites = fs.existsSync(path.join(projectRoot, suitesDir));
 

@@ -19,7 +19,6 @@ import path from 'node:path';
 
 import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { type AuditFinding, SATELLITE_CONFIG_EXPLANATIONS } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
@@ -161,7 +160,7 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
     const config = getAuditConfig(projectRoot);
     const targetRoots = Array.from(
       new Set([
-        ...(config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots),
+        ...config.paths.srcRoots,
         ...(config.paths.codeRoots ?? []),
         ...(config.paths.demoRoots ?? [])
       ])
@@ -250,7 +249,7 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
 
     const scannableRoots = Array.from(
       new Set([
-        ...(config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots),
+        ...config.paths.srcRoots,
         ...(config.paths.codeRoots ?? []),
         ...(config.paths.demoRoots ?? [])
       ])

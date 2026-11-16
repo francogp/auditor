@@ -48,13 +48,13 @@ export function getExemptRootsForPolicy(
 ): readonly string[] {
   switch (policy) {
     case 'scripts':
-      return paths.scriptsRoots ?? ['scripts'];
+      return paths.scriptsRoots;
     case 'cli':
-      return paths.cliRoots ?? ['scripts'];
+      return paths.cliRoots;
     case 'demo':
-      return paths.demoRoots ?? [];
+      return paths.demoRoots;
     case 'data':
-      return paths.dataRoots ?? [];
+      return paths.dataRoots;
     default:
       return [];
   }

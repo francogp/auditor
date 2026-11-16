@@ -108,12 +108,13 @@ export function syncArrayElementsWithTsMorph(
 
 function syncExistingPropertyWithTsMorph(
   existing: PropertyAssignment,
-  missingVal: unknown
+  missingVal: unknown,
+  allowEmptyArrays = false
 ): boolean {
   let mutated = false;
   const childObj = existing.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
   if (childObj && isPlainRecord(missingVal)) {
-    if (syncMissingPropsWithTsMorph(childObj, missingVal)) {
+    if (syncMissingPropsWithTsMorph(childObj, missingVal, allowEmptyArrays)) {
       mutated = true;
     }
   }
@@ -126,38 +127,44 @@ function syncExistingPropertyWithTsMorph(
   return mutated;
 }
 
-function sanitizeRecordForInjection(val: Record<string, unknown>): Record<string, unknown> | null {
+function sanitizeRecordForInjection(
+  val: Record<string, unknown>,
+  allowEmptyArrays = false
+): Record<string, unknown> | null {
   const cleaned: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(val)) {
     if (v === undefined) continue;
     if (isPlainRecord(v) && Object.keys(v).length === 0) continue;
-    if (Array.isArray(v) && v.length === 0) continue;
+    if (!allowEmptyArrays && Array.isArray(v) && v.length === 0) continue;
     cleaned[k] = v;
   }
   return Object.keys(cleaned).length > 0 ? cleaned : null;
 }
 
+const EMPTY_ARRAY_MATERIALIZED_SECTIONS: ReadonlySet<string> = new Set(['paths']);
+
 export function syncMissingPropsWithTsMorph(
   obj: ObjectLiteralExpression,
-  missingProps: Record<string, unknown>
+  missingProps: Record<string, unknown>,
+  allowEmptyArrays = false
 ): boolean {
   let mutated = false;
   for (const [key, missingVal] of Object.entries(missingProps)) {
     if (missingVal === undefined) continue;
-    // Eradicate empty objects and empty arrays: never inject empty placeholder structures
+    const childAllowEmptyArrays = allowEmptyArrays || EMPTY_ARRAY_MATERIALIZED_SECTIONS.has(key);
     if (isPlainRecord(missingVal) && Object.keys(missingVal).length === 0) continue;
-    if (Array.isArray(missingVal) && missingVal.length === 0) continue;
+    if (!childAllowEmptyArrays && Array.isArray(missingVal) && missingVal.length === 0) continue;
 
     const existing = obj.getProperties().find((p) => getNormalizedPropName(p) === key);
     if (existing && existing.isKind(SyntaxKind.PropertyAssignment)) {
-      if (syncExistingPropertyWithTsMorph(existing, missingVal)) {
+      if (syncExistingPropertyWithTsMorph(existing, missingVal, childAllowEmptyArrays)) {
         mutated = true;
       }
       continue;
     }
 
     const valToInject = isPlainRecord(missingVal)
-      ? sanitizeRecordForInjection(missingVal)
+      ? sanitizeRecordForInjection(missingVal, childAllowEmptyArrays)
       : missingVal;
     if (valToInject === null) continue;
 

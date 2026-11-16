@@ -1,5 +1,7 @@
-import { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import "./auditConfig.js";
 import { normalizePosixPath } from "./reportUtils.js";
+import { getAuditConfig } from "./auditConfigLoader.js";
+import { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { getEffectiveIgnoreGlobs, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
 import { isPatternContainedInGlobs } from "./globContainment.js";
 import { isPathContained, stripGlobSuffix } from "./safePath.js";
@@ -409,7 +411,7 @@ const DEFAULT_TEST_FILE_EXT_GLOB = "ts";
 */
 function buildExpectedCoverageIncludeGlobs(auditConfig) {
 	const configuredRoots = auditConfig.testCoverage?.roots;
-	const rawRoots = configuredRoots && configuredRoots.length > 0 ? configuredRoots : auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+	const rawRoots = configuredRoots && configuredRoots.length > 0 ? configuredRoots : auditConfig.paths.srcRoots;
 	const roots = Array.from(new Set(rawRoots.map((r) => normalizePosixRoot(r)).filter(Boolean)));
 	const rawExts = auditConfig.testCoverage?.extensions && auditConfig.testCoverage.extensions.length > 0 ? auditConfig.testCoverage.extensions : DEFAULT_AUDIT_CONFIG.testCoverage?.extensions ?? [".ts"];
 	const exts = Array.from(new Set(rawExts.map((ext) => ext.replace(/^\.+/, "").trim()).filter(Boolean)));
@@ -421,8 +423,9 @@ function buildExpectedCoverageIncludeGlobs(auditConfig) {
 */
 function buildPackEntryGlobs(auditConfig, projectRoot) {
 	const rootDir = projectRoot ?? process.cwd();
-	const srcRoots = auditConfig?.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
-	const cliRoots = auditConfig?.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
+	const cfg = auditConfig ?? getAuditConfig(rootDir);
+	const srcRoots = cfg.paths.srcRoots;
+	const cliRoots = cfg.paths.cliRoots;
 	const entries = [];
 	for (const srcRoot of srcRoots) {
 		const normalized = normalizePosixRoot(srcRoot);
@@ -592,19 +595,19 @@ function buildFmtAstObject(auditConfig, fmtIgnores, lockedSkillsIgnores = []) {
 	return ts.factory.createObjectLiteralExpression(props, true);
 }
 function resolveVitestRoots(auditConfig) {
-	const rawTestRoots = auditConfig.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots;
-	const normalizedE2eRoots = (auditConfig.paths?.e2eRoots ?? DEFAULT_AUDIT_CONFIG.paths.e2eRoots ?? ["e2e"]).map(normalizePosixRoot);
+	const rawTestRoots = auditConfig.paths.testRoots;
+	const normalizedE2eRoots = auditConfig.paths.e2eRoots.map(normalizePosixRoot);
 	const vitestRoots = rawTestRoots.filter((r) => {
 		const normR = normalizePosixRoot(r);
 		return !normalizedE2eRoots.some((e2e) => isPathUnderRoot(normR, e2e)) && normR !== "e2e";
 	});
-	return vitestRoots.length > 0 ? vitestRoots : DEFAULT_AUDIT_CONFIG.paths.testRoots;
+	return vitestRoots.length > 0 ? vitestRoots : auditConfig.paths.testRoots;
 }
 function buildTestAstObject(auditConfig) {
-	const rawTestRoots = auditConfig.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots;
-	const e2eRootsList = auditConfig.paths?.e2eRoots ?? DEFAULT_AUDIT_CONFIG.paths.e2eRoots ?? ["e2e"];
+	const rawTestRoots = auditConfig.paths.testRoots;
+	const e2eRootsList = auditConfig.paths.e2eRoots;
 	const testRoots = resolveVitestRoots(auditConfig);
-	const cliRoots = auditConfig.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
+	const cliRoots = auditConfig.paths.cliRoots;
 	const testProjectsConfig = auditConfig.vitePlusConfig?.test?.projects;
 	return valueToAstExpression({
 		environment: "node",
@@ -996,7 +999,7 @@ function syncFmtSectionAst(fmtObj, auditConfig, fmtIgnores, sf, lockedSkillsIgno
 }
 function syncTestIncludeAst(props, auditConfig, sf) {
 	let modified = false;
-	const normalizedE2eRoots = (auditConfig.paths?.e2eRoots ?? ["e2e"]).map(normalizePosixRoot);
+	const normalizedE2eRoots = auditConfig.paths.e2eRoots.map(normalizePosixRoot);
 	const testRoots = resolveVitestRoots(auditConfig);
 	const includeProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "include", sf);
 	const existingIncludes = [];
@@ -1025,7 +1028,7 @@ function syncTestIncludeAst(props, auditConfig, sf) {
 }
 function buildAllowedCoverageExcludes(auditConfig, projectRoot) {
 	const root = projectRoot ?? process.cwd();
-	const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+	const srcRoots = auditConfig.paths.srcRoots;
 	const coverageExemptGlobs = (auditConfig.coverage?.exemptGlobs ?? []).map((e) => e.glob);
 	const rawAllowedGlobs = [
 		"**/*.d.ts",

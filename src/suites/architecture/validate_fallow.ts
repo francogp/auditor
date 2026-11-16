@@ -19,7 +19,6 @@ import type { AuditFindingAttribution } from 'fallow/types';
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
 import { ensureMandatoryDirectoriesExist } from '../../core/auditBootstrap.ts';
 import { getAuditConfig, isCliPath } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import type {
   FallowTargetPriority,
   FallowTargetPriorityNamed
@@ -746,7 +745,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
   public constructor(options: FallowArchitectureAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
-    const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
+    const codeRoots = config.paths.codeRoots;
     super({
       ruleFixers: {},
       usesThirdPartyTool: true,

@@ -208,18 +208,15 @@ function resolvePersistenceExtraRoots(config: ReturnType<typeof getAuditConfig>)
   return extra;
 }
 
-function resolveDeclaredPathRoots(paths?: AuditEngineConfig['paths']): string[] {
-  if (!paths) {
-    return [...DEFAULT_AUDIT_CONFIG.paths.codeRoots, ...DEFAULT_AUDIT_CONFIG.paths.testRoots];
-  }
+function resolveDeclaredPathRoots(paths: AuditEngineConfig['paths']): string[] {
   return [
-    ...(paths.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots),
-    ...(paths.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots),
-    ...(paths.integrationRoots ?? []),
-    ...(paths.e2eRoots ?? []),
-    ...(paths.demoRoots ?? []),
-    ...(paths.dataRoots ?? []),
-    ...(paths.cliRoots ?? [])
+    ...paths.codeRoots,
+    ...paths.testRoots,
+    ...paths.integrationRoots,
+    ...paths.e2eRoots,
+    ...paths.demoRoots,
+    ...paths.dataRoots,
+    ...paths.cliRoots
   ];
 }
 
@@ -1109,11 +1106,7 @@ export function resolveFileScanRoots(
   } else if (Array.isArray(defaultRootsResolver)) {
     resolvedDefaultRoots = defaultRootsResolver;
   }
-  const targetRoots =
-    options.roots ??
-    resolvedDefaultRoots ??
-    config.paths?.srcRoots ??
-    DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+  const targetRoots = options.roots ?? resolvedDefaultRoots ?? config.paths.srcRoots;
   return { effectiveRoot, targetRoots };
 }
 

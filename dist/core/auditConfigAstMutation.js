@@ -67,38 +67,40 @@ function syncArrayElementsWithTsMorph(arrInit, missingVal) {
 	}
 	return mutated;
 }
-function syncExistingPropertyWithTsMorph(existing, missingVal) {
+function syncExistingPropertyWithTsMorph(existing, missingVal, allowEmptyArrays = false) {
 	let mutated = false;
 	const childObj = existing.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
 	if (childObj && isPlainRecord(missingVal)) {
-		if (syncMissingPropsWithTsMorph(childObj, missingVal)) mutated = true;
+		if (syncMissingPropsWithTsMorph(childObj, missingVal, allowEmptyArrays)) mutated = true;
 	}
 	const arrInit = existing.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
 	if (arrInit && Array.isArray(missingVal) && syncArrayElementsWithTsMorph(arrInit, missingVal)) mutated = true;
 	return mutated;
 }
-function sanitizeRecordForInjection(val) {
+function sanitizeRecordForInjection(val, allowEmptyArrays = false) {
 	const cleaned = {};
 	for (const [k, v] of Object.entries(val)) {
 		if (v === void 0) continue;
 		if (isPlainRecord(v) && Object.keys(v).length === 0) continue;
-		if (Array.isArray(v) && v.length === 0) continue;
+		if (!allowEmptyArrays && Array.isArray(v) && v.length === 0) continue;
 		cleaned[k] = v;
 	}
 	return Object.keys(cleaned).length > 0 ? cleaned : null;
 }
-function syncMissingPropsWithTsMorph(obj, missingProps) {
+const EMPTY_ARRAY_MATERIALIZED_SECTIONS = /* @__PURE__ */ new Set(["paths"]);
+function syncMissingPropsWithTsMorph(obj, missingProps, allowEmptyArrays = false) {
 	let mutated = false;
 	for (const [key, missingVal] of Object.entries(missingProps)) {
 		if (missingVal === void 0) continue;
+		const childAllowEmptyArrays = allowEmptyArrays || EMPTY_ARRAY_MATERIALIZED_SECTIONS.has(key);
 		if (isPlainRecord(missingVal) && Object.keys(missingVal).length === 0) continue;
-		if (Array.isArray(missingVal) && missingVal.length === 0) continue;
+		if (!childAllowEmptyArrays && Array.isArray(missingVal) && missingVal.length === 0) continue;
 		const existing = obj.getProperties().find((p) => getNormalizedPropName(p) === key);
 		if (existing && existing.isKind(SyntaxKind.PropertyAssignment)) {
-			if (syncExistingPropertyWithTsMorph(existing, missingVal)) mutated = true;
+			if (syncExistingPropertyWithTsMorph(existing, missingVal, childAllowEmptyArrays)) mutated = true;
 			continue;
 		}
-		const valToInject = isPlainRecord(missingVal) ? sanitizeRecordForInjection(missingVal) : missingVal;
+		const valToInject = isPlainRecord(missingVal) ? sanitizeRecordForInjection(missingVal, childAllowEmptyArrays) : missingVal;
 		if (valToInject === null) continue;
 		const safeKey = /^[a-z_$][\w$]*$/i.test(key) ? key : `'${key.replaceAll("'", "\\'")}'`;
 		const valStr = valueToTsMorphInitializer(valToInject);

@@ -1,7 +1,6 @@
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
-import "../../core/auditConfig.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import "../../core/auditConfig.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
@@ -58,7 +57,7 @@ const DEFAULT_TYPE_COVERAGE_THRESHOLD = 95;
 var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
-		const codeRoots = getAuditConfig(effectiveRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
+		const codeRoots = getAuditConfig(effectiveRoot).paths.codeRoots;
 		super({
 			ruleFixers: {},
 			usesThirdPartyTool: true,

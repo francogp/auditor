@@ -11,7 +11,6 @@ import nodeFs from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
 import { getAuditConfig } from './auditConfigLoader.ts';
 import {
   COVERAGE_SOURCES,
@@ -89,12 +88,7 @@ export function deriveCoverageFromRoots(
 ): AuditorCoverageDeclaration {
   const config = getAuditConfig(projectRoot);
   const effectiveRoots =
-    roots.length > 0
-      ? roots
-      : [
-          ...(config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots),
-          ...(config.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots)
-        ];
+    roots.length > 0 ? roots : [...config.paths.codeRoots, ...config.paths.testRoots];
   const include: string[] = []; // dynamic file glob patterns derived at runtime
   for (const root of effectiveRoots) {
     const cleanRoot = toPosixRelative(projectRoot, root);

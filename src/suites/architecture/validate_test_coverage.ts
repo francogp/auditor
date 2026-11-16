@@ -38,7 +38,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
   public constructor(options: ValidateTestCoverageOptions = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
-    const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
+    const codeRoots = config.paths.codeRoots;
     super({
       ruleFixers: {},
       usesThirdPartyTool: false,

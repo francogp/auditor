@@ -155,7 +155,7 @@ function ensureVirginConfigScaffolded(
   ensurePackageJsonModule(projectRoot);
   ensureInitialSourceAndTests(projectRoot);
   const pkgName = resolvePackageName(projectRoot);
-  const content = createDefaultAuditConfigContent(pkgName, tasks);
+  const content = createDefaultAuditConfigContent(pkgName, tasks, projectRoot);
   const targetConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_FILE);
 
   fs.mkdirSync(path.dirname(targetConfigPath), { recursive: true });
@@ -326,6 +326,10 @@ export async function ensureProjectBootstrapped(
   const agentsRegistered = ensureAgentSkillRegistered(projectRoot);
   const envScriptsSynced = ensureEnvScriptsSynchronized(projectRoot);
   const gitIgnoreUpdated = await ensureGitIgnoreSynchronized(projectRoot);
+
+  if (configCreated) {
+    await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
+  }
 
   return {
     configCreated,

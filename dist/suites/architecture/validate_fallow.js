@@ -1,9 +1,8 @@
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { ensureMandatoryDirectoriesExist } from "../../core/auditBootstrap.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
 import { isCliPath } from "../../core/auditCodeRoots.js";
+import { ensureMandatoryDirectoriesExist } from "../../core/auditBootstrap.js";
 import "../../core/auditConfig.js";
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
@@ -386,7 +385,7 @@ function tryParseFallowJson(raw) {
 var FallowArchitectureAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot ?? process.cwd();
-		const codeRoots = getAuditConfig(projectRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
+		const codeRoots = getAuditConfig(projectRoot).paths.codeRoots;
 		super({
 			ruleFixers: {},
 			usesThirdPartyTool: true,

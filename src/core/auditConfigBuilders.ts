@@ -14,6 +14,7 @@ import {
 } from './auditConfigAntiAbuse.ts';
 import {
   DEFAULT_AUDIT_CONFIG,
+  DEFAULT_SQLITE_MIGRATIONS_DIR,
   DEFAULT_SIMILAR_CODE_THRESHOLD,
   DEFAULT_TEST_COVERAGE_PERCENTAGE,
   DEFAULT_TYPE_COVERAGE_AT_LEAST,
@@ -94,7 +95,7 @@ export function buildPathsConfig(
   const p = raw ?? {};
   const defaultMigrations =
     persistence?.engine === 'sqlite'
-      ? 'database/migrations'
+      ? DEFAULT_SQLITE_MIGRATIONS_DIR
       : DEFAULT_AUDIT_CONFIG.paths.migrationsDir;
   return {
     ...DEFAULT_AUDIT_CONFIG.paths,
@@ -117,13 +118,23 @@ export function buildPersistenceConfig(
     positionalArrayColumns: p.positionalArrayColumns ?? [],
     allowedDatabaseDirs:
       p.allowedDatabaseDirs && p.allowedDatabaseDirs.length > 0
-        ? Array.from(new Set(['backups', 'migrations', 'schemas', ...p.allowedDatabaseDirs]))
-        : ['backups', 'migrations', 'schemas'],
+        ? Array.from(
+            new Set([
+              ...(DEFAULT_AUDIT_CONFIG.persistence.allowedDatabaseDirs ?? []),
+              ...p.allowedDatabaseDirs
+            ])
+          )
+        : (DEFAULT_AUDIT_CONFIG.persistence.allowedDatabaseDirs ?? []),
     allowedDatabaseFiles:
       p.allowedDatabaseFiles && p.allowedDatabaseFiles.length > 0
-        ? Array.from(new Set(['AGENTS.md', '.gitkeep', ...p.allowedDatabaseFiles]))
-        : ['AGENTS.md', '.gitkeep'],
-    allowedHosts: p.allowedHosts ?? ['localhost', '127.0.0.1'],
+        ? Array.from(
+            new Set([
+              ...(DEFAULT_AUDIT_CONFIG.persistence.allowedDatabaseFiles ?? []),
+              ...p.allowedDatabaseFiles
+            ])
+          )
+        : (DEFAULT_AUDIT_CONFIG.persistence.allowedDatabaseFiles ?? []),
+    allowedHosts: p.allowedHosts ?? DEFAULT_AUDIT_CONFIG.persistence.allowedHosts ?? [],
     prohibitedTemplateIdentifiers: p.prohibitedTemplateIdentifiers ?? []
   };
 }
@@ -136,7 +147,8 @@ export function buildDomainConfig(raw?: DeepPartial<AuditDomainConfig>): AuditDo
     enabled: d.enabled ?? true,
     o1CatalogPatterns: d.o1CatalogPatterns ?? [],
     caseNormalizationExemptTokens: d.caseNormalizationExemptTokens ?? [],
-    allowedStoreSetterPrefixes: d.allowedStoreSetterPrefixes ?? ['set', 'update', 'clear'],
+    allowedStoreSetterPrefixes:
+      d.allowedStoreSetterPrefixes ?? DEFAULT_AUDIT_CONFIG.domain?.allowedStoreSetterPrefixes ?? [],
     allowedNumericConstantPrefixes:
       d.allowedNumericConstantPrefixes ??
       DEFAULT_AUDIT_CONFIG.domain?.allowedNumericConstantPrefixes ??
@@ -148,11 +160,12 @@ export function buildTemplatesConfig(
   raw?: DeepPartial<AuditTemplatesConfig>
 ): AuditTemplatesConfig {
   const t = raw ?? {};
+  const def = DEFAULT_AUDIT_CONFIG.templates!;
   return {
-    ...DEFAULT_AUDIT_CONFIG.templates,
+    ...def,
     ...t,
-    enabled: t.enabled ?? DEFAULT_AUDIT_CONFIG.templates?.enabled ?? true,
-    requireInputIds: t.requireInputIds ?? DEFAULT_AUDIT_CONFIG.templates?.requireInputIds ?? true,
+    enabled: t.enabled ?? def.enabled,
+    requireInputIds: t.requireInputIds ?? def.requireInputIds,
     tooltipComponents: t.tooltipComponents ?? [],
     forbiddenTemplateCallPatterns: t.forbiddenTemplateCallPatterns ?? [],
     safeTemplateFunctions: t.safeTemplateFunctions ?? []

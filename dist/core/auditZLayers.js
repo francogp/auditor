@@ -20,7 +20,7 @@ function resolveZLayersScssPath(projectRoot = process.cwd()) {
 		const configuredPath = path.resolve(projectRoot, rawTarget);
 		if (fs.existsSync(configuredPath)) return configuredPath;
 	}
-	const stylesRoots = config.paths?.stylesRoots ?? ["src/styles"];
+	const stylesRoots = config.paths.stylesRoots;
 	const baseNames = [
 		"_base.scss",
 		"core/_base.scss",

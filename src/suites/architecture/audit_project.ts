@@ -21,7 +21,6 @@ import {
   getAuditConfig,
   loadAuditConfig,
   AUDITOR_DIR,
-  DEFAULT_AUDIT_CONFIG,
   type RemediationPhaseId,
   type AnyRuleFixerFn,
   deriveCoverageFromRoots,
@@ -1183,15 +1182,10 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
   public constructor(options: AuditProjectOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const cfg = getAuditConfig(projectRoot);
-    const defaultCodeRoots = DEFAULT_AUDIT_CONFIG.paths?.codeRoots ?? [];
-    const defaultTestRoots = DEFAULT_AUDIT_CONFIG.paths?.testRoots ?? [];
     const resolvedRoots =
       options.roots && options.roots.length > 0
         ? options.roots
-        : [
-            ...(cfg.paths?.codeRoots ?? defaultCodeRoots),
-            ...(cfg.paths?.testRoots ?? defaultTestRoots)
-          ];
+        : [...cfg.paths.codeRoots, ...cfg.paths.testRoots];
     const ruleDescriptions = getProjectArchitectureRuleDescriptions();
     const ruleRemediations = getProjectArchitectureRuleRemediations();
     const ruleRemediationPhases = getProjectArchitectureRuleRemediationPhases();

@@ -35,7 +35,7 @@ function scanProjectSourceFiles(dir, allowedExtensions = DEFAULT_REFACTOR_EXTENS
 	const normalizedDir = path.resolve(dir);
 	if (!fs.existsSync(normalizedDir)) return [];
 	const config = getAuditConfig(normalizedDir);
-	const configuredRoots = config.paths.codeRoots ?? ["src", "scripts"];
+	const configuredRoots = config.paths.codeRoots;
 	const roots = configuredRoots.some((r) => fs.existsSync(path.resolve(normalizedDir, r))) ? configuredRoots : ["."];
 	const combinedIgnores = [
 		...config.paths.ignoreGlobs ?? [],

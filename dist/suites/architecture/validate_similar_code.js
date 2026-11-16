@@ -1,9 +1,8 @@
 import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolvePackageBin } from "../../cli/cliUtils.js";
-import "../../core/auditConfig.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import "../../core/auditConfig.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createUniformRemediationPhases } from "../../core/auditorBase.js";
@@ -176,7 +175,7 @@ function evaluateSimilarCodeCandidates(candidates, options, auditor) {
 var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot || process.cwd();
-		const codeRoots = getAuditConfig(projectRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
+		const codeRoots = getAuditConfig(projectRoot).paths.codeRoots;
 		super({
 			ruleFixers: {},
 			usesThirdPartyTool: true,

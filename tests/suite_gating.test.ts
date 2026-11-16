@@ -6,6 +6,10 @@
 
 import { describe, it, expect } from 'vite-plus/test';
 
+import {
+  DEFAULT_AUDIT_CONFIG,
+  DEFAULT_AUDIT_PATHS_CONFIG
+} from '../src/core/auditConfigDefaults.ts';
 import type { AuditConfig } from '../src/core/auditConfigTypes.ts';
 import { evaluateSuiteStatus, AUDIT_LIST_FILTERS } from '../src/core/suiteGating.ts';
 
@@ -13,21 +17,20 @@ describe('suiteGating — evaluateSuiteStatus', () => {
   const baseConfig: AuditConfig = {
     name: 'test-app',
     paths: {
-      enabled: true,
-      srcRoots: ['src'],
-      testRoots: ['tests'],
+      ...DEFAULT_AUDIT_PATHS_CONFIG,
       e2eRoots: ['e2e'],
       integrationRoots: ['integration'],
       migrationsDir: 'migrations',
-      scriptsRoots: ['scripts'],
       codeRoots: ['src']
     },
     persistence: {
+      ...DEFAULT_AUDIT_CONFIG.persistence,
       enabled: false,
       engine: 'none',
       schemaQualified: false
     },
     domain: {
+      ...DEFAULT_AUDIT_CONFIG.domain,
       enabled: true
     }
   };

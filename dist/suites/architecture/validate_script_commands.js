@@ -1,5 +1,4 @@
 import "../../core/auditConfig.js";
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
@@ -89,8 +88,7 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 	scriptsRoots;
 	constructor(options = {}) {
 		const root = options.projectRoot || process.cwd();
-		const config = getAuditConfig(root);
-		const scriptsRoots = config.paths?.scriptsRoots?.length ? config.paths.scriptsRoots : DEFAULT_AUDIT_CONFIG.paths.scriptsRoots;
+		const scriptsRoots = getAuditConfig(root).paths.scriptsRoots;
 		const scriptsGlobs = scriptsRoots.map((r) => `${r}/**/*.{ts,js,mjs,cjs}`);
 		super({
 			ruleFixers: {},

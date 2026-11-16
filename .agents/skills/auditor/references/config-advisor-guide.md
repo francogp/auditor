@@ -8,7 +8,7 @@ This reference provides the comprehensive architectural guide, CLI operational m
 
 Unlike blocking CI Quality Gates (`npm run auditor`), `auditor:config` belongs to the category of **Interactive Advisory Tools** (alongside `auditor:dependencies`, `auditor:magic`, `auditor:hygiene`, `auditor:dupes`, `auditor:o1`, `auditor:types`, `auditor:domain`, and `auditor:motion`).
 
-Its core mission is to evaluate `.auditor/audit.config.ts` dynamically against canonical framework defaults (`DEFAULT_AUDIT_CONFIG`, `DEFAULT_VITE_PLUS_AUDIT_CONFIG`) and the sovereign `defaultConfig` contracts exposed by each sub-auditor, enforcing the **Unbreakable Principle of Unidirectional Hardening (Config Ratchet)**.
+Its core mission is to evaluate `.auditor/audit.config.ts` dynamically against canonical framework defaults (`DEFAULT_AUDIT_CONFIG`, `DEFAULT_VITE_PLUS_AUDIT_CONFIG`) and the sovereign `defaultConfig` contracts exposed by each sub-auditor, enforcing the **Unbreakable Principle of Unidirectional Hardening (Config Ratchet)**. Active default sections and disk-present `paths.*Roots` are materialized explicitly by `validate_audit_config` (`npm run auditor:fix`), leaving `auditor:config` focused on threshold hardening and optional rules.
 
 ```mermaid
 flowchart TD
@@ -45,6 +45,10 @@ flowchart TD
    The advisor inspects suites via runtime auto-discovery (`discoverAuditors()`). It contains zero hardcoded subsystem lists. When new subauditors are added to the framework, the advisor automatically incorporates their `defaultConfig`.
 4. **Non-Destructive AST Application**:
    When `apply` is authorized, changes are injected additively via TypeScript AST (`appendMissingSectionsToConfigFile`), preserving comments, formatting, and preexisting customizations.
+5. **Advisor vs. Ratchet Synergy & Prohibition of Contradictory Reversions**:
+   Some canonical taxonomy properties recommended by `auditor:config`—specifically `paths.cliRoots`, `paths.dataRoots`, and `paths.demoRoots`—are monitored by the Config Ratchet under `PATH_EXEMPTION_FIELDS` because declaring them activates scope-specific exemptions (e.g., permitting `console.*` in CLI scripts or isolating static data catalogs). Applying them via `auditor:config apply` will legitimately cause `validate_audit_config` (`phase: 'setup'`) to emit `audit-config-ratchet-relaxation` with an authorization code (`RELAX-<8hex>`).
+   - **NEVER contradict your own recommendation**: Do NOT panic or suggest `(Recommended) Revert` simply because the setup phase fails with `audit-config-ratchet-relaxation` after an authorized `auditor:config apply`.
+   - **Explain and Authorize**: Inform the user that the Ratchet alert is an expected security checkpoint confirming that adding those directory roles is intentional, and ask the user to type/confirm the `RELAX-<8hex>` code in chat so the Ratchet records their explicit authorization.
 
 ---
 
@@ -109,6 +113,8 @@ Then synchronize satellite configurations and verify workspace health with a sin
 npm run auditor:fix
 npm run auditor
 ```
+
+> **Note on Config Ratchet Authorization (`RELAX-<8hex>`)**: If `npm run auditor` reports `audit-config-ratchet-relaxation` because the applied recommendation introduced `paths.cliRoots`, `paths.dataRoots`, or `paths.demoRoots`, explain to the user that this is an expected security gate (as these paths confer scope exemptions). Request that the user reply with the emitted `RELAX-<8hex>` code in chat to authorize the change, then re-run `npm run auditor`. **Never** advise reverting a recommendation you just proposed solely to avoid the `RELAX` prompt.
 
 ---
 

@@ -1,5 +1,4 @@
 import { AUDITOR_DIR } from "../../core/auditConfigTypes.js";
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig, loadAuditConfig } from "../../core/auditConfigLoader.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../../core/cli/cittyHarness.js";
@@ -770,9 +769,7 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot ?? process.cwd();
 		const cfg = getAuditConfig(projectRoot);
-		const defaultCodeRoots = DEFAULT_AUDIT_CONFIG.paths?.codeRoots ?? [];
-		const defaultTestRoots = DEFAULT_AUDIT_CONFIG.paths?.testRoots ?? [];
-		const resolvedRoots = options.roots && options.roots.length > 0 ? options.roots : [...cfg.paths?.codeRoots ?? defaultCodeRoots, ...cfg.paths?.testRoots ?? defaultTestRoots];
+		const resolvedRoots = options.roots && options.roots.length > 0 ? options.roots : [...cfg.paths.codeRoots, ...cfg.paths.testRoots];
 		const ruleDescriptions = getProjectArchitectureRuleDescriptions();
 		const ruleRemediations = getProjectArchitectureRuleRemediations();
 		const ruleRemediationPhases = getProjectArchitectureRuleRemediationPhases();

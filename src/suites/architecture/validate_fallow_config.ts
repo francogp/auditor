@@ -885,12 +885,6 @@ export function projectFallowConfigFromAuditConfig(
     }));
   }
 
-  if (fallow?.architecture?.sharedState !== undefined) {
-    projected.architecture = {
-      sharedState: fallow.architecture.sharedState
-    };
-  }
-
   const mutationCfg = projectMutationConfig(fallow?.mutation);
   if (mutationCfg) {
     projected.mutation = mutationCfg;
@@ -947,7 +941,6 @@ function applyFallowConfigFixes(
   if (projected.health) patch['health'] = projected.health;
   if (projected.minimumVersion) patch['minimumVersion'] = projected.minimumVersion;
   if (projected.entry) patch['entry'] = projected.entry;
-  if (projected.architecture) patch['architecture'] = projected.architecture;
   if (projected.mutation) patch['mutation'] = projected.mutation;
   let pruned = false;
   if (
@@ -983,7 +976,7 @@ function applyFallowConfigFixes(
     delete (config as Record<string, unknown>)['mutation'];
     pruned = true;
   }
-  if (!projected.architecture && 'architecture' in config) {
+  if ('architecture' in config) {
     delete (config as Record<string, unknown>)['architecture'];
     pruned = true;
   }

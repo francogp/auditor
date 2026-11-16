@@ -22,5 +22,6 @@
   "duplicates": {
     "nearMiss": true,
     "mode": "strict"
-  }
+  },
+  "minimumVersion": "3.42.0"
 }

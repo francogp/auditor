@@ -1,5 +1,4 @@
 import "../../core/auditConfig.js";
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
@@ -418,7 +417,7 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		if (this.isSuiteGatingDisabled("Stylelint disabled in config")) return;
 		const config = getAuditConfig(this.projectRoot);
 		const stylelintConfig = config.stylelint ?? config.styles?.stylelint;
-		const roots = this.roots.length > 0 ? this.roots : config.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+		const roots = this.roots.length > 0 ? this.roots : config.paths.srcRoots;
 		this.redeclareCoverage({
 			include: [
 				...deriveCoverageFromRoots(roots, /* @__PURE__ */ new Set([

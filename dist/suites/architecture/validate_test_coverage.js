@@ -25,7 +25,7 @@ const DEFAULT_COVERAGE_THRESHOLD = 80;
 var ValidateTestCoverageAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
-		const codeRoots = getAuditConfig(effectiveRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
+		const codeRoots = getAuditConfig(effectiveRoot).paths.codeRoots;
 		super({
 			ruleFixers: {},
 			usesThirdPartyTool: false,

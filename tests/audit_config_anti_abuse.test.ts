@@ -19,6 +19,7 @@ import {
   MAX_CONSTANTS_EXEMPT_GLOBS,
   MIN_COVERAGE_REASON_LENGTH
 } from '../src/core/auditConfigAntiAbuse.ts';
+import { DEFAULT_AUDIT_PATHS_CONFIG } from '../src/core/auditConfigDefaults.ts';
 import type { AuditPathsConfig } from '../src/core/auditConfigTypes.ts';
 
 describe('AuditConfig Anti-Abuse Assertions & Constraints', () => {
@@ -35,11 +36,7 @@ describe('AuditConfig Anti-Abuse Assertions & Constraints', () => {
 
   describe('getExemptRootsForPolicy', () => {
     const mockPaths: AuditPathsConfig = {
-      enabled: true,
-      srcRoots: ['src'],
-      testRoots: ['tests'],
-      e2eRoots: ['tests/e2e'],
-      integrationRoots: ['tests/integration'],
+      ...DEFAULT_AUDIT_PATHS_CONFIG,
       migrationsDir: 'migrations',
       scriptsRoots: ['custom-scripts'],
       codeRoots: ['src'],
@@ -68,18 +65,19 @@ describe('AuditConfig Anti-Abuse Assertions & Constraints', () => {
       expect(getExemptRootsForPolicy('unknown', mockPaths)).toEqual([]);
     });
 
-    it('falls back to default roots when paths fields are undefined', () => {
+    it('returns explicit empty roots when configured as empty', () => {
       const emptyPaths: AuditPathsConfig = {
-        enabled: true,
-        srcRoots: ['src'],
-        testRoots: ['tests'],
+        ...DEFAULT_AUDIT_PATHS_CONFIG,
         e2eRoots: [],
         integrationRoots: [],
         migrationsDir: 'migrations',
         scriptsRoots: ['scripts'],
-        codeRoots: ['src']
+        codeRoots: ['src'],
+        cliRoots: [],
+        demoRoots: [],
+        dataRoots: []
       };
-      expect(getExemptRootsForPolicy('cli', emptyPaths)).toEqual(['scripts']);
+      expect(getExemptRootsForPolicy('cli', emptyPaths)).toEqual([]);
       expect(getExemptRootsForPolicy('demo', emptyPaths)).toEqual([]);
       expect(getExemptRootsForPolicy('data', emptyPaths)).toEqual([]);
     });

@@ -17,7 +17,6 @@ import fsSync from 'node:fs';
 import path from 'node:path';
 
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -147,9 +146,7 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
   public constructor(options: { projectRoot?: string } = {}) {
     const root = options.projectRoot || process.cwd();
     const config = getAuditConfig(root);
-    const scriptsRoots = config.paths?.scriptsRoots?.length
-      ? config.paths.scriptsRoots
-      : DEFAULT_AUDIT_CONFIG.paths.scriptsRoots;
+    const scriptsRoots = config.paths.scriptsRoots;
     const scriptsGlobs = scriptsRoots.map((r) => `${r}/**/*.{ts,js,mjs,cjs}`);
 
     super({

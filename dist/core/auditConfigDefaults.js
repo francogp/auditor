@@ -406,6 +406,10 @@ const DEFAULT_VITE_PLUS_AUDIT_CONFIG = {
 		defaultFormatter: "oxc.oxc-vscode"
 	}
 };
+const DEFAULT_SQLITE_MIGRATIONS_DIR = "database/migrations";
+function isConfigurableSectionEntry(key, val) {
+	return key !== "name" && key !== "auditorVersion" && !key.startsWith("_") && typeof val === "object" && val !== null && !Array.isArray(val) && Object.keys(val).length > 0;
+}
 const DEFAULT_AUDIT_PATHS_CONFIG = {
 	enabled: true,
 	srcRoots: ["src"],
@@ -452,6 +456,7 @@ const DEFAULT_AUDIT_CONFIG = {
 			"schemas"
 		],
 		allowedDatabaseFiles: ["AGENTS.md", ".gitkeep"],
+		allowedHosts: ["localhost", "127.0.0.1"],
 		exemptRlsTables: [
 			"_migrations",
 			"schema_migrations",
@@ -815,4 +820,4 @@ function collectDeclaredSubsystems(config) {
 	for (const k of Object.keys(config)) if (k !== "_declaredSubsystems" && k !== "_rawPaths" && k !== "_rawConfig" && k !== "name" && Reflect.get(config, k) !== void 0) declared.add(k);
 	return declared;
 }
-export { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_AUDIT_PATHS_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, DEFAULT_VITE_PLUS_AUDIT_CONFIG, collectDeclaredSubsystems };
+export { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_AUDIT_PATHS_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_SQLITE_MIGRATIONS_DIR, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, DEFAULT_VITE_PLUS_AUDIT_CONFIG, collectDeclaredSubsystems, isConfigurableSectionEntry };
