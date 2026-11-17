@@ -39,8 +39,63 @@ function getAuditorMinimumVersions() {
 	if (peers) return peers;
 	throw new Error("[getAuditorMinimumVersions] Could not read peerDependencies from @francogp/auditor package.json. Hardcoded fallbacks are strictly prohibited.");
 }
-function getAuditorCanonicalOverrides() {
-	return readAuditorPackageJsonSection("overrides") ?? {};
+function getAuditorManagedDependencyFloors() {
+	const deps = readAuditorPackageJsonSection("dependencies") ?? {};
+	const peers = readAuditorPackageJsonSection("peerDependencies") ?? {};
+	return {
+		...deps,
+		...peers
+	};
+}
+function parseRangeMinVersion(range) {
+	const alias = splitNpmAliasRange(range);
+	return semver.minVersion(alias ? alias.versionPart : range);
+}
+function checkDirectOverrideFloorConflict(overrideName, overrideRange, managedFloors) {
+	const requiredFloor = managedFloors[overrideName];
+	if (!requiredFloor) return null;
+	const overrideMin = parseRangeMinVersion(overrideRange);
+	const requiredMin = parseRangeMinVersion(requiredFloor);
+	if (!overrideMin || !requiredMin || !semver.lt(overrideMin, requiredMin)) return null;
+	return {
+		name: overrideName,
+		declaredOverride: overrideRange,
+		reason: `Override "${overrideName}: ${overrideRange}" is below @francogp/auditor's required minimum "${requiredFloor}". Remove or update this override manually in package.json.`
+	};
+}
+function checkInstalledOverridePeerConflict(projectRoot, overrideName, overrideRange, managedFloors) {
+	const installedPkgPath = path.join(path.resolve(projectRoot), "node_modules", ...overrideName.split("/"), "package.json");
+	if (!fs.existsSync(installedPkgPath)) return null;
+	const raw = safeReadFileSync(installedPkgPath);
+	const peers = (raw ? safeJsonParse(raw) : null)?.peerDependencies;
+	if (!peers) return null;
+	for (const [peerName, peerRange] of Object.entries(peers)) {
+		const requiredFloor = managedFloors[peerName];
+		if (!requiredFloor) continue;
+		const requiredMin = parseRangeMinVersion(requiredFloor);
+		if (requiredMin && !semver.satisfies(requiredMin, peerRange, { includePrerelease: true })) return {
+			name: overrideName,
+			declaredOverride: overrideRange,
+			reason: `Override "${overrideName}: ${overrideRange}" forces installed peer requirement "${peerName}: ${peerRange}", which conflicts with @francogp/auditor's "${peerName}: ${requiredFloor}". Remove or update this override manually in package.json.`
+		};
+	}
+	return null;
+}
+function evaluateConflictingOverrides(projectRoot, pkgOverrides) {
+	if (!pkgOverrides || Object.keys(pkgOverrides).length === 0) return [];
+	const managedFloors = getAuditorManagedDependencyFloors();
+	const findings = [];
+	for (const [overrideName, overrideRange] of Object.entries(pkgOverrides)) {
+		if (typeof overrideRange !== "string") continue;
+		const direct = checkDirectOverrideFloorConflict(overrideName, overrideRange, managedFloors);
+		if (direct) {
+			findings.push(direct);
+			continue;
+		}
+		const peerConflict = checkInstalledOverridePeerConflict(projectRoot, overrideName, overrideRange, managedFloors);
+		if (peerConflict) findings.push(peerConflict);
+	}
+	return findings;
 }
 function readHostInstalledAuditorMinimums(projectRoot) {
 	const hostAuditorPkgPath = path.join(path.resolve(projectRoot), "node_modules/@francogp/auditor/package.json");
@@ -272,4 +327,4 @@ function evaluateProjectDependencies(projectRoot = process.cwd(), minimumsOverri
 		devInstallCommand: devUpdates.length > 0 ? `npm install -D ${devUpdates.join(" ")}` : void 0
 	};
 }
-export { AUDITOR_MAXIMUM_VERSIONS, evaluateProjectDependencies, extractExactPinnedVersion, findDeclaredDependency, getAuditorCanonicalOverrides, getAuditorMaximumVersions, getAuditorMinimumVersions, normalizeToCaretRange, pruneStaleVitestClusterFromLockfile, readHostInstalledAuditorMinimums, repairPackageJsonMinimumRanges };
+export { AUDITOR_MAXIMUM_VERSIONS, evaluateConflictingOverrides, evaluateProjectDependencies, extractExactPinnedVersion, findDeclaredDependency, getAuditorManagedDependencyFloors, getAuditorMaximumVersions, getAuditorMinimumVersions, normalizeToCaretRange, pruneStaleVitestClusterFromLockfile, readHostInstalledAuditorMinimums, repairPackageJsonMinimumRanges };

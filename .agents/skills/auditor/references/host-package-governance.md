@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.12.9 --allow-git=all
+npm install -D github:francogp/auditor#v10.12.10 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -324,6 +324,7 @@ npm run auditor:findings project="../my-app"
 
 - **Conditional enforcement**: if the host declares a listed library in `dependencies`, `devDependencies` or `optionalDependencies`, then (a) the floor of its declared range (`dependency-below-minimum-range`) and (b) its version in `package-lock.json` (`dependency-below-minimum-installed`) MUST be >= the auditor floor. Libraries not declared by the host are ignored; non-registry specs (`github:`, `file:`, `workspace:`) are not comparable and skipped.
 - **Remediation**: the finding message carries the exact command (e.g. `npm install -D vite-plus@<floor>`). In `auditor fix` mode (`fix: 'priority'`), `validate_dependency_minimums` automatically repairs outdated ranges, normalizes exact pinned versions to caret ranges, and caps maximum ceiling violations in `package.json`.
+- **User `package.json#overrides` Sovereignty & Conflict Detection (`dependency-conflicting-override`)**: `syncPackageJsonForVitePlus` NEVER injects, alters, or deletes `package.json#overrides` in consumer projects. Instead, `validate_dependency_minimums` (`phase: 'setup'`, `fix: 'none'`) inspects `package.json#overrides` via `evaluateConflictingOverrides` against `getAuditorManagedDependencyFloors()` (`dependencies` + `peerDependencies` of `@francogp/auditor/package.json`) and installed `node_modules` `peerDependencies`, emitting a blocking error if any override forces an incompatible version (e.g. `stylelint-config-recommended@^18.0.0` against `stylelint@^18.0.0`) so the developer can remove or update it manually.
 - **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED. Always use `auditor-dependencies`.
 - **Raising a floor**: edit the auditor `peerDependencies`, run the build, and publish a new `vX.Y.Z` tag so hosts pick it up through `npm update`.
 - **Range parsing**: uses the `semver` package (`minVersion`, `validRange`, `lt`), never homemade regexes.

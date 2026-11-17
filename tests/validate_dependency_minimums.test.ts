@@ -63,7 +63,8 @@ describe('validate_dependency_minimums', () => {
       'dependency-below-minimum-installed',
       'dependency-exact-version-pinned',
       'dependency-exceeds-maximum-range',
-      'dependency-exceeds-maximum-installed'
+      'dependency-exceeds-maximum-installed',
+      'dependency-conflicting-override'
     ]);
     const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir });
     expect(auditor.id).toBe('validate_dependency_minimums');
@@ -187,5 +188,93 @@ describe('validate_dependency_minimums', () => {
       section: 'devDependencies'
     });
     expect(findDeclaredDependency({}, 'a')).toBeNull();
+  });
+
+  it('detects package.json override below @francogp/auditor managed floor without auto-deleting it', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify(
+        {
+          name: 'override-floor-conflict',
+          overrides: {
+            stylelint: '^17.0.0'
+          }
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+    const result = await run();
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find((f) => f.ruleId === 'dependency-conflicting-override');
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe('error');
+    expect(finding?.fixable).toBe(false);
+    expect(finding?.message).toContain('stylelint');
+  });
+
+  it('detects installed override whose peerDependencies conflict with @francogp/auditor (e.g. stylelint-config-recommended@18 vs stylelint@18)', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify(
+        {
+          name: 'override-peer-conflict',
+          overrides: {
+            'stylelint-config-recommended': '^18.0.0'
+          }
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+    const pkgDir = path.join(tempDir, 'node_modules', 'stylelint-config-recommended');
+    await fs.mkdir(pkgDir, { recursive: true });
+    await fs.writeFile(
+      path.join(pkgDir, 'package.json'),
+      JSON.stringify(
+        {
+          name: 'stylelint-config-recommended',
+          version: '18.0.0',
+          peerDependencies: {
+            stylelint: '^17.0.0'
+          }
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+
+    const result = await run();
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find((f) => f.ruleId === 'dependency-conflicting-override');
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe('error');
+    expect(finding?.fixable).toBe(false);
+    expect(finding?.message).toContain('stylelint-config-recommended');
+  });
+
+  it('passes cleanly when package.json declares non-conflicting user overrides', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify(
+        {
+          name: 'override-compatible',
+          overrides: {
+            'custom-user-pkg': '^1.0.0',
+            stylelint: '^18.0.0'
+          }
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+
+    const result = await run();
+    expect(result.status).toBe('passed');
+    expect(result.findings.some((f) => f.ruleId === 'dependency-conflicting-override')).toBe(false);
   });
 });

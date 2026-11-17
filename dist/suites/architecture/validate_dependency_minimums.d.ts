@@ -1,7 +1,7 @@
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
 import { DependencyMaximumSpec } from "../../core/auditorMinimums.js";
 import { PackageJsonDTO } from "../../core/packageJson.js";
-export declare const DEPENDENCY_MINIMUMS_RULES: readonly ["dependency-below-minimum-range", "dependency-below-minimum-installed", "dependency-exact-version-pinned", "dependency-exceeds-maximum-range", "dependency-exceeds-maximum-installed"];
+export declare const DEPENDENCY_MINIMUMS_RULES: readonly ["dependency-below-minimum-range", "dependency-below-minimum-installed", "dependency-exact-version-pinned", "dependency-exceeds-maximum-range", "dependency-exceeds-maximum-installed", "dependency-conflicting-override"];
 export type DependencyMinimumsRuleId = (typeof DEPENDENCY_MINIMUMS_RULES)[number];
 export declare class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMinimumsRuleId> {
   constructor(options?: Partial<AuditorOptions<DependencyMinimumsRuleId>>);

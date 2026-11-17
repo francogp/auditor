@@ -1,5 +1,5 @@
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { extractExactPinnedVersion, findDeclaredDependency, getAuditorMaximumVersions, getAuditorMinimumVersions, repairPackageJsonMinimumRanges } from "../../core/auditorMinimums.js";
+import { evaluateConflictingOverrides, extractExactPinnedVersion, findDeclaredDependency, getAuditorMaximumVersions, getAuditorMinimumVersions, repairPackageJsonMinimumRanges } from "../../core/auditorMinimums.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -22,7 +22,8 @@ const DEPENDENCY_MINIMUMS_RULES = [
 	"dependency-below-minimum-installed",
 	"dependency-exact-version-pinned",
 	"dependency-exceeds-maximum-range",
-	"dependency-exceeds-maximum-installed"
+	"dependency-exceeds-maximum-installed",
+	"dependency-conflicting-override"
 ];
 var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
@@ -59,14 +60,16 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 				"dependency-below-minimum-installed": "Installed version below minimum",
 				"dependency-exact-version-pinned": "Exact version pinned (no range)",
 				"dependency-exceeds-maximum-range": "Declared range exceeds maximum",
-				"dependency-exceeds-maximum-installed": "Installed version exceeds maximum"
+				"dependency-exceeds-maximum-installed": "Installed version exceeds maximum",
+				"dependency-conflicting-override": "Conflicting package.json override"
 			},
 			ruleRemediations: {
 				"dependency-below-minimum-range": "1. Root Cause:\nThe version range declared in package.json (dependencies or devDependencies) has a floor lower than the minimum approved by the auditor.\nKeeping dependencies below the minimum floor introduces compiler incompatibilities, typing bugs, or security vulnerabilities already resolved in higher versions.\n\n2. Diagnosis:\nThe violation message specifies the package, the currently declared range, and the required minimum floor mandated by the framework.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor will automatically update the ranges in package.json to the approved minimum floor.\n2. Then run \"npm install\" to synchronize package-lock.json.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
 				"dependency-below-minimum-installed": "1. Root Cause:\nThe version currently installed and resolved in package-lock.json (in node_modules/) is below the minimum floor required by the auditor.\nThis typically occurs when package.json was updated without running \"npm install\", or when npm reused an older lockfile resolution.\n\n2. Diagnosis:\nInspect package-lock.json to verify the exact resolved version under \"node_modules/<package>\".\n\n3. Canonical Solution:\nRun the installation command suggested in the error message (e.g., \"npm install -D <package>@<floor>\") or execute \"npm update <package>\".\n\n4. Example / Auto-fix command:\nnpm install",
 				"dependency-exact-version-pinned": "1. Root Cause:\nThe version declared in package.json is pinned to an exact version (e.g. \"1.4.0\") without a semver range operator (\"^\" or \">=\").\nPinning exact versions prevents patch and minor updates, breaks peer dependency resolution, and causes fatal npm EOVERRIDE conflicts.\n\n2. Diagnosis:\nInspect package.json to identify dependencies declaring raw version numbers without \"^\".\n\n3. Canonical Solution:\nRun \"npm run auditor:fix\" or \"auditor fix\" to automatically convert exact versions to caret ranges (e.g. \"^1.4.0\").\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
 				"dependency-exceeds-maximum-range": "1. Root Cause:\nThe version range declared in package.json allows resolving versions that exceed the safe maximum ceiling validated by the auditor.\nCritical dependencies (such as TypeScript, Vite, or UI rendering engines) can introduce breaking changes in major or minor versions that have not yet been approved.\n\n2. Diagnosis:\nCheck the range in package.json to see if it uses \"^\" across an unsupported major version or an unbounded \">=\" operator.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" to automatically constrain the range to the safe ceiling.\n2. Or manually adjust the range in package.json so it does not exceed the ceiling specified in the violation message.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
-				"dependency-exceeds-maximum-installed": "1. Root Cause:\nThe version installed in package-lock.json exceeds the maximum ceiling permitted by the auditor ecosystem.\n\n2. Diagnosis:\nVerify the installed version in node_modules/<package> via package-lock.json.\n\n3. Canonical Solution:\nReinstall the dependency constrained to a version within the compatibility window: \"npm install -D <package>@<safe-version>\".\n\n4. Example / Auto-fix command:\nnpm install -D <package>@<safe-version>"
+				"dependency-exceeds-maximum-installed": "1. Root Cause:\nThe version installed in package-lock.json exceeds the maximum ceiling permitted by the auditor ecosystem.\n\n2. Diagnosis:\nVerify the installed version in node_modules/<package> via package-lock.json.\n\n3. Canonical Solution:\nReinstall the dependency constrained to a version within the compatibility window: \"npm install -D <package>@<safe-version>\".\n\n4. Example / Auto-fix command:\nnpm install -D <package>@<safe-version>",
+				"dependency-conflicting-override": "1. Root Cause:\npackage.json declares an entry in \"overrides\" that conflicts with @francogp/auditor dependencies or peerDependencies (for example pinning an older major version like stylelint-config-recommended@^18.0.0 when stylelint@^18.0.0 is required).\nThe auditor never deletes or mutates user-defined overrides automatically.\n\n2. Diagnosis:\nInspect the \"overrides\" field in package.json for the package named in the error message.\n\n3. Canonical Solution:\nRemove the conflicting override from package.json \"overrides\" (or update it to a compatible range) and run \"npm install\".\n\n4. Example / Auto-fix command:\nManual review required in package.json > overrides, then run: npm install"
 			},
 			coverage: { include: ["package.json", "package-lock.json"] },
 			...options
@@ -193,6 +196,17 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 				const maxSpec = maximums[name];
 				if (maxSpec) this.auditInstalledVersionMaximum(name, floor, declared, lock, maxSpec);
 			}
+		});
+		this.runSubAuditorSync("dependency-conflicting-override", () => {
+			const conflicts = evaluateConflictingOverrides(this.projectRoot, currentPkg.overrides);
+			for (const conflict of conflicts) this.addViolation({
+				ruleId: "dependency-conflicting-override",
+				severity: "error",
+				file: "package.json",
+				line: 1,
+				context: `${conflict.name}@${conflict.declaredOverride}`,
+				message: conflict.reason
+			});
 		});
 	}
 };

@@ -101,7 +101,8 @@ function defaultBrowserInstaller(projectRoot) {
 	], {
 		cwd: projectRoot,
 		stdio: "pipe",
-		timeout: timeoutMs
+		timeout: timeoutMs,
+		shell: process.platform === "win32"
 	});
 }
 var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {

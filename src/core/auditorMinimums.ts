@@ -51,7 +51,7 @@ export function normalizeToCaretRange(range: string): string {
 }
 
 function readAuditorPackageJsonSection(
-  sectionKey: 'peerDependencies' | 'overrides'
+  sectionKey: 'dependencies' | 'peerDependencies'
 ): Readonly<Record<string, string>> | null {
   const auditorPackageJsonPath = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -78,8 +78,107 @@ export function getAuditorMinimumVersions(): AuditorMinimumVersions {
   );
 }
 
-export function getAuditorCanonicalOverrides(): Readonly<Record<string, string>> {
-  return readAuditorPackageJsonSection('overrides') ?? {};
+export function getAuditorManagedDependencyFloors(): AuditorMinimumVersions {
+  const deps = readAuditorPackageJsonSection('dependencies') ?? {};
+  const peers = readAuditorPackageJsonSection('peerDependencies') ?? {};
+  return { ...deps, ...peers };
+}
+
+export interface ConflictingOverrideFinding {
+  readonly name: string;
+  readonly declaredOverride: string;
+  readonly reason: string;
+}
+
+function parseRangeMinVersion(range: string): semver.SemVer | null {
+  const alias = splitNpmAliasRange(range);
+  return semver.minVersion(alias ? alias.versionPart : range);
+}
+
+function checkDirectOverrideFloorConflict(
+  overrideName: string,
+  overrideRange: string,
+  managedFloors: AuditorMinimumVersions
+): ConflictingOverrideFinding | null {
+  const requiredFloor = managedFloors[overrideName];
+  if (!requiredFloor) return null;
+
+  const overrideMin = parseRangeMinVersion(overrideRange);
+  const requiredMin = parseRangeMinVersion(requiredFloor);
+  if (!overrideMin || !requiredMin || !semver.lt(overrideMin, requiredMin)) {
+    return null;
+  }
+
+  return {
+    name: overrideName,
+    declaredOverride: overrideRange,
+    reason: `Override "${overrideName}: ${overrideRange}" is below @francogp/auditor's required minimum "${requiredFloor}". Remove or update this override manually in package.json.`
+  };
+}
+
+function checkInstalledOverridePeerConflict(
+  projectRoot: string,
+  overrideName: string,
+  overrideRange: string,
+  managedFloors: AuditorMinimumVersions
+): ConflictingOverrideFinding | null {
+  const installedPkgPath = path.join(
+    path.resolve(projectRoot),
+    'node_modules',
+    ...overrideName.split('/'),
+    'package.json'
+  );
+  if (!fs.existsSync(installedPkgPath)) return null;
+
+  const raw = safeReadFileSync(installedPkgPath);
+  const parsed = raw
+    ? safeJsonParse<{ readonly peerDependencies?: Readonly<Record<string, string>> }>(raw)
+    : null;
+  const peers = parsed?.peerDependencies;
+  if (!peers) return null;
+
+  for (const [peerName, peerRange] of Object.entries(peers)) {
+    const requiredFloor = managedFloors[peerName];
+    if (!requiredFloor) continue;
+    const requiredMin = parseRangeMinVersion(requiredFloor);
+    if (requiredMin && !semver.satisfies(requiredMin, peerRange, { includePrerelease: true })) {
+      return {
+        name: overrideName,
+        declaredOverride: overrideRange,
+        reason: `Override "${overrideName}: ${overrideRange}" forces installed peer requirement "${peerName}: ${peerRange}", which conflicts with @francogp/auditor's "${peerName}: ${requiredFloor}". Remove or update this override manually in package.json.`
+      };
+    }
+  }
+  return null;
+}
+
+export function evaluateConflictingOverrides(
+  projectRoot: string,
+  pkgOverrides: Readonly<Record<string, string>> | undefined
+): readonly ConflictingOverrideFinding[] {
+  if (!pkgOverrides || Object.keys(pkgOverrides).length === 0) return [];
+  const managedFloors = getAuditorManagedDependencyFloors();
+  const findings: ConflictingOverrideFinding[] = [];
+
+  for (const [overrideName, overrideRange] of Object.entries(pkgOverrides)) {
+    if (typeof overrideRange !== 'string') continue;
+    const direct = checkDirectOverrideFloorConflict(overrideName, overrideRange, managedFloors);
+    if (direct) {
+      findings.push(direct);
+      continue;
+    }
+    const peerConflict = checkInstalledOverridePeerConflict(
+      projectRoot,
+      overrideName,
+      overrideRange,
+      managedFloors
+    );
+    if (peerConflict) {
+      findings.push(peerConflict);
+    }
+  }
+
+  return findings;
 }
 
 export function readHostInstalledAuditorMinimums(

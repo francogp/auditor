@@ -28,7 +28,8 @@ import {
   findDeclaredDependency,
   type DeclaredDependency,
   extractExactPinnedVersion,
-  repairPackageJsonMinimumRanges
+  repairPackageJsonMinimumRanges,
+  evaluateConflictingOverrides
 } from '../../core/auditorMinimums.ts';
 import { getPackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 
@@ -39,7 +40,8 @@ export const DEPENDENCY_MINIMUMS_RULES = [
   'dependency-below-minimum-installed',
   'dependency-exact-version-pinned',
   'dependency-exceeds-maximum-range',
-  'dependency-exceeds-maximum-installed'
+  'dependency-exceeds-maximum-installed',
+  'dependency-conflicting-override'
 ] as const;
 
 export type DependencyMinimumsRuleId = (typeof DEPENDENCY_MINIMUMS_RULES)[number];
@@ -83,7 +85,8 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         'dependency-below-minimum-installed': 'Installed version below minimum',
         'dependency-exact-version-pinned': 'Exact version pinned (no range)',
         'dependency-exceeds-maximum-range': 'Declared range exceeds maximum',
-        'dependency-exceeds-maximum-installed': 'Installed version exceeds maximum'
+        'dependency-exceeds-maximum-installed': 'Installed version exceeds maximum',
+        'dependency-conflicting-override': 'Conflicting package.json override'
       },
       ruleRemediations: {
         'dependency-below-minimum-range':
@@ -136,7 +139,17 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
           '3. Canonical Solution:\n' +
           'Reinstall the dependency constrained to a version within the compatibility window: "npm install -D <package>@<safe-version>".\n\n' +
           '4. Example / Auto-fix command:\n' +
-          'npm install -D <package>@<safe-version>'
+          'npm install -D <package>@<safe-version>',
+        'dependency-conflicting-override':
+          '1. Root Cause:\n' +
+          'package.json declares an entry in "overrides" that conflicts with @francogp/auditor dependencies or peerDependencies (for example pinning an older major version like stylelint-config-recommended@^18.0.0 when stylelint@^18.0.0 is required).\n' +
+          'The auditor never deletes or mutates user-defined overrides automatically.\n\n' +
+          '2. Diagnosis:\n' +
+          'Inspect the "overrides" field in package.json for the package named in the error message.\n\n' +
+          '3. Canonical Solution:\n' +
+          'Remove the conflicting override from package.json "overrides" (or update it to a compatible range) and run "npm install".\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'Manual review required in package.json > overrides, then run: npm install'
       },
       coverage: { include: ['package.json', 'package-lock.json'] },
       ...options
@@ -338,6 +351,20 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         if (maxSpec) {
           this.auditInstalledVersionMaximum(name, floor, declared, lock, maxSpec);
         }
+      }
+    });
+
+    this.runSubAuditorSync('dependency-conflicting-override', () => {
+      const conflicts = evaluateConflictingOverrides(this.projectRoot, currentPkg.overrides);
+      for (const conflict of conflicts) {
+        this.addViolation({
+          ruleId: 'dependency-conflicting-override',
+          severity: 'error',
+          file: 'package.json',
+          line: 1,
+          context: `${conflict.name}@${conflict.declaredOverride}`,
+          message: conflict.reason
+        });
       }
     });
   }

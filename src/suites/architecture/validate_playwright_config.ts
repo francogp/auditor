@@ -141,7 +141,8 @@ function defaultBrowserInstaller(projectRoot: string): void {
   execFileSync('npm', ['exec', '--', 'playwright', 'install', 'chromium'], {
     cwd: projectRoot,
     stdio: 'pipe',
-    timeout: timeoutMs
+    timeout: timeoutMs,
+    shell: process.platform === 'win32'
   });
 }
 

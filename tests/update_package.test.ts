@@ -28,11 +28,7 @@ import {
   runCli,
   preSyncHostPackageJson
 } from '../src/cli/update_package.ts';
-import {
-  getAuditorCanonicalOverrides,
-  getAuditorMinimumVersions,
-  normalizeToCaretRange
-} from '../src/core/auditorMinimums.ts';
+import { getAuditorMinimumVersions, normalizeToCaretRange } from '../src/core/auditorMinimums.ts';
 import { ensureNpmrcAllowGit } from '../src/core/npmrcAllowGit.ts';
 
 describe('update_package CLI', () => {
@@ -570,7 +566,6 @@ describe('ensureNpmrcAllowGit', () => {
 describe('preSyncHostPackageJson', () => {
   const dir = path.join(process.cwd(), 'scratch', 'test_presync_pkg_' + crypto.randomUUID());
   const minimums = getAuditorMinimumVersions();
-  const canonicalOverrides = getAuditorCanonicalOverrides();
   const floorOf = (pkgName: string): string => normalizeToCaretRange(minimums[pkgName]!);
 
   beforeEach(() => fs.mkdirSync(dir, { recursive: true }));
@@ -599,10 +594,7 @@ describe('preSyncHostPackageJson', () => {
     expect(updated.devDependencies['vite-plus']).toBe(floorOf('vite-plus'));
     expect(updated.devDependencies['vite']).toBeUndefined();
     expect(updated.devDependencies['citty']).toBe(floorOf('citty'));
-    expect(updated.overrides?.braces).toBeUndefined();
-    expect(updated.overrides?.micromatch).toBeUndefined();
-    expect(updated.overrides?.vite).toBeUndefined();
-    expect(updated.overrides?.vitest).toBeUndefined();
+    expect(updated.overrides).toEqual(initialPkg.overrides);
   });
 
   it('returns false when package.json is already fully canonical', () => {
@@ -622,7 +614,9 @@ describe('preSyncHostPackageJson', () => {
         '@vitest/coverage-v8': floorOf('@vitest/coverage-v8'),
         citty: floorOf('citty')
       },
-      overrides: { ...canonicalOverrides }
+      overrides: {
+        'custom-override': '^1.0.0'
+      }
     };
     fs.writeFileSync(
       path.join(dir, 'package.json'),

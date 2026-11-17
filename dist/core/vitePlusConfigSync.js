@@ -2,7 +2,7 @@ import { DEFAULT_CANONICAL_LINT_RULES } from "./auditConfigDefaults.js";
 import { executeNodeCli, resolvePackageBin } from "../cli/cliUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import "./auditConfig.js";
-import { getAuditorCanonicalOverrides, getAuditorMinimumVersions, normalizeToCaretRange } from "./auditorMinimums.js";
+import { getAuditorMinimumVersions, normalizeToCaretRange } from "./auditorMinimums.js";
 import { CANONICAL_SYSTEM_IGNORE_GLOBS, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
 import { getPackageJson, writePackageJson } from "./packageJson.js";
 import { toPosixRelative } from "./safePath.js";
@@ -491,12 +491,6 @@ function updateVitePlusScripts(scripts) {
 	}
 	return modified;
 }
-const OBSOLETE_OVERRIDES = [
-	"braces",
-	"micromatch",
-	"vite",
-	"vitest"
-];
 function syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions) {
 	let modified = false;
 	const vitePlusFloor = minVersions["vite-plus"];
@@ -526,37 +520,6 @@ function syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions) {
 			modified = true;
 		}
 	}
-	return modified;
-}
-function syncSecurityOverrides(nextOverrides, canonicalOverrides) {
-	let modified = false;
-	for (const [ovKey, ovVal] of Object.entries(canonicalOverrides)) {
-		if (ovKey === "vite" || ovKey === "vitest") continue;
-		const currentVal = nextOverrides[ovKey];
-		if (currentVal) {
-			const declaredMin = semver.minVersion(currentVal);
-			const reqMin = semver.minVersion(ovVal);
-			if (declaredMin && reqMin && semver.lt(declaredMin, reqMin)) {
-				nextOverrides[ovKey] = ovVal;
-				modified = true;
-			} else if (semver.valid(currentVal)) {
-				nextOverrides[ovKey] = `^${currentVal}`;
-				modified = true;
-			}
-		} else {
-			nextOverrides[ovKey] = ovVal;
-			modified = true;
-		}
-	}
-	return modified;
-}
-function syncPackageJsonOverrides(nextOverrides, canonicalOverrides) {
-	let modified = false;
-	for (const obsKey of OBSOLETE_OVERRIDES) if (nextOverrides[obsKey]) {
-		delete nextOverrides[obsKey];
-		modified = true;
-	}
-	if (syncSecurityOverrides(nextOverrides, canonicalOverrides)) modified = true;
 	return modified;
 }
 function syncVitestDevDeps(nextDevDeps, nextScripts, minVersions, nextDeps) {
@@ -607,20 +570,16 @@ function syncPackageJsonForVitePlus(projectRoot) {
 	const nextDeps = pkg.dependencies ? { ...pkg.dependencies } : void 0;
 	const nextDevDeps = { ...pkg.devDependencies };
 	const nextScripts = { ...pkg.scripts };
-	const nextOverrides = { ...pkg.overrides };
 	const minVersions = getAuditorMinimumVersions();
-	const canonicalOverrides = getAuditorCanonicalOverrides();
 	if (syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions)) modified = true;
 	if (removeLegacyDependencies(nextDeps, nextDevDeps, nextScripts)) modified = true;
-	if (syncPackageJsonOverrides(nextOverrides, canonicalOverrides)) modified = true;
 	if (updateVitePlusScripts(nextScripts)) modified = true;
 	if (syncVitestDevDeps(nextDevDeps, nextScripts, minVersions, nextDeps)) modified = true;
 	if (modified) writePackageJson(projectRoot, {
 		...pkg,
 		...nextDeps ? { dependencies: nextDeps } : {},
 		devDependencies: nextDevDeps,
-		scripts: nextScripts,
-		...Object.keys(nextOverrides).length > 0 ? { overrides: nextOverrides } : {}
+		scripts: nextScripts
 	});
 	return modified;
 }

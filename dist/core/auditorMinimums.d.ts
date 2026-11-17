@@ -11,7 +11,13 @@ export declare const AUDITOR_MAXIMUM_VERSIONS: AuditorMaximumVersions;
 export declare function getAuditorMaximumVersions(): AuditorMaximumVersions;
 export declare function normalizeToCaretRange(range: string): string;
 export declare function getAuditorMinimumVersions(): AuditorMinimumVersions;
-export declare function getAuditorCanonicalOverrides(): Readonly<Record<string, string>>;
+export declare function getAuditorManagedDependencyFloors(): AuditorMinimumVersions;
+export interface ConflictingOverrideFinding {
+  readonly name: string;
+  readonly declaredOverride: string;
+  readonly reason: string;
+}
+export declare function evaluateConflictingOverrides(projectRoot: string, pkgOverrides: Readonly<Record<string, string>> | undefined): readonly ConflictingOverrideFinding[];
 export declare function readHostInstalledAuditorMinimums(projectRoot: string): AuditorMinimumVersions | null;
 export declare function extractExactPinnedVersion(range: string): string | null;
 export type DependencyDeclarationSection = DependencyLocation;

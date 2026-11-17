@@ -200,7 +200,7 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     expect(updatedPkg.scripts['ui-demo']).toBe('vp dev --open /ui-demo/index.html');
   });
 
-  it('C-SCR-07: syncPackageJsonForVitePlus purges obsolete vite/vitest overrides and preserves higher security versions without downgrading', () => {
+  it('C-SCR-07: syncPackageJsonForVitePlus preserves user-declared package.json overrides untouched', () => {
     const pkgWithCustomOverrides = {
       name: 'test-overrides-consumer',
       version: '1.0.0',
@@ -209,13 +209,8 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
         vitest: '^5.0.5'
       },
       overrides: {
-        vite: '$vite',
-        vitest: '$vitest',
-        'js-yaml': '^5.5.0',
-        katex: '^0.19.1',
-        'smol-toml': '^1.9.1',
-        braces: '^3.0.3',
-        micromatch: '^4.0.8'
+        'custom-pkg': '^2.0.0',
+        'js-yaml': '^5.5.0'
       }
     };
     fs.writeFileSync(
@@ -225,18 +220,17 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     );
 
     const modified = syncPackageJsonForVitePlus(tempDir);
-    expect(modified).toBe(true); // Should remove obsolete braces, micromatch, vite, and vitest
+    expect(modified).toBe(true); // Removes redundant direct vitest devDependency
 
     const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
-    expect(updatedPkg.overrides?.vite).toBeUndefined();
-    expect(updatedPkg.overrides?.vitest).toBeUndefined();
-    expect(updatedPkg.overrides['js-yaml']).toBe('^5.5.0');
-    expect(updatedPkg.overrides.braces).toBeUndefined();
-    expect(updatedPkg.overrides.micromatch).toBeUndefined();
+    expect(updatedPkg.overrides).toEqual({
+      'custom-pkg': '^2.0.0',
+      'js-yaml': '^5.5.0'
+    });
     expect(updatedPkg.devDependencies.vitest).toBeUndefined();
   });
 
-  it('C-SCR-08: syncPackageJsonForVitePlus purges legacy vite/vitest overrides, normalizes vite-plus and purges redundant vitest', () => {
+  it('C-SCR-08: syncPackageJsonForVitePlus normalizes vite-plus and purges redundant vitest without mutating overrides', () => {
     const pkgWithHardcodedVite = {
       name: 'test-hardcoded-consumer',
       version: '1.0.0',
@@ -259,8 +253,10 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     expect(modified).toBe(true);
 
     const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
-    expect(updatedPkg.overrides?.vite).toBeUndefined();
-    expect(updatedPkg.overrides?.vitest).toBeUndefined();
+    expect(updatedPkg.overrides).toEqual({
+      vite: 'npm:@voidzero-dev/vite-plus-core@1.3.0',
+      vitest: '5.0.4'
+    });
     expect(updatedPkg.devDependencies['vite-plus']).toBe(getAuditorMinimumVersions()['vite-plus']);
     expect(updatedPkg.devDependencies.vitest).toBeUndefined();
   });
