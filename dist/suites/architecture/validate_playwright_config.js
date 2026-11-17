@@ -1,10 +1,11 @@
 import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { findConfigRootObject, findPropertyAssignment, getPropertyKeyName, parseTsSourceFile, printTransformedSourceFile, valueToAstExpression } from "../../core/viteConfigAst.js";
-import { enableCompileCache } from "node:module";
+import { createRequire, enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
+import { execFileSync } from "node:child_process";
 // src/suites/architecture/validate_playwright_config.ts
 /**
 * src/suites/architecture/validate_playwright_config.ts
@@ -20,7 +21,11 @@ import ts from "typescript";
 *      - trace / screenshot on failure
 */
 enableCompileCache();
-const PLAYWRIGHT_CONFIG_RULES = ["playwright-config-missing", "playwright-config-missing-setting"];
+const PLAYWRIGHT_CONFIG_RULES = [
+	"playwright-config-missing",
+	"playwright-config-missing-setting",
+	"playwright-browser-missing"
+];
 const CANONICAL_PLAYWRIGHT_CONFIG_LINES = [
 	"import { defineConfig, devices } from '@playwright/test';",
 	"",
@@ -61,7 +66,47 @@ const PLAYWRIGHT_CONFIG_REQUIREMENT = {
 	isApplicable: (_config, projectRoot) => isPlaywrightProjectContext(projectRoot),
 	generateDefaultContent: () => CANONICAL_PLAYWRIGHT_CONFIG_CONTENT
 };
+function defaultBrowserExecutableResolver(projectRoot) {
+	try {
+		const req = createRequire(path.join(projectRoot, "package.json"));
+		let resolvedModulePath = null;
+		for (const candidate of ["playwright-core", "playwright"]) try {
+			resolvedModulePath = req.resolve(candidate);
+			break;
+		} catch {}
+		if (!resolvedModulePath) return null;
+		const execPath = req(resolvedModulePath)?.chromium?.executablePath?.();
+		return typeof execPath === "string" && execPath.length > 0 ? execPath : null;
+	} catch {
+		return null;
+	}
+}
+function defaultBrowserInstaller(projectRoot) {
+	const localBin = path.join(projectRoot, "node_modules", ".bin", "playwright");
+	const timeoutMs = 12e4;
+	if (fs.existsSync(localBin)) {
+		execFileSync(localBin, ["install", "chromium"], {
+			cwd: projectRoot,
+			stdio: "pipe",
+			timeout: timeoutMs
+		});
+		return;
+	}
+	execFileSync("npm", [
+		"exec",
+		"--",
+		"playwright",
+		"install",
+		"chromium"
+	], {
+		cwd: projectRoot,
+		stdio: "pipe",
+		timeout: timeoutMs
+	});
+}
 var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
+	browserExecutableResolver;
+	browserInstaller;
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot ?? process.cwd();
 		const configRequirement = {
@@ -72,9 +117,11 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			} : {}
 		};
 		super({
-			ruleFixers: {},
+			ruleFixers: { "playwright-browser-missing": () => {
+				this.browserInstaller(this.projectRoot);
+			} },
 			usesThirdPartyTool: false,
-			requiredPermissions: [],
+			requiredPermissions: ["--allow-child-process"],
 			ruleCapabilities: createUniformRuleCapabilities(PLAYWRIGHT_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
@@ -97,15 +144,19 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			ruleDescriptions: {
 				"playwright-config-missing": "Missing playwright.config.ts file",
-				"playwright-config-missing-setting": "Missing directive in playwright config"
+				"playwright-config-missing-setting": "Missing directive in playwright config",
+				"playwright-browser-missing": "Missing Chromium binary for Playwright"
 			},
 			ruleRemediations: {
 				"playwright-config-missing": "📖 REMEDIATION GUIDE: playwright-config-missing\n1. Root Cause: The project uses Playwright or contains E2E suites but lacks a `playwright.config.ts` configuration file.\n2. Diagnosis: Check project root for `playwright.config.ts`.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to auto-scaffold the canonical Playwright configuration.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
-				"playwright-config-missing-setting": "📖 REMEDIATION GUIDE: playwright-config-missing-setting\n1. Root Cause: Mandatory timeout or reporter directives are missing from `playwright.config.ts`.\n2. Diagnosis: Inspect `playwright.config.ts` settings against required baseline.\n3. Canonical Solution: Configure `timeout`, `reporter`, and `use.trace` in `playwright.config.ts` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
+				"playwright-config-missing-setting": "📖 REMEDIATION GUIDE: playwright-config-missing-setting\n1. Root Cause: Mandatory timeout or reporter directives are missing from `playwright.config.ts`.\n2. Diagnosis: Inspect `playwright.config.ts` settings against required baseline.\n3. Canonical Solution: Configure `timeout`, `reporter`, and `use.trace` in `playwright.config.ts` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"playwright-browser-missing": "📖 REMEDIATION GUIDE: playwright-browser-missing\n1. Root Cause: `@playwright/test` is installed or upgraded, but the expected Chromium browser binary is missing from `~/.cache/ms-playwright`.\n2. Diagnosis: Check the executable path reported in the violation message.\n3. Canonical Solution: Run `npm run auditor:fix` or `npm exec -- playwright install chromium` (NEVER invoke `npx playwright install`).\n4. Example / Auto-fix command:\n   `npm exec -- playwright install chromium`"
 			},
 			coverage: { include: ["playwright.config.*"] },
 			projectRoot
 		});
+		this.browserExecutableResolver = options.browserExecutableResolver ?? defaultBrowserExecutableResolver;
+		this.browserInstaller = options.browserInstaller ?? defaultBrowserInstaller;
 	}
 	async runAudit() {
 		if (!isPlaywrightProjectContext(this.projectRoot)) {
@@ -121,6 +172,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			const ensured = await this.runSubAuditor("playwright-config-missing", () => this.ensureConfigFile(PLAYWRIGHT_CONFIG_REQUIREMENT));
 			if (!ensured) {
 				this.markRuleNotApplicable("playwright-config-missing-setting", "Missing playwright.config.ts file");
+				this.markRuleNotApplicable("playwright-browser-missing", "Missing playwright.config.ts file");
 				return;
 			}
 			configFile = ensured.resolvedPath;
@@ -229,6 +281,22 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			const printed = printTransformedSourceFile(sf, transformer);
 			fs.writeFileSync(resolvedPath, printed, "utf8");
 		}
+		this.runSubAuditorSync("playwright-browser-missing", () => {
+			const execPath = this.browserExecutableResolver(this.projectRoot);
+			if (!execPath || fs.existsSync(execPath)) return;
+			if (isFix) {
+				this.browserInstaller(this.projectRoot);
+				if (fs.existsSync(execPath)) return;
+			}
+			this.addViolation({
+				ruleId: "playwright-browser-missing",
+				severity: "error",
+				file: relPath,
+				line: 1,
+				fixable: true,
+				message: `Playwright Chromium executable is missing at '${execPath}'. Run "npm run auditor:fix" or "npm exec -- playwright install chromium".`
+			});
+		});
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidatePlaywrightConfigAuditor());

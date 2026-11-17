@@ -159,5 +159,53 @@ describe('ValidatePlaywrightConfigAuditor', () => {
       const repaired = fs.readFileSync(configPath, 'utf8');
       expect(repaired).toContain('vp dev --port 5173');
     });
+
+    it('detects playwright-browser-missing when Chromium executable is absent and auto-installs in fix mode', async () => {
+      fs.writeFileSync(
+        path.join(tmpDir, 'package.json'),
+        JSON.stringify({ devDependencies: { '@playwright/test': '^1.50.0' } }),
+        'utf8'
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, 'playwright.config.ts'),
+        CANONICAL_PLAYWRIGHT_CONFIG_CONTENT,
+        'utf8'
+      );
+
+      const fakeBinary = path.join(tmpDir, 'ms-playwright/chromium/chrome');
+      let installerCalls = 0;
+
+      const checkAuditor = new ValidatePlaywrightConfigAuditor({
+        projectRoot: tmpDir,
+        browserExecutableResolver: () => fakeBinary,
+        browserInstaller: () => {
+          installerCalls++;
+        }
+      });
+      const checkResult = await checkAuditor.audit();
+      expect(checkResult.status).toBe('failed');
+      const missingFinding = checkResult.findings.find(
+        (f) => f.ruleId === 'playwright-browser-missing'
+      );
+      expect(missingFinding).toBeDefined();
+      expect(missingFinding?.fixable).toBe(true);
+      expect(missingFinding?.remediationPhase).toBe('setup');
+      expect(missingFinding?.message).toContain('npm exec -- playwright install chromium');
+      expect(installerCalls).toBe(0);
+
+      const fixAuditor = new ValidatePlaywrightConfigAuditor({
+        projectRoot: tmpDir,
+        browserExecutableResolver: () => fakeBinary,
+        browserInstaller: () => {
+          installerCalls++;
+          fs.mkdirSync(path.dirname(fakeBinary), { recursive: true });
+          fs.writeFileSync(fakeBinary, 'binary', 'utf8');
+        }
+      });
+      const fixResult = await fixAuditor.fix();
+      expect(installerCalls).toBe(1);
+      expect(fixResult.status).toBe('passed');
+      expect(fixResult.summary.errors).toBe(0);
+    });
   });
 });

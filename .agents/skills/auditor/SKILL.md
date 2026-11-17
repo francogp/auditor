@@ -222,7 +222,7 @@ graph TD
      - **Custom Project Overrides**: Host projects declare custom module overrides in `.auditor/audit.config.ts` (`vitePlusConfig.lint.overrides`). The auditor synchronizes them automatically via AST on `npm run auditor:fix`. Manually editing `vite.config.ts` is strictly prohibited.
      - **Explicit Return Types Standard**: `typescript/explicit-function-return-type` enforces strict Java-style return types on declared functions, class methods, and exported functions (`allowExpressions: true`), while allowing inferred inline callbacks in method expressions (`items.map(x => x.id)`).
 - **Mandatory Injected Rule & Configuration Canary Verification**: Every injected rule and configuration option must have automated canary tests verifying failure detection, clean compliance, auto-fix, and `enabled: false` deactivation.
-- **Non-Destructive Auto-Fix Migration Workflow (`auditor fix`)**: Preserves and merges `vitest.config.*` into `vite.config.ts`, rewrites `'vitest'` imports to `'vite-plus/test'`, migrates `.nvmrc` to `.node-version`, adds `"vite-plus": "^1.6.0"` (resolved dynamically via `getAuditorMinimumVersions()`) while stripping legacy `eslint*` packages, and purges obsolete config files only after preceding steps succeed.
+- **Non-Destructive Auto-Fix Migration Workflow (`auditor fix`)**: Preserves and merges `vitest.config.*` into `vite.config.ts`, rewrites `'vitest'` imports to `'vite-plus/test'`, migrates `.nvmrc` to `.node-version`, adds `"vite-plus": "^1.7.0"` (resolved dynamically via `getAuditorMinimumVersions()`) while stripping legacy `eslint*` packages, and purges obsolete config files only after preceding steps succeed.
 
 ### 23. Authentic Documented Commands Governance (`validate_documented_commands`)
 
@@ -385,26 +385,23 @@ Hermetic test isolation requires using `testScanFile` + `finishAudit()` for snip
 
 ### Canonical Configuration Advisor Protocol (`auditor:config` & Config Ratchet)
 
-The configuration advisor (`auditor-config` / `npm run auditor:config`) compares `.auditor/audit.config.ts` dynamically against canonical defaults and subauditor contracts discovered via `discoverAuditors()`.
+The configuration advisor (`auditor-config` / `npm run auditor:config`) compares `.auditor/audit.config.ts` against canonical defaults discovered via `discoverAuditors()`.
 
-- **Config Ratchet Mandate**: Stricter project settings (`maxCognitive: 12`, `threshold: 95`) are PRESERVED and honored under `🛡️ PREEXISTING STRICT RULES`; the agent **MUST NEVER RECOMMEND RELAXING THEM**. Only permissive or missing settings are recommended for hardening.
-- **Advisor vs. Ratchet Synergy & No-Contradiction Mandate (`RELAX-<8hex>`)**: When `auditor:config` recommends declaring missing taxonomy paths (`paths.cliRoots`, `paths.dataRoots`, `paths.demoRoots`) that carry built-in rule policies/exemptions (e.g., `console.*` in CLI files), running `npm run auditor:config apply` will legitimately trigger `audit-config-ratchet-relaxation` (`RELAX-<8hex>`) in `phase: 'setup'`. **Agents MUST NEVER contradict their own recommendation by proposing to revert those paths just to turn CI green.** Instead, explain that the Ratchet requires explicit human confirmation because those paths grant exemptions relative to `origin/main`, and instruct the user to confirm the `RELAX-<8hex>` code directly in chat to finalize the hardening.
-- **Canonical Invocations**: `npm run auditor:config` (compact), `npm run auditor:config human` (Box-Drawing tables), `npm run auditor:config diff` (safe TypeScript patch preview), `npm run auditor:config apply` (additive AST write via `appendMissingSectionsToConfigFile`), `npm run auditor:config subsystem=<name>` (scoped inspection).
-- **Agent Workflow**: Run `npm run auditor:config diff` first, present hardening opportunities in `config.documentation.chatLanguage`, and obtain explicit human confirmation before executing `npm run auditor:config apply`. See [config-advisor-guide.md](./references/config-advisor-guide.md).
-
-📘 **Full CLI Diagnostics Reference**: See [cli-reporters-guide.md](./references/cli-reporters-guide.md), [config-advisor-guide.md](./references/config-advisor-guide.md), and [test-coverage-guide.md](./references/test-coverage-guide.md).
+- **Config Ratchet & `RELAX-<8hex>`**: Stricter settings are preserved under `🛡️ PREEXISTING STRICT RULES`; never recommend relaxing them. If `auditor:config apply` adds taxonomy paths that trigger `audit-config-ratchet-relaxation` (`RELAX-<8hex>`), never revert them—ask the user to confirm the `RELAX-<8hex>` code.
+- **Invocations**: `npm run auditor:config` (`human`, `diff`, `apply`, `subsystem=<name>`). Run `diff` first and obtain confirmation before `apply`. See [config-advisor-guide.md](./references/config-advisor-guide.md) and [cli-reporters-guide.md](./references/cli-reporters-guide.md).
 
 ---
 
 ## 🛠️ Master Environment Setup & Update Scripts Governance
 
-Root environment lifecycle scripts belong canonically to `@francogp/auditor`:
+Root lifecycle scripts (`setup-linux.sh`, `setup-windows.ps1`, `update-linux.sh`, `update-windows.ps1`) belong to `@francogp/auditor` and must be updated upstream via `syncEnvScripts`. See [setup-extension-guide.md](./references/setup-extension-guide.md).
 
-- `setup-linux.sh` & `setup-windows.ps1`: Core setup engine locking declared versions (`.node-version` / `package.json`).
-- `update-linux.sh` & `update-windows.ps1`: Parameterless wrappers delegating with `--update-version` / `-UpdateVersion`.
-- Local patches in host projects are strictly prohibited; fixes must be synchronized upstream via `syncEnvScripts`.
+---
 
-📘 **Setup Extension & Plugin Architecture**: See [setup-extension-guide.md](./references/setup-extension-guide.md).
+## 🎭 Playwright E2E & Browser Runtime Governance (`validate_playwright_config`)
+
+- **Browser Binary Auto-Repair (`playwright-browser-missing`, `phase: 'setup'`)**: `validate_playwright_config` verifies the Chromium binary on disk; if missing, run `npm run auditor:fix` or `npm exec -- playwright install chromium` (never `npx`).
+- **Isolated Reproduction & `/playwright-cli`**: Use `/playwright-cli` (`npm exec -- playwright-cli open <url>`, `snapshot`, `console`, `requests`) or an isolated `<e2eRoot>/reproduce_<slug>.spec.ts` instead of heavy DB-coupled E2E matrices. See [playwright-e2e-guide.md](./references/playwright-e2e-guide.md).
 
 ---
 

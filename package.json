@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "10.12.8-build.20261116-223518",
+  "version": "10.12.9-build.20261117-105634",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -299,12 +299,12 @@
     "auditor:bundle-budget": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts task=validate_bundle_budget"
   },
   "dependencies": {
-    "@ast-grep/napi": "^0.51.2",
+    "@ast-grep/napi": "^0.51.3",
     "boxen": "^9.0.0",
     "citty": "^0.2.2",
     "cli-table3": "^0.6.5",
-    "fallow": "^3.43.0",
-    "fallow-similar-code": "^3.43.0",
+    "fallow": "^3.43.2",
+    "fallow-similar-code": "^3.43.2",
     "franc-min": "^6.2.0",
     "html-validate": "^11.21.1",
     "html-validate-vue": "^9.3.1",
@@ -313,7 +313,7 @@
     "magic-string": "^1.4.5",
     "markdownlint-cli": "^0.50.0",
     "mermaid": "^12.3.0",
-    "postcss-html": "^2.0.0",
+    "postcss-html": "^2.0.1",
     "postcss-value-parser": "^4.2.0",
     "semver": "^7.8.6",
     "string-width": "^9.0.0",
@@ -338,7 +338,7 @@
     "@vitest/coverage-v8": "^5.1.0",
     "pinia": "^4.1.0",
     "publint": "^0.3.25",
-    "vite-plus": "^1.6.0"
+    "vite-plus": "^1.7.0"
   },
   "peerDependencies": {
     "@playwright/test": "^1.65.1",
@@ -346,8 +346,8 @@
     "@vitejs/plugin-vue": "^6.0.11",
     "@vitest/coverage-v8": "^5.1.0",
     "citty": "^0.2.2",
-    "fallow": "^3.43.0",
-    "fallow-similar-code": "^3.43.0",
+    "fallow": "^3.43.2",
+    "fallow-similar-code": "^3.43.2",
     "gsap": "^3.15.1",
     "html-validate": "^11.21.1",
     "markdownlint-cli": "^0.50.0",
@@ -355,7 +355,7 @@
     "sass": "^1.108.2",
     "typescript": "^6.0.3",
     "valibot": "^1.5.0",
-    "vite-plus": "^1.6.0",
+    "vite-plus": "^1.7.0",
     "vue": "^3.5.45",
     "vue-router": "^5.5.1"
   },

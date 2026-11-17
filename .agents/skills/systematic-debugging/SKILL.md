@@ -72,7 +72,7 @@ flowchart TD
 ### Phase 1: Trace Ingestion & DOX Triage
 
 1. **Extract & Parse Available Traces**:
-   - **Playwright Failures**: Read `scratch/test-results/` for console logs, stack traces, and screenshots.
+   - **Playwright & Live Browser Failures**: Read `scratch/test-results/` (`error-context.md`, `trace.zip`, console logs, stack traces, and screenshots). If the browser binary is missing (`Executable doesn't exist`), immediately run `npm run auditor:fix` (or `npm exec -- playwright install chromium`; never use npx) instead of skipping Playwright. For live UI triage against a running dev server, actively use `/playwright-cli` (`npm exec -- playwright-cli open <url>`, `snapshot`, `console`, `requests`).
    - **Calculation & Parser Failures**: Extract failing calculation inputs, serialized payload records, precision metrics, numerical indicators, or diverging tolerance delta ($|calc - expected| > \epsilon$).
    - **Database & Persistence Failures**: Detect whether the failure originates from SQL syntax, migrations, schema discrepancies, RLS policies, or Supabase client queries.
    - **Verbal / Informal Reports**: If the report lacks traces, prompt the user for minimal context: (1) exact reproduction steps, (2) domain entity/input data, and (3) observed error message in DevTools console.
@@ -91,11 +91,12 @@ flowchart TD
 
 Create deterministic reproduction tests before touching `src/`:
 
-| Testing Tier                                  | Scope & Trigger Condition                                                                           | Target Location (`config.paths.testRoots`)            | Template                                                                      |
-| :-------------------------------------------- | :-------------------------------------------------------------------------------------------------- | :---------------------------------------------------- | :---------------------------------------------------------------------------- |
-| **Tier 1: Unit Test (Mandatory)**             | Isolated logic, pure functions, state actions, schema parsing, SQL queries.                         | `<testRoot>/reproduce_<slug>.test.ts`                 | [Unit Template](./templates/reproduction_unit_test.template.ts)               |
-| **Tier 2: Integrity Test (Mandatory)**        | Cross-boundary contracts, state engine parity, database roundtrips, SQL migrations.                 | `<testRoot>/<domain>/reproduce_<slug>.test.ts`        | [Integration Template](./templates/reproduction_integration_test.template.ts) |
-| **Tier 3: UI Interaction Test (Conditional)** | **ONLY IF** the bug affects UI interaction, GSAP animations, dashboard metrics, or page navigation. | `<testRoot>/views/reproduce_<slug>.test.ts`           | [Unit Template](./templates/reproduction_unit_test.template.ts)               |
+| Testing Tier                                      | Scope & Trigger Condition                                                                                                        | Target Location (`config.paths.testRoots` / `e2eRoots`) | Template                                                                      |
+| :------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ | :---------------------------------------------------------------------------- |
+| **Tier 1: Unit Test (Mandatory)**                 | Isolated logic, pure functions, state actions, schema parsing, SQL queries.                                                      | `<testRoot>/reproduce_<slug>.test.ts`                   | [Unit Template](./templates/reproduction_unit_test.template.ts)               |
+| **Tier 2: Integrity Test (Mandatory)**            | Cross-boundary contracts, state engine parity, database roundtrips, SQL migrations.                                              | `<testRoot>/<domain>/reproduce_<slug>.test.ts`          | [Integration Template](./templates/reproduction_integration_test.template.ts) |
+| **Tier 3A: UI Component Test (Conditional)**      | Vue SFC rendering, props/emits, reactive stores in JSDOM/Happy-DOM.                                                              | `<testRoot>/views/reproduce_<slug>.test.ts`             | [Unit Template](./templates/reproduction_unit_test.template.ts)               |
+| **Tier 3B: Real Browser E2E & CLI (Conditional)** | **MANDATORY** when the bug involves layout, CSS, GSAP animations, modals/z-index, real DOM focus/scroll, or full browser flows. | `<e2eRoot>/reproduce_<slug>.spec.ts` or `/playwright-cli` | [Playwright E2E Guide](../auditor/references/playwright-e2e-guide.md)         |
 
 #### Rules for Reproduction Tests
 
@@ -103,7 +104,13 @@ Create deterministic reproduction tests before touching `src/`:
 2. **Real Persistence Boundary Testing for Database Bugs**:
    - If the bug involves database queries, migrations, schemas, or persistence roundtrips, verify against the project's canonical persistence router / database client.
    - Assert deterministic constraint enforcement and error shapes.
-3. **Confirm Deterministic RED**: Execute the reproduction test and confirm that it fails with the exact reported error:
+3. **Zero-Excuse Browser Binary Auto-Repair Mandate (Playwright)**:
+   - NEVER skip Playwright or fall back to Vitest JSDOM for a browser/UI bug because Chromium is missing (`Executable doesn't exist`).
+   - Run `npm run auditor:fix` (which detects `playwright-browser-missing` and auto-installs Chromium) or `npm exec -- playwright install chromium`. NEVER use npx.
+4. **Isolated UI Spec & Active `/playwright-cli` Mandate**:
+   - NEVER run heavy or database-coupled legacy E2E suites just to reproduce a targeted UI bug. Write an isolated `<e2eRoot>/reproduce_<slug>.spec.ts` that attaches `page.on('console')`, `page.on('pageerror')`, and `page.on('response')` (asserting zero unexpected `status >= 400`) and run it directly: `npm exec -- playwright test <e2eRoot>/reproduce_<slug>.spec.ts --project=chromium --reporter=line`.
+   - When interactively probing a live dev server before writing or during debugging of a spec, actively invoke `/playwright-cli` (`npm exec -- playwright-cli open <url>`, `snapshot`, `console`, `requests`, `screenshot`, `close`).
+5. **Confirm Deterministic RED**: Execute the reproduction test and confirm that it fails with the exact reported error:
 
    ```bash
    vp test run <testRoot>/reproduce_<slug>.test.ts

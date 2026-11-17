@@ -108,7 +108,7 @@ Architecture & Tooling Engineers.
 - [`validate_accessibility.ts`](./validate_accessibility.ts): Vue and web accessibility (WCAG 2.2) standards, semantic HTML/forms hygiene, and AST/DOM auto-repair (`--fix`).
 - [`validate_npmrc_config.ts`](./validate_npmrc_config.ts): NPM runtime configuration (.npmrc) verifier enforcing engine-strict, exact saving, and audit hygiene.
 - [`validate_package_hygiene.ts`](./validate_package_hygiene.ts): Unused dependencies, phantom unlisted dependencies, and orphan package binaries via Knip.
-- [`validate_playwright_config.ts`](./validate_playwright_config.ts): Playwright test configuration verifier enforcing trace, screenshot, and strict timeout baselines.
+- [`validate_playwright_config.ts`](./validate_playwright_config.ts): Playwright test configuration and browser binary verifier (`playwright-config-missing`, `playwright-config-missing-setting`, `playwright-browser-missing`) enforcing trace, screenshot, strict timeout baselines, and Chromium binary presence/auto-install via `npm run auditor:fix` (`npm exec -- playwright install chromium`, zero `npx`).
 - [`validate_script_commands.ts`](./validate_script_commands.ts): Executable script and CI/CD pipeline command validator ensuring all invoked npm/npx commands exist in package.json.
 - [`validate_script_extensions.ts`](./validate_script_extensions.ts): Prohibition of .mjs, .cjs, and raw .js scripts with automated TypeScript renaming, import rewrites, and package.json script updates.
 - [`validate_similar_code.ts`](./validate_similar_code.ts): Fallow ML vector and structural similar-code sub-auditor.

@@ -12,8 +12,9 @@
  *      - trace / screenshot on failure
  */
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import { enableCompileCache } from 'node:module';
+import { createRequire, enableCompileCache } from 'node:module';
 import path from 'node:path';
 
 import ts from 'typescript';
@@ -38,7 +39,8 @@ enableCompileCache();
 
 export const PLAYWRIGHT_CONFIG_RULES = [
   'playwright-config-missing',
-  'playwright-config-missing-setting'
+  'playwright-config-missing-setting',
+  'playwright-browser-missing'
 ] as const;
 
 export type PlaywrightConfigRuleId = (typeof PLAYWRIGHT_CONFIG_RULES)[number];
@@ -98,9 +100,55 @@ export const PLAYWRIGHT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<Playwri
 export interface PlaywrightConfigAuditorOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;
+  readonly browserExecutableResolver?: (projectRoot: string) => string | null;
+  readonly browserInstaller?: (projectRoot: string) => void;
+}
+
+function defaultBrowserExecutableResolver(projectRoot: string): string | null {
+  try {
+    const req = createRequire(path.join(projectRoot, 'package.json'));
+    let resolvedModulePath: string | null = null;
+    for (const candidate of ['playwright-core', 'playwright']) {
+      try {
+        resolvedModulePath = req.resolve(candidate);
+        break;
+      } catch {
+        // try next candidate
+      }
+    }
+    if (!resolvedModulePath) return null;
+    const mod = req(resolvedModulePath) as {
+      chromium?: { executablePath?: () => string };
+    };
+    const execPath = mod?.chromium?.executablePath?.();
+    return typeof execPath === 'string' && execPath.length > 0 ? execPath : null;
+  } catch {
+    return null;
+  }
+}
+
+function defaultBrowserInstaller(projectRoot: string): void {
+  const localBin = path.join(projectRoot, 'node_modules', '.bin', 'playwright');
+  const timeoutMs = 120_000;
+  if (fs.existsSync(localBin)) {
+    execFileSync(localBin, ['install', 'chromium'], {
+      cwd: projectRoot,
+      stdio: 'pipe',
+      timeout: timeoutMs
+    });
+    return;
+  }
+  execFileSync('npm', ['exec', '--', 'playwright', 'install', 'chromium'], {
+    cwd: projectRoot,
+    stdio: 'pipe',
+    timeout: timeoutMs
+  });
 }
 
 export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfigRuleId> {
+  private readonly browserExecutableResolver: (projectRoot: string) => string | null;
+  private readonly browserInstaller: (projectRoot: string) => void;
+
   public constructor(options: PlaywrightConfigAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
 
@@ -115,9 +163,13 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
     };
 
     super({
-      ruleFixers: {},
+      ruleFixers: {
+        'playwright-browser-missing': () => {
+          this.browserInstaller(this.projectRoot);
+        }
+      },
       usesThirdPartyTool: false,
-      requiredPermissions: [],
+      requiredPermissions: ['--allow-child-process'],
       ruleCapabilities: createUniformRuleCapabilities(PLAYWRIGHT_CONFIG_RULES, {
         speed: 'light',
         phase: 'setup',
@@ -140,7 +192,8 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
       criticalConfig: {},
       ruleDescriptions: {
         'playwright-config-missing': 'Missing playwright.config.ts file',
-        'playwright-config-missing-setting': 'Missing directive in playwright config'
+        'playwright-config-missing-setting': 'Missing directive in playwright config',
+        'playwright-browser-missing': 'Missing Chromium binary for Playwright'
       },
       ruleRemediations: {
         'playwright-config-missing':
@@ -156,13 +209,24 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
           '2. Diagnosis: Inspect `playwright.config.ts` settings against required baseline.\n' +
           '3. Canonical Solution: Configure `timeout`, `reporter`, and `use.trace` in `playwright.config.ts` or run `npm run auditor:fix`.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   `npm run auditor:fix`'
+          '   `npm run auditor:fix`',
+        'playwright-browser-missing':
+          '📖 REMEDIATION GUIDE: playwright-browser-missing\n' +
+          '1. Root Cause: `@playwright/test` is installed or upgraded, but the expected Chromium browser binary is missing from `~/.cache/ms-playwright`.\n' +
+          '2. Diagnosis: Check the executable path reported in the violation message.\n' +
+          '3. Canonical Solution: Run `npm run auditor:fix` or `npm exec -- playwright install chromium` (NEVER invoke `npx playwright install`).\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm exec -- playwright install chromium`'
       },
       coverage: {
         include: ['playwright.config.*']
       },
       projectRoot
     });
+
+    this.browserExecutableResolver =
+      options.browserExecutableResolver ?? defaultBrowserExecutableResolver;
+    this.browserInstaller = options.browserInstaller ?? defaultBrowserInstaller;
   }
 
   public override async runAudit(): Promise<void> {
@@ -184,6 +248,10 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
       if (!ensured) {
         this.markRuleNotApplicable(
           'playwright-config-missing-setting',
+          'Missing playwright.config.ts file'
+        );
+        this.markRuleNotApplicable(
+          'playwright-browser-missing',
           'Missing playwright.config.ts file'
         );
         return;
@@ -369,6 +437,25 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
       const printed = printTransformedSourceFile(sf, transformer);
       fs.writeFileSync(resolvedPath, printed, 'utf8');
     }
+
+    this.runSubAuditorSync('playwright-browser-missing', () => {
+      const execPath = this.browserExecutableResolver(this.projectRoot);
+      if (!execPath || fs.existsSync(execPath)) return;
+
+      if (isFix) {
+        this.browserInstaller(this.projectRoot);
+        if (fs.existsSync(execPath)) return;
+      }
+
+      this.addViolation({
+        ruleId: 'playwright-browser-missing',
+        severity: 'error',
+        file: relPath,
+        line: 1,
+        fixable: true,
+        message: `Playwright Chromium executable is missing at '${execPath}'. Run "npm run auditor:fix" or "npm exec -- playwright install chromium".`
+      });
+    });
   }
 }
 

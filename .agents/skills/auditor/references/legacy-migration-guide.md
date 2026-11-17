@@ -210,7 +210,7 @@ Running `npm run auditor:fix` automatically executes the non-destructive 5-stage
 1. **Extract & Merge**: Reads existing `vitest.config.*` (extracting `test: { ... }` blocks, projects, and custom pools) and merges them into `vite.config.ts`, preserving 100% of existing application plugins, aliases, and server configs.
 2. **Rewrite Testing Imports**: Rewires test imports across all `tests/**/*.{ts,vue}` from `'vitest'` to `'vite-plus/test'`.
 3. **Migrate Node Runtime**: Migrates `.nvmrc` to `.node-version` (canonical for `vp env`).
-4. **Synchronize `package.json`**: Adds `"vite-plus": "^1.6.0"` (from `getAuditorMinimumVersions()`) to `devDependencies`, strips obsolete `eslint*` packages, and modernizes scripts to `vp check`, `vp test run`, and `vp pack`.
+4. **Synchronize `package.json`**: Adds `"vite-plus": "^1.7.0"` (from `getAuditorMinimumVersions()`) to `devDependencies`, strips obsolete `eslint*` packages, and modernizes scripts to `vp check`, `vp test run`, and `vp pack`.
 5. **Certified Cleanup**: Purges obsolete config files (`vitest.config.*`, `eslint.config.*`, `.nvmrc`) ONLY after stages 1–4 complete with 100% success.
 
 ### 4.2 Modernized CLI Commands

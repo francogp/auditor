@@ -62,6 +62,27 @@ When static verification or audit commands fail (`npm run auditor`, `npm run aud
    - Run `npm run auditor:guide <ruleId>` (or `auditor guide <ruleId>`) to fetch canonical 4-section remediation steps.
    - Run `npm run auditor:findings rule=<ruleId>` or `npm run auditor:by-file` for detailed context.
 
+### F. Playwright & Live Browser Failures
+
+When diagnosing browser, E2E, or live UI bugs:
+
+1. **Missing Browser Binary (`Executable doesn't exist`)**:
+   - NEVER abandon Playwright or downgrade to JSDOM/Happy-DOM when Playwright reports a missing browser binary.
+   - Run `npm run auditor:fix` (which detects `playwright-browser-missing` in `phase: 'setup'` and installs Chromium automatically) or run `npm exec -- playwright install chromium`. Never invoke npx.
+2. **Trace & Artifact Extraction (`scratch/test-results/`)**:
+   - Inspect `scratch/test-results/**/error-context.md` for accessibility DOM snapshots at failure time.
+   - Inspect `scratch/test-results/**/trace.zip` and screenshots alongside `page.on('console')`, `page.on('pageerror')`, and `page.on('response')` (`status >= 400`).
+3. **Active Live Inspection via `/playwright-cli`**:
+   - For rapid interactive triage against a running dev server, use `/playwright-cli`:
+     ```bash
+     npm exec -- playwright-cli open http://localhost:5173
+     npm exec -- playwright-cli snapshot
+     npm exec -- playwright-cli console
+     npm exec -- playwright-cli requests
+     npm exec -- playwright-cli close
+     ```
+   - See [Playwright E2E & Browser Governance Guide](../../auditor/references/playwright-e2e-guide.md) for isolated reproduction templates.
+
 ---
 
 ## 2. DOX Contract Mapping (`dox-navigator`)
