@@ -588,6 +588,7 @@ const DEFAULT_AUDIT_CONFIG = {
 		},
 		security: { enabled: true },
 		enforceTargets: true,
+		enforceTemporalCoupling: false,
 		maxTargetPriority: "high",
 		similarCode: {
 			enabled: true,

@@ -1,4 +1,3 @@
-import { getAuditConfig } from "./auditConfigLoader.js";
 import { COVERAGE_SOURCES } from "./auditContract.js";
 import { CANONICAL_BINARY_EXTENSIONS } from "./canonicalIgnoreRegistry.js";
 import { safeJsonParse, safeReadFileAsync, tryOrDefaultAsync } from "./safeUtils.js";
@@ -57,10 +56,13 @@ function isDeclaredByCoverage(relPosixPath, declaration) {
 }
 /** Derives a coverage declaration from scan roots + extensions (used by FileScanAuditor). */
 function deriveCoverageFromRoots(roots, extensions, projectRoot = process.cwd()) {
-	const config = getAuditConfig(projectRoot);
-	const effectiveRoots = roots.length > 0 ? roots : [...config.paths.codeRoots, ...config.paths.testRoots];
+	if (roots.length === 0) return {
+		include: [],
+		source: "runtime",
+		allowEmpty: true
+	};
 	const include = [];
-	for (const root of effectiveRoots) {
+	for (const root of roots) {
 		const cleanRoot = toPosixRelative(projectRoot, root);
 		const isRootFolder = cleanRoot === "" || cleanRoot === ".";
 		for (const ext of extensions) include.push(isRootFolder ? `**/*${ext}` : path.posix.join(cleanRoot, `**/*${ext}`));
@@ -94,9 +96,10 @@ function deriveCoverageFromRequiredFiles(requiredFiles, projectRoot = process.cw
 	};
 }
 /** Fails loudly when a suite declares an invalid coverage contract. */
-function validateCoverageDeclaration(suiteId, declaration) {
+function validateCoverageDeclaration(suiteId, declaration, options) {
 	if (!declaration || typeof declaration !== "object") throw new Error(`Auditor [${suiteId}] must declare 'coverage: { include: [...] }' (files it is responsible for). Blind-spot detection requires every suite to declare its coverage.`);
-	if (!Array.isArray(declaration.include) || declaration.include.length === 0) throw new Error(`Auditor [${suiteId}] 'coverage.include' must be a non-empty array of POSIX globs.`);
+	const canBeEmpty = Boolean(options?.allowEmptyInclude || declaration.allowEmpty);
+	if (!Array.isArray(declaration.include) || !canBeEmpty && declaration.include.length === 0) throw new Error(`Auditor [${suiteId}] 'coverage.include' must be a non-empty array of POSIX globs.`);
 	const allGlobs = [...declaration.include, ...declaration.exclude ?? []];
 	for (const glob of allGlobs) if (typeof glob !== "string" || glob.trim().length === 0 || glob.includes("\\") || path.posix.isAbsolute(glob)) throw new Error(`Auditor [${suiteId}] declared an invalid coverage glob '${String(glob)}' (must be a relative POSIX glob).`);
 	if (declaration.source !== void 0 && !COVERAGE_SOURCES.includes(declaration.source)) throw new Error(`Auditor [${suiteId}] declared unknown coverage source '${String(declaration.source)}'.`);

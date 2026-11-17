@@ -703,7 +703,7 @@ function validateAuditorOptions(options) {
 	validateAuditorRuleRemediationPhases(options);
 	validateAuditorScripts(options);
 	if (options.gitIgnoreEntries !== void 0 && !Array.isArray(options.gitIgnoreEntries)) throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
-	validateCoverageDeclaration(options.id, options.coverage);
+	validateCoverageDeclaration(options.id, options.coverage, { allowEmptyInclude: options.roots !== void 0 && options.roots.length === 0 });
 }
 function validateAuditorRuleDescriptions(options, formatFn) {
 	if (!options.ruleDescriptions) return;
@@ -987,10 +987,7 @@ var BaseAuditor = class BaseAuditor {
 	}
 	resolveEffectiveCoverage(options, effectiveProjectRoot) {
 		if (options.coverage) return options.coverage;
-		if (options.roots !== void 0) {
-			const targetRoots = options.roots.length > 0 ? options.roots : getEffectiveScannableRoots(getAuditConfig(effectiveProjectRoot));
-			return deriveCoverageFromRoots(targetRoots, options.allowedExtensions ?? SCANNABLE_EXTENSIONS, effectiveProjectRoot);
-		}
+		if (options.roots !== void 0) return deriveCoverageFromRoots(options.roots, options.allowedExtensions ?? SCANNABLE_EXTENSIONS, effectiveProjectRoot);
 		if (options.requiredFiles && options.requiredFiles.length > 0) return deriveCoverageFromRequiredFiles(options.requiredFiles, effectiveProjectRoot, options.allowedExtensions);
 	}
 	resolveEffectiveScripts(options) {

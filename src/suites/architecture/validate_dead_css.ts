@@ -273,9 +273,7 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
           '   ❌ Orphaned class: `.btn-old-badge { font-size: 10px; }` (unused in template)\n' +
           '   ✅ Clean:          Removed from `<style scoped>` block.'
       },
-      coverage: {
-        include: deriveCoverageFromRoots(compRoots, new Set(['.vue']), projectRoot).include
-      },
+      coverage: deriveCoverageFromRoots(compRoots, new Set(['.vue']), projectRoot),
       projectRoot
     });
   }
@@ -288,9 +286,7 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
     const globalTokens = collectGlobalCodeTokens(this.projectRoot, allSrcFiles);
 
     const compRoots = [...(config.paths.componentsRoots ?? []), ...(config.paths.viewsRoots ?? [])];
-    this.redeclareCoverage({
-      include: deriveCoverageFromRoots(compRoots, new Set(['.vue']), this.projectRoot).include
-    });
+    this.redeclareCoverage(deriveCoverageFromRoots(compRoots, new Set(['.vue']), this.projectRoot));
     const componentFiles = this.context.collectFiles(compRoots, new Set(['.vue']));
 
     if (componentFiles.length === 0) {

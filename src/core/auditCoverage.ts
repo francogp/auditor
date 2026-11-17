@@ -11,7 +11,6 @@ import nodeFs from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { getAuditConfig } from './auditConfigLoader.ts';
 import {
   COVERAGE_SOURCES,
   type AuditorCoverageDeclaration,
@@ -86,11 +85,11 @@ export function deriveCoverageFromRoots(
   extensions: ReadonlySet<string>,
   projectRoot: string = process.cwd()
 ): AuditorCoverageDeclaration {
-  const config = getAuditConfig(projectRoot);
-  const effectiveRoots =
-    roots.length > 0 ? roots : [...config.paths.codeRoots, ...config.paths.testRoots];
+  if (roots.length === 0) {
+    return { include: [], source: 'runtime', allowEmpty: true };
+  }
   const include: string[] = []; // dynamic file glob patterns derived at runtime
-  for (const root of effectiveRoots) {
+  for (const root of roots) {
     const cleanRoot = toPosixRelative(projectRoot, root);
     const isRootFolder = cleanRoot === '' || cleanRoot === '.';
     for (const ext of extensions) {
@@ -141,7 +140,8 @@ export function deriveCoverageFromRequiredFiles(
 /** Fails loudly when a suite declares an invalid coverage contract. */
 export function validateCoverageDeclaration(
   suiteId: string,
-  declaration: AuditorCoverageDeclaration | undefined
+  declaration: AuditorCoverageDeclaration | undefined,
+  options?: { readonly allowEmptyInclude?: boolean }
 ): void {
   if (!declaration || typeof declaration !== 'object') {
     throw new Error(
@@ -149,7 +149,8 @@ export function validateCoverageDeclaration(
         `Blind-spot detection requires every suite to declare its coverage.`
     );
   }
-  if (!Array.isArray(declaration.include) || declaration.include.length === 0) {
+  const canBeEmpty = Boolean(options?.allowEmptyInclude || declaration.allowEmpty);
+  if (!Array.isArray(declaration.include) || (!canBeEmpty && declaration.include.length === 0)) {
     throw new Error(
       `Auditor [${suiteId}] 'coverage.include' must be a non-empty array of POSIX globs.`
     );

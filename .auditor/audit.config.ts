@@ -292,7 +292,8 @@ export default defineAuditConfig({
       mutantsPerLine: 2,
       functionScope: true,
       typecheck: true
-    }
+    },
+    enforceTemporalCoupling: false
   },
   constants: {
     enabled: true,

@@ -663,6 +663,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
       enabled: true
     },
     enforceTargets: true,
+    enforceTemporalCoupling: false,
     maxTargetPriority: 'high',
     similarCode: {
       enabled: true,

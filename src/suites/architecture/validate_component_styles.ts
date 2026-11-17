@@ -696,13 +696,11 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
           '   ❌ CSS:  `src/styles/theme.css`\n' +
           '   ✅ SCSS: `src/styles/theme.scss`'
       },
-      coverage: {
-        include: deriveCoverageFromRoots(
-          effectiveRoots,
-          new Set(['.vue', '.scss', '.css']),
-          effectiveRoot
-        ).include
-      },
+      coverage: deriveCoverageFromRoots(
+        effectiveRoots,
+        new Set(['.vue', '.scss', '.css']),
+        effectiveRoot
+      ),
       roots: effectiveRoots,
       projectRoot: effectiveRoot
     });
@@ -749,13 +747,9 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
 
   public override runAudit(): void {
     const config = getAuditConfig(this.projectRoot);
-    this.redeclareCoverage({
-      include: deriveCoverageFromRoots(
-        this.roots,
-        new Set(['.vue', '.scss', '.css']),
-        this.projectRoot
-      ).include
-    });
+    this.redeclareCoverage(
+      deriveCoverageFromRoots(this.roots, new Set(['.vue', '.scss', '.css']), this.projectRoot)
+    );
     const srcRoots = config.paths.srcRoots ?? [];
     const srcDir = path.resolve(this.projectRoot, srcRoots[0] ?? 'src');
     const enforceScss = config.styles?.enforceScss !== false;

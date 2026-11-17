@@ -387,6 +387,7 @@ export interface AuditorCoverageDeclaration {
   readonly include: readonly string[];
   readonly exclude?: readonly string[];
   readonly source?: CoverageSource;
+  readonly allowEmpty?: boolean;
 }
 
 /**

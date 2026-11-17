@@ -21,8 +21,8 @@ import type { TemplateIdRuleId } from '../src/suites/architecture/validate_templ
 class TestableTemplateIdAuditor extends TemplateIdAuditor {
   public readonly collectedViolations: ViolationInput<TemplateIdRuleId>[] = [];
 
-  constructor(options?: { requireInputIds?: boolean }) {
-    super({ roots: ['src'], requireInputIds: options?.requireInputIds ?? true });
+  constructor(options?: { roots?: readonly string[]; requireInputIds?: boolean }) {
+    super({ roots: options?.roots ?? ['src'], requireInputIds: options?.requireInputIds ?? true });
   }
 
   public override addViolation(v: ViolationInput<TemplateIdRuleId>): void {
@@ -177,6 +177,14 @@ describe('TemplateIdAuditor', () => {
       expect(result.summary).toBeDefined();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
+    });
+
+    it('declares empty coverage when explicit roots are empty without false declared-not-scanned drift', async () => {
+      const auditor = new TestableTemplateIdAuditor({ roots: [] });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+      expect(result.status).toBe('passed');
+      expect(auditor.getCoverageRecorder().declaration.include).toEqual([]);
     });
   });
 });

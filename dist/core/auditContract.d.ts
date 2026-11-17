@@ -210,6 +210,7 @@ export interface AuditorCoverageDeclaration {
   readonly include: readonly string[];
   readonly exclude?: readonly string[];
   readonly source?: CoverageSource;
+  readonly allowEmpty?: boolean;
 }
 /**
  * Per-suite coverage ledger persisted at the end of every orchestrated run

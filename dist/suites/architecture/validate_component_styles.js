@@ -397,11 +397,11 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 				"banned-plain-css-style": "📖 REMEDIATION GUIDE: banned-plain-css-style\n1. Root Cause: A `<style>` block in a Vue component lacks mandatory `lang=\"scss\"` attribute.\n2. Diagnosis: Locate the `<style>` tag in the component.\n3. Canonical Solution:\n   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject `lang=\"scss\"`.\n   b) Or manually edit: `<style lang=\"scss\" scoped>`.\n4. Example / Auto-fix command:\n   ❌ Incorrect: `<style>`\n   ✅ Correct:   `<style lang=\"scss\" scoped>`",
 				"banned-raw-css-file": "📖 REMEDIATION GUIDE: banned-raw-css-file\n1. Root Cause: A file with `.css` extension was found in source code. Architecture standardizes the SCSS preprocessor for all stylesheets.\n2. Diagnosis: Locate the reported `.css` file.\n3. Canonical Solution:\n   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically rename the file to `.scss` and update imports.\n   b) Or manually rename to `.scss` and update import references.\n4. Example / Auto-fix command:\n   ❌ CSS:  `src/styles/theme.css`\n   ✅ SCSS: `src/styles/theme.scss`"
 			},
-			coverage: { include: deriveCoverageFromRoots(effectiveRoots, /* @__PURE__ */ new Set([
+			coverage: deriveCoverageFromRoots(effectiveRoots, /* @__PURE__ */ new Set([
 				".vue",
 				".scss",
 				".css"
-			]), effectiveRoot).include },
+			]), effectiveRoot),
 			roots: effectiveRoots,
 			projectRoot: effectiveRoot
 		});
@@ -435,11 +435,11 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 	}
 	runAudit() {
 		const config = getAuditConfig(this.projectRoot);
-		this.redeclareCoverage({ include: deriveCoverageFromRoots(this.roots, /* @__PURE__ */ new Set([
+		this.redeclareCoverage(deriveCoverageFromRoots(this.roots, /* @__PURE__ */ new Set([
 			".vue",
 			".scss",
 			".css"
-		]), this.projectRoot).include });
+		]), this.projectRoot));
 		const srcRoots = config.paths.srcRoots ?? [];
 		const srcDir = path.resolve(this.projectRoot, srcRoots[0] ?? "src");
 		const enforceScss = config.styles?.enforceScss !== false;

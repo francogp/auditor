@@ -18,7 +18,9 @@ export declare function deriveCoverageFromRoots(roots: readonly string[], extens
 /** Derives a coverage declaration from requiredFiles (used by BaseAuditor when coverage is omitted). */
 export declare function deriveCoverageFromRequiredFiles(requiredFiles: readonly string[], projectRoot?: string, allowedExtensions?: ReadonlySet<string>): AuditorCoverageDeclaration;
 /** Fails loudly when a suite declares an invalid coverage contract. */
-export declare function validateCoverageDeclaration(suiteId: string, declaration: AuditorCoverageDeclaration | undefined): void;
+export declare function validateCoverageDeclaration(suiteId: string, declaration: AuditorCoverageDeclaration | undefined, options?: {
+  readonly allowEmptyInclude?: boolean;
+}): void;
 export interface CoverageLedgerParams {
   readonly runId: string;
   readonly suiteId: string;

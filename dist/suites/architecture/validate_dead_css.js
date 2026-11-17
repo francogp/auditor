@@ -178,7 +178,7 @@ var DeadCssAuditor = class extends BaseAuditor {
 			icon: "💀",
 			ruleDescriptions: { "dead-scoped-css": "Orphaned unused scoped class" },
 			ruleRemediations: { "dead-scoped-css": "📖 REMEDIATION GUIDE: dead-scoped-css\n1. Root Cause: A CSS class was declared within `<style scoped>` in a Vue component that is never used in `<template>` markup or `<script>` presentation logic. Dead CSS bloats bundle size and confuses maintainers.\n2. Diagnosis: Locate the reported CSS class within `<style scoped>` in the component.\n3. Canonical Solution:\n   a) If the HTML element was removed or refactored: delete the orphaned style rule.\n   b) If dynamically applied via string concatenation: use full static class names in templates (`:class=\"{ 'my-class': isActive }\"`) rather than dynamic fragments.\n   c) If transition-related or injected by an external library, configure the style in global stylesheets or declare the selector dynamically via Vue `:class` bindings.\n4. Example / Auto-fix command:\n   ❌ Orphaned class: `.btn-old-badge { font-size: 10px; }` (unused in template)\n   ✅ Clean:          Removed from `<style scoped>` block." },
-			coverage: { include: deriveCoverageFromRoots(compRoots, /* @__PURE__ */ new Set([".vue"]), projectRoot).include },
+			coverage: deriveCoverageFromRoots(compRoots, /* @__PURE__ */ new Set([".vue"]), projectRoot),
 			projectRoot
 		});
 	}
@@ -193,7 +193,7 @@ var DeadCssAuditor = class extends BaseAuditor {
 		]));
 		const globalTokens = collectGlobalCodeTokens(this.projectRoot, allSrcFiles);
 		const compRoots = [...config.paths.componentsRoots ?? [], ...config.paths.viewsRoots ?? []];
-		this.redeclareCoverage({ include: deriveCoverageFromRoots(compRoots, /* @__PURE__ */ new Set([".vue"]), this.projectRoot).include });
+		this.redeclareCoverage(deriveCoverageFromRoots(compRoots, /* @__PURE__ */ new Set([".vue"]), this.projectRoot));
 		const componentFiles = this.context.collectFiles(compRoots, /* @__PURE__ */ new Set([".vue"]));
 		if (componentFiles.length === 0) {
 			this.runSubAuditorSync("dead-scoped-css", () => {

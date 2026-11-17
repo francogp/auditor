@@ -328,6 +328,7 @@ export interface AuditFallowConfig extends BaseAuditSubsystemConfig {
   readonly mutation?: AuditFallowMutationConfig;
   readonly security?: AuditSecurityConfig;
   readonly enforceTargets?: boolean;
+  readonly enforceTemporalCoupling?: boolean;
   readonly maxTargetPriority?: FallowTargetPriority;
   readonly similarCode?: AuditFallowSimilarCodeConfig;
   readonly flags?: AuditFallowFlagsConfig;

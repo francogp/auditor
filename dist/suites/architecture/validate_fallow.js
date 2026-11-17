@@ -339,6 +339,7 @@ function mapHealthFindings(data, projectRoot) {
 	if (cfg.fallow?.enforceTargets) {
 		const minThreshold = resolveFallowTargetMinThreshold(cfg.fallow.maxTargetPriority);
 		for (const t of data.targets || []) {
+			if (t.category === "resolve_hidden_coupling" && !cfg.fallow?.enforceTemporalCoupling) continue;
 			const priority = t.priority ?? 0;
 			if (priority < minThreshold) continue;
 			findings.push({
@@ -405,6 +406,7 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 			configKey: "fallow",
 			defaultConfig: {
 				enabled: true,
+				enforceTemporalCoupling: false,
 				health: {
 					maxCognitive: 20,
 					maxCyclomatic: 25,

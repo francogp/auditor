@@ -1696,7 +1696,9 @@ function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<
   if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
     throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
   }
-  validateCoverageDeclaration(options.id, options.coverage);
+  validateCoverageDeclaration(options.id, options.coverage, {
+    allowEmptyInclude: options.roots !== undefined && options.roots.length === 0
+  });
 }
 
 function validateAuditorRuleDescriptions<TRuleId extends string>(
@@ -2092,12 +2094,8 @@ export abstract class BaseAuditor<TRuleId extends string = string>
   ): AuditorCoverageDeclaration | undefined {
     if (options.coverage) return options.coverage;
     if (options.roots !== undefined) {
-      const targetRoots =
-        options.roots.length > 0
-          ? options.roots
-          : getEffectiveScannableRoots(getAuditConfig(effectiveProjectRoot));
       return deriveCoverageFromRoots(
-        targetRoots,
+        options.roots,
         options.allowedExtensions ?? SCANNABLE_EXTENSIONS,
         effectiveProjectRoot
       );

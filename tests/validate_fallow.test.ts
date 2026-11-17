@@ -284,6 +284,52 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(targetViolations[0]!.severity).toBe('error');
     });
 
+    it('omits advisory resolve_hidden_coupling targets by default and enforces them when enforceTemporalCoupling is true', () => {
+      const couplingData = {
+        targets: [
+          {
+            path: 'src/client/App.vue',
+            priority: 31.1,
+            category: 'resolve_hidden_coupling',
+            recommendation:
+              'Changes with jobRunner.ts in 5 commits (83% coupling) without an import'
+          },
+          {
+            path: 'src/server/complex.ts',
+            priority: 25,
+            category: 'extract_complex_functions',
+            recommendation: 'Extract complex function'
+          }
+        ]
+      };
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enforceTargets: true,
+            maxTargetPriority: 'high'
+          }
+        })
+      );
+      const defaultViolations = mapFallowJson('health', couplingData, tempDir);
+      expect(defaultViolations).toHaveLength(1);
+      expect(defaultViolations[0]!.file).toContain('complex.ts');
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enforceTargets: true,
+            enforceTemporalCoupling: true,
+            maxTargetPriority: 'high'
+          }
+        })
+      );
+      const strictViolations = mapFallowJson('health', couplingData, tempDir);
+      expect(strictViolations).toHaveLength(2);
+    });
+
     it('filters refactoring targets based on maxTargetPriority thresholds', () => {
       // 1. Critical threshold (>= 30)
       setAuditConfig(

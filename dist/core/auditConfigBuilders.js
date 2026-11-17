@@ -260,6 +260,7 @@ function buildFallowConfig(raw, rootSecurity) {
 		...base,
 		security: { enabled: secEnabled },
 		enforceTargets: f.enforceTargets ?? def?.enforceTargets ?? true,
+		enforceTemporalCoupling: f.enforceTemporalCoupling ?? def?.enforceTemporalCoupling ?? false,
 		maxTargetPriority: f.maxTargetPriority ?? def?.maxTargetPriority ?? "high",
 		similarCode: buildFallowSimilarCodeConfig(f.similarCode),
 		flags: buildFallowFlagsConfig(f.flags, def?.flags),

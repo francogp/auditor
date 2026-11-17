@@ -117,6 +117,12 @@ describe('coverage declaration', () => {
       isDeclaredByCoverage('src/core/a.d.ts', { include: ['src/**/*.ts'], exclude: ['**/*.d.ts'] })
     ).toBe(false);
   });
+
+  it('returns empty include when roots is explicitly empty without expanding to codeRoots', () => {
+    const decl = deriveCoverageFromRoots([], new Set(['.vue']));
+    expect(decl.include).toEqual([]);
+    expect(isDeclaredByCoverage('src/client/App.vue', decl)).toBe(false);
+  });
 });
 
 describe('CoverageRecorder', () => {

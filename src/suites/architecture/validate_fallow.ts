@@ -675,6 +675,10 @@ function mapHealthFindings(data: FallowAuditData, projectRoot: string): FallowFi
     const minThreshold = resolveFallowTargetMinThreshold(cfg.fallow.maxTargetPriority);
 
     for (const t of data.targets || []) {
+      // Fallow treats resolve_hidden_coupling (git co-change) as advisory and never gates on it
+      if (t.category === 'resolve_hidden_coupling' && !cfg.fallow?.enforceTemporalCoupling) {
+        continue;
+      }
       const priority = t.priority ?? 0;
       if (priority < minThreshold) continue;
 
@@ -765,6 +769,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       configKey: 'fallow',
       defaultConfig: {
         enabled: true,
+        enforceTemporalCoupling: false,
         health: {
           maxCognitive: DEFAULT_FALLOW_HEALTH_MAX_COGNITIVE,
           maxCyclomatic: DEFAULT_FALLOW_HEALTH_MAX_CYCLOMATIC,

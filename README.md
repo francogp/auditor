@@ -93,10 +93,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.12.7`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.12.8`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.12.7 --allow-git=all
+npm install -D github:francogp/auditor#v10.12.8 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -106,7 +106,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.12.7"
+    "@francogp/auditor": "github:francogp/auditor#v10.12.8"
   }
 }
 ```
@@ -160,9 +160,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update v10.12.7
+npm run auditor:update v10.12.8
 # or directly:
-auditor-update v10.12.7
+auditor-update v10.12.8
 ```
 
 `auditor-update` snapshots `package.json`, `package-lock.json`, and `.npmrc` (rolling them back cleanly on failure), pre-elevates declared dependency ranges to SSoT minimums while pruning stale `vite-plus`/`vitest`/`@vitest/*` lockfile clusters to prevent `ERESOLVE` peer conflicts, installs the pinned `@francogp/auditor` tag, synchronizes agent skills registration and environment scripts (`setup-windows.ps1`, `setup-linux.sh`), runs `auditor fix`, and automatically upgrades any declared production or development dependencies below the newly installed auditor's `peerDependencies` floors.
@@ -249,12 +249,14 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MyProject',
   // Automatically synchronized by the auditor pre-flight bootstrap (SemVer + Build ID):
-  auditorVersion: '10.12.7-build.20261116-081844',
+  auditorVersion: '10.12.8-build.20261116-223518',
   paths: {
     enabled: true,
     srcRoots: ['src'],
     testRoots: ['tests'],
     scriptsRoots: ['scripts']
+    // For Vue projects, declare componentsRoots: ['src/client/components'], viewsRoots: ['src/client']
+    // to enable validate_template_ids (empty [] skips template scanning without silent fallbacks).
   },
   documentation: {
     enabled: true,
@@ -269,6 +271,7 @@ export default defineAuditConfig({
   fallow: {
     enabled: true,
     enforceTargets: true,
+    enforceTemporalCoupling: false, // Fallow resolve_hidden_coupling (git co-change) is advisory; set true to gate
     maxTargetPriority: 'high'
   }
 });
@@ -309,7 +312,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.12.7"`), or install via `npm install -D github:francogp/auditor#v10.12.7 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.12.8"`), or install via `npm install -D github:francogp/auditor#v10.12.8 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -1025,6 +1028,7 @@ export default defineAuditConfig({
       enabled: true
     },
     enforceTargets: true,
+    enforceTemporalCoupling: false,
     maxTargetPriority: 'high',
     similarCode: {
       enabled: true,
