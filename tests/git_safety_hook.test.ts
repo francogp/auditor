@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import type { AuditEngineConfig } from '../src/core/auditConfigTypes.ts';
 import {
   CANONICAL_PREVENT_DESTRUCTIVE_GIT_SCRIPT,
+  evaluateCommandExecutionHygiene,
   inspectGitSafetyHook,
   isDestructiveGitCommand,
   isGitSafetyHookActive,
@@ -350,6 +351,39 @@ describe('gitSafetyHook', () => {
       const parsed = JSON.parse(out);
       expect(parsed.decision).toBe('deny');
       expect(parsed.reason).toContain('[SATELLITE CONFIG SOVEREIGNTY GATE]');
+    });
+
+    it('blocks unconditional semicolon chaining, && on win32, and redundant npm command pairs', () => {
+      expect(
+        evaluateCommandExecutionHygiene('npm run auditor:fix; npm run fmt; npm run build').blocked
+      ).toBe(true);
+      expect(evaluateCommandExecutionHygiene('npm run fmt; npm run auditor:lint').blocked).toBe(
+        true
+      );
+      expect(evaluateCommandExecutionHygiene('npm run fmt && npm run build', 'win32').blocked).toBe(
+        true
+      );
+      expect(
+        evaluateCommandExecutionHygiene(
+          'npm run auditor:lint ; if ($LASTEXITCODE -eq 0) { npm run build }'
+        ).blocked
+      ).toBe(true);
+      expect(
+        evaluateCommandExecutionHygiene(
+          'npm run fmt ; if ($LASTEXITCODE -eq 0) { npm run test:coverage }'
+        ).blocked
+      ).toBe(false);
+      expect(
+        evaluateCommandExecutionHygiene(
+          'Set-Location c:\\repo\\video-organizer ; npm run auditor:update'
+        ).blocked
+      ).toBe(false);
+      expect(evaluateCommandExecutionHygiene('node -e "const a = 1; const b = 2;"').blocked).toBe(
+        false
+      );
+      expect(
+        evaluateCommandExecutionHygiene('git commit -m "avoid npm run fmt; npm run build"').blocked
+      ).toBe(false);
     });
   });
 });

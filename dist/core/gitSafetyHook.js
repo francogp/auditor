@@ -41,6 +41,108 @@ function isDestructiveGitCommand(commandLine) {
 	};
 	return { isDestructive: false };
 }
+function splitUnquotedCommandSegments(cmd) {
+	const segments = [];
+	let current = "";
+	let currentUnquoted = "";
+	let separatorBefore = "";
+	let quote = null;
+	let escaped = false;
+	for (let i = 0; i < cmd.length; i++) {
+		const ch = cmd[i];
+		if (escaped) {
+			current += ch;
+			escaped = false;
+			continue;
+		}
+		if (ch === "\\" && quote === "\"") {
+			current += ch;
+			escaped = true;
+			continue;
+		}
+		if ((ch === "\"" || ch === "'") && (!quote || quote === ch)) {
+			quote = quote ? null : ch;
+			current += ch;
+			continue;
+		}
+		if (!quote && ch === ";") {
+			if (current.trim()) segments.push({
+				text: current.trim(),
+				unquotedText: currentUnquoted.trim(),
+				separatorBefore
+			});
+			current = "";
+			currentUnquoted = "";
+			separatorBefore = ";";
+			continue;
+		}
+		if (!quote && ch === "&" && cmd[i + 1] === "&") {
+			if (current.trim()) segments.push({
+				text: current.trim(),
+				unquotedText: currentUnquoted.trim(),
+				separatorBefore
+			});
+			current = "";
+			currentUnquoted = "";
+			separatorBefore = "&&";
+			i++;
+			continue;
+		}
+		current += ch;
+		if (!quote) currentUnquoted += ch;
+	}
+	if (current.trim()) segments.push({
+		text: current.trim(),
+		unquotedText: currentUnquoted.trim(),
+		separatorBefore
+	});
+	return segments;
+}
+function isSetupOrGuardSegment(seg) {
+	return /^(?:Set-Location|cd|Push-Location|New-Item|mkdir|if\s*\(\s*\$(?:\?|LASTEXITCODE))/i.test(seg.trim());
+}
+function findRedundantCommandPair(cmd) {
+	const hasFix = /\bnpm\s+run\s+auditor:fix\b/i.test(cmd);
+	const hasFmt = /\bnpm\s+run\s+fmt\b/i.test(cmd);
+	const hasLint = /\bnpm\s+run\s+auditor:lint\b/i.test(cmd);
+	const hasAuditor = /\bnpm\s+run\s+auditor(?::full)?\b/i.test(cmd);
+	const hasBuild = /\bnpm\s+run\s+build\b/i.test(cmd);
+	const hasTest = /\bnpm\s+(?:run\s+)?test\b(?!:)/i.test(cmd);
+	const hasTestCov = /\bnpm\s+run\s+test:coverage\b/i.test(cmd);
+	if (hasFix && hasFmt) return "\"auditor:fix\" already formats; do not chain \"fmt\" after it.";
+	if (hasFmt && (hasLint || hasAuditor || hasBuild)) return "\"fmt\" is already included in auditor:lint / auditor / build; remove \"npm run fmt\".";
+	if ((hasLint || hasAuditor) && hasBuild) return "\"npm run build\" already runs \"auditor:full\"; do not chain auditor:lint/auditor with build.";
+	if (hasTest && hasTestCov) return "\"npm run test:coverage\" already runs all tests; do not run \"npm test\" before it.";
+	return null;
+}
+/**
+* Evaluates whether a command line violates Windows PowerShell execution hygiene
+* (unconditional ';' chaining, '&&' on Windows PowerShell 5.1, or redundant script chains).
+*/
+function evaluateCommandExecutionHygiene(commandLine, platform = process.platform) {
+	const trimmed = commandLine.trim();
+	if (!trimmed) return { blocked: false };
+	const segments = splitUnquotedCommandSegments(trimmed);
+	if (platform === "win32" && segments.some((s) => s.separatorBefore === "&&")) return {
+		blocked: true,
+		reason: "[EXECUTION HYGIENE GATE] \"&&\" fails in Windows PowerShell 5.1. Run ONE command per turn, or guard explicitly with \"; if ($LASTEXITCODE -eq 0) { ... }\"."
+	};
+	let execSegCount = 0;
+	for (const seg of segments) {
+		if (isSetupOrGuardSegment(seg.text)) continue;
+		if (seg.separatorBefore === ";" && execSegCount > 0) return {
+			blocked: true,
+			reason: "[EXECUTION HYGIENE GATE] Unconditional \";\" chaining in PowerShell executes subsequent commands even after failure. Run ONE command per turn, or guard with \"; if ($LASTEXITCODE -eq 0) { ... }\"."
+		};
+		if (/^(?:npm|vp|node|git)\b/i.test(seg.text)) execSegCount++;
+	}
+	const redundantReason = findRedundantCommandPair(segments.map((s) => s.unquotedText).join(" "));
+	if (redundantReason) return {
+		blocked: true,
+		reason: `[EXECUTION HYGIENE GATE] Redundant command chain blocked: ${redundantReason}`
+	};
+	return { blocked: false };
+}
 /**
 * Canonical source code for `.agents/scripts/prevent_destructive_git.js`.
 * Zero-dependency, ultra-fast Node.js 26+ native script for Antigravity PreToolUse.
@@ -73,6 +175,74 @@ function checkSatelliteRedirect(cmd) {
     }
   }
   return false;
+}
+
+function splitUnquotedCommandSegments(cmd) {
+  const segments = [];
+  let current = '';
+  let currentUnquoted = '';
+  let separatorBefore = '';
+  let quote = null;
+  let escaped = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (escaped) { current += ch; escaped = false; continue; }
+    if (ch === '\\\\' && quote === '"') { current += ch; escaped = true; continue; }
+    if ((ch === '"' || ch === "'") && (!quote || quote === ch)) {
+      quote = quote ? null : ch;
+      current += ch;
+      continue;
+    }
+    if (!quote && ch === ';') {
+      if (current.trim()) segments.push({ text: current.trim(), unquotedText: currentUnquoted.trim(), separatorBefore });
+      current = '';
+      currentUnquoted = '';
+      separatorBefore = ';';
+      continue;
+    }
+    if (!quote && ch === '&' && cmd[i + 1] === '&') {
+      if (current.trim()) segments.push({ text: current.trim(), unquotedText: currentUnquoted.trim(), separatorBefore });
+      current = '';
+      currentUnquoted = '';
+      separatorBefore = '&&';
+      i++;
+      continue;
+    }
+    current += ch;
+    if (!quote) currentUnquoted += ch;
+  }
+  if (current.trim()) segments.push({ text: current.trim(), unquotedText: currentUnquoted.trim(), separatorBefore });
+  return segments;
+}
+
+function checkExecutionHygiene(cmd) {
+  const segments = splitUnquotedCommandSegments(cmd);
+  if (process.platform === 'win32' && segments.some((s) => s.separatorBefore === '&&')) {
+    return '[EXECUTION HYGIENE GATE] "&&" fails in Windows PowerShell 5.1. Run ONE command per turn, or guard explicitly with "; if ($LASTEXITCODE -eq 0) { ... }".';
+  }
+  let execSegCount = 0;
+  for (const seg of segments) {
+    if (/^(?:Set-Location|cd|Push-Location|New-Item|mkdir|if\\s*\\(\\s*\\$(?:\\?|LASTEXITCODE))/i.test(seg.text)) {
+      continue;
+    }
+    if (seg.separatorBefore === ';' && execSegCount > 0) {
+      return '[EXECUTION HYGIENE GATE] Unconditional ";" chaining in PowerShell executes subsequent commands even after failure. Run ONE command per turn, or guard with "; if ($LASTEXITCODE -eq 0) { ... }".';
+    }
+    if (/^(?:npm|vp|node|git)\\b/i.test(seg.text)) execSegCount++;
+  }
+  const unquotedCmd = segments.map((s) => s.unquotedText).join(' ');
+  const hasFix = /\\bnpm\\s+run\\s+auditor:fix\\b/i.test(unquotedCmd);
+  const hasFmt = /\\bnpm\\s+run\\s+fmt\\b/i.test(unquotedCmd);
+  const hasLint = /\\bnpm\\s+run\\s+auditor:lint\\b/i.test(unquotedCmd);
+  const hasAuditor = /\\bnpm\\s+run\\s+auditor(?::full)?\\b/i.test(unquotedCmd);
+  const hasBuild = /\\bnpm\\s+run\\s+build\\b/i.test(unquotedCmd);
+  const hasTest = /\\bnpm\\s+(?:run\\s+)?test\\b(?!:)/i.test(unquotedCmd);
+  const hasTestCov = /\\bnpm\\s+run\\s+test:coverage\\b/i.test(unquotedCmd);
+  if (hasFix && hasFmt) return '[EXECUTION HYGIENE GATE] Redundant chain: "auditor:fix" already formats; do not chain "fmt".';
+  if (hasFmt && (hasLint || hasAuditor || hasBuild)) return '[EXECUTION HYGIENE GATE] Redundant chain: "fmt" is already included in auditor:lint / auditor / build.';
+  if ((hasLint || hasAuditor) && hasBuild) return '[EXECUTION HYGIENE GATE] Redundant chain: "npm run build" already runs "auditor:full".';
+  if (hasTest && hasTestCov) return '[EXECUTION HYGIENE GATE] Redundant chain: "npm run test:coverage" already runs all tests.';
+  return null;
 }
 
 function main() {
@@ -177,6 +347,12 @@ function main() {
         );
         return;
       }
+
+      const hygieneReason = checkExecutionHygiene(cmd);
+      if (hygieneReason) {
+        process.stdout.write(JSON.stringify({ decision: 'deny', reason: hygieneReason }));
+        return;
+      }
     }
 
     process.stdout.write(JSON.stringify({ decision: 'allow' }));
@@ -274,4 +450,4 @@ function syncGitSafetyHook(projectRoot, primaryAgentDir = ".agents") {
 		hookMerged
 	};
 }
-export { CANONICAL_PREVENT_DESTRUCTIVE_GIT_SCRIPT, DESTRUCTIVE_GIT_PATTERNS, inspectGitSafetyHook, isDestructiveGitCommand, isGitSafetyHookActive, syncGitSafetyHook };
+export { CANONICAL_PREVENT_DESTRUCTIVE_GIT_SCRIPT, DESTRUCTIVE_GIT_PATTERNS, evaluateCommandExecutionHygiene, inspectGitSafetyHook, isDestructiveGitCommand, isGitSafetyHookActive, syncGitSafetyHook };

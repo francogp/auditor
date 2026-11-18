@@ -59,6 +59,10 @@ describe('init_agent CLI Tool', () => {
     expect(skills.entries).toEqual(
       expect.arrayContaining([{ path: 'node_modules/@francogp/auditor/.agents/skills' }])
     );
+
+    const rulePath = path.join(tempDir, '.agents/rules/auditor-execution-hygiene.md');
+    expect(fs.existsSync(rulePath)).toBe(true);
+    expect(fs.readFileSync(rulePath, 'utf-8')).toContain('LASTEXITCODE');
   });
 
   it('is idempotent when already registered in host project', () => {
@@ -88,5 +92,8 @@ describe('init_agent CLI Tool', () => {
     const result = initAgentSkill({ targetDir: tempDir, dryRun: true });
     expect(result.success).toBe(true);
     expect(fs.existsSync(path.join(tempDir, '.agents/plugins.json'))).toBe(false);
+    expect(fs.existsSync(path.join(tempDir, '.agents/rules/auditor-execution-hygiene.md'))).toBe(
+      false
+    );
   });
 });

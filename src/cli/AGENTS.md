@@ -47,7 +47,7 @@ Architecture & Tooling Engineers.
 - [`check_environment.ts`](./check_environment.ts): Runtime and tooling environment validator.
 - [`cliUtils.ts`](./cliUtils.ts): Shared utilities for CLI tools and entrypoint detection.
 - [`guideRenderer.ts`](./guideRenderer.ts): Box-drawing terminal renderer for on-demand diagnostic and remediation guides (`auditor guide <id>`).
-- [`init_agent.ts`](./init_agent.ts): Antigravity agent plugin and skills registrator (`.agents/skills.json` and `.agents/plugins.json`).
+- [`init_agent.ts`](./init_agent.ts): Antigravity agent plugin, skills, safety hook, and execution-hygiene rule synchronizer (`.agents/skills.json`, `.agents/plugins.json`, `.agents/scripts/prevent_destructive_git.js`, and `.agents/rules/auditor-execution-hygiene.md`).
 - [`init_project.ts`](./init_project.ts): Unified Day 0 project initialization engine setting up Git, package.json ESM, AGENTS.md, and satellite configs.
 - [`make_executable.ts`](./make_executable.ts): Cross-platform utility applying executable permissions (`0o755`) to compiled CLI binaries in `dist/cli/` and purging orphaned compiled files in `dist/`.
 - [`report_complexity.ts`](./report_complexity.ts): Cyclomatic and cognitive complexity reporter.

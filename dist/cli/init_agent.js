@@ -30,6 +30,20 @@ function registerAgentEntry(filePath, entryPath, matchFn, dryRun) {
 	if (!dryRun) fs.writeFileSync(filePath, JSON.stringify(config, null, 2) + "\n", "utf8");
 	return true;
 }
+function syncExecutionHygieneRule(agentsDir, dryRun) {
+	const packageRoot = path.resolve(import.meta.dirname, "..", "..");
+	const sourceRulePath = path.join(packageRoot, ".agents", "rules", "auditor-execution-hygiene.md");
+	const content = safeReadFileSync(sourceRulePath);
+	if (!content) return false;
+	const targetRulesDir = path.join(agentsDir, "rules");
+	const targetRulePath = path.join(targetRulesDir, "auditor-execution-hygiene.md");
+	if (safeReadFileSync(targetRulePath) === content) return false;
+	if (!dryRun) {
+		fs.mkdirSync(targetRulesDir, { recursive: true });
+		fs.writeFileSync(targetRulePath, content, "utf-8");
+	}
+	return true;
+}
 function initAgentSkill(options = {}) {
 	const rawInitCwd = process.env.INIT_CWD;
 	const safeInitCwd = rawInitCwd ? path.resolve(rawInitCwd) : void 0;
@@ -49,7 +63,8 @@ function initAgentSkill(options = {}) {
 		const hookSync = syncGitSafetyHook(targetDir);
 		hookCreated = hookSync.scriptWritten || hookSync.hookMerged;
 	}
-	const anyCreated = pluginCreated || skillsCreated || hookCreated;
+	const ruleCreated = syncExecutionHygieneRule(agentsDir, options.dryRun);
+	const anyCreated = pluginCreated || skillsCreated || hookCreated || ruleCreated;
 	return {
 		success: true,
 		message: anyCreated ? `Successfully registered @francogp/auditor plugin, skills and Git Safety Gate in .agents/` : `@francogp/auditor plugin, skills and Git Safety Gate are already registered in .agents`,

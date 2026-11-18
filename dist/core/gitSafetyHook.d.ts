@@ -13,6 +13,14 @@ export declare function isDestructiveGitCommand(commandLine: string): {
   readonly reason?: string;
 };
 /**
+ * Evaluates whether a command line violates Windows PowerShell execution hygiene
+ * (unconditional ';' chaining, '&&' on Windows PowerShell 5.1, or redundant script chains).
+ */
+export declare function evaluateCommandExecutionHygiene(commandLine: string, platform?: NodeJS.Platform): {
+  readonly blocked: boolean;
+  readonly reason?: string;
+};
+/**
  * Canonical source code for `.agents/scripts/prevent_destructive_git.js`.
  * Zero-dependency, ultra-fast Node.js 26+ native script for Antigravity PreToolUse.
  * Hard-blocks destructive Git commands AND unauthorized direct writes to satellite configs.

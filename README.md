@@ -93,10 +93,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.12.10`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.12.11`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.12.10 --allow-git=all
+npm install -D github:francogp/auditor#v10.12.11 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -106,7 +106,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.12.10"
+    "@francogp/auditor": "github:francogp/auditor#v10.12.11"
   }
 }
 ```
@@ -160,9 +160,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update v10.12.10
+npm run auditor:update v10.12.11
 # or directly:
-auditor-update v10.12.10
+auditor-update v10.12.11
 ```
 
 `auditor-update` snapshots `package.json`, `package-lock.json`, and `.npmrc` (rolling them back cleanly on failure), pre-elevates declared dependency ranges to SSoT minimums while pruning stale `vite-plus`/`vitest`/`@vitest/*` lockfile clusters to prevent `ERESOLVE` peer conflicts, installs the pinned `@francogp/auditor` tag, synchronizes agent skills registration and environment scripts (`setup-windows.ps1`, `setup-linux.sh`), runs `auditor fix`, and automatically upgrades any declared production or development dependencies below the newly installed auditor's `peerDependencies` floors.
@@ -249,7 +249,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MyProject',
   // Automatically synchronized by the auditor pre-flight bootstrap (SemVer + Build ID):
-  auditorVersion: '10.12.10-build.20261117-190429',
+  auditorVersion: '10.12.11-build.20261117-234627',
   paths: {
     enabled: true,
     srcRoots: ['src'],
@@ -312,7 +312,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.12.10"`), or install via `npm install -D github:francogp/auditor#v10.12.10 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.12.11"`), or install via `npm install -D github:francogp/auditor#v10.12.11 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -1153,7 +1153,7 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-dependencies`          | `src/cli/report_dependencies.ts`           | Audits minimum shared library versions against `@francogp/auditor` floors and emits ready-to-run upgrade commands (`commands`).                                                                                                                                             |
 | `auditor-rules`                 | `src/cli/report_findings.ts`               | Consolidated Box-Drawing breakdown of audit findings grouped by `ruleId` (`auditor-by-rule`).                                                                                                                                                                               |
 | `auditor-coverage-map`          | `src/cli/report_coverage_map.ts`           | Generates static audit suite file-coverage maps across workspace directories.                                                                                                                                                                                               |
-| `auditor-init-agent`            | `src/cli/init_agent.ts`                    | Registers `@francogp/auditor` in `.agents/plugins.json` for AI agent skill discovery.                                                                                                                                                                                       |
+| `auditor-init-agent`            | `src/cli/init_agent.ts`                    | Registers `@francogp/auditor` in `.agents/plugins.json` / `.agents/skills.json` and syncs `.agents/rules/auditor-execution-hygiene.md` plus `.agents/scripts/prevent_destructive_git.js`.                                                                                   |
 | `auditor-sync-env`              | `src/cli/sync_env_scripts.ts`              | Synchronizes `setup-linux.sh`, `setup-windows.ps1`, `update-linux.sh`, `update-windows.ps1`, and setup plugins into host project.                                                                                                                                           |
 | `auditor-check-env`             | `src/cli/check_environment.ts`             | Validates Node.js and npm version invariants during host environment checks.                                                                                                                                                                                                |
 | `auditor-setup-env`             | `src/cli/setup_env.ts`                     | Detects host OS and runs appropriate setup script (`setup-linux.sh` / `setup-windows.ps1`).                                                                                                                                                                                 |

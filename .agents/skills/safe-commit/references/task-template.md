@@ -36,8 +36,8 @@
   - [ ] Pre-commit Sanity Check (Run `npm run auditor:md` ONLY if Step 4.1 edited `.md` files + staged secret leak scan)
   - [ ] Synthesize final Elegant Protocol commit message
   - [ ] Atomic Commit & Tag:
-    - [ ] If version bumped: `git add . ; git commit -F scratch/release_notes.txt ; git tag -a v<base_version> -F scratch/release_notes.txt` (or `&&` in Bash)
-    - [ ] If version unchanged: `git add . ; git commit -F scratch/release_notes.txt` (or `&&` in Bash)
+    - [ ] If version bumped (PowerShell): `git add . ; if ($LASTEXITCODE -eq 0) { git commit -F scratch/release_notes.txt } ; if ($LASTEXITCODE -eq 0) { git tag -a v<base_version> -F scratch/release_notes.txt }` (or `&&` in Bash)
+    - [ ] If version unchanged (PowerShell): `git add . ; if ($LASTEXITCODE -eq 0) { git commit -F scratch/release_notes.txt }` (or `&&` in Bash)
   - [ ] Mark Phase 4 `[x]`
   - [ ] Render final Safe Commit Completion Template (Autonomous push prohibited; display `git push` command for user)
 

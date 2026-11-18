@@ -57,6 +57,74 @@ function checkSatelliteRedirect(cmd) {
   return false;
 }
 
+function splitUnquotedCommandSegments(cmd) {
+  const segments = [];
+  let current = '';
+  let currentUnquoted = '';
+  let separatorBefore = '';
+  let quote = null;
+  let escaped = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (escaped) { current += ch; escaped = false; continue; }
+    if (ch === '\\' && quote === '"') { current += ch; escaped = true; continue; }
+    if ((ch === '"' || ch === "'") && (!quote || quote === ch)) {
+      quote = quote ? null : ch;
+      current += ch;
+      continue;
+    }
+    if (!quote && ch === ';') {
+      if (current.trim()) segments.push({ text: current.trim(), unquotedText: currentUnquoted.trim(), separatorBefore });
+      current = '';
+      currentUnquoted = '';
+      separatorBefore = ';';
+      continue;
+    }
+    if (!quote && ch === '&' && cmd[i + 1] === '&') {
+      if (current.trim()) segments.push({ text: current.trim(), unquotedText: currentUnquoted.trim(), separatorBefore });
+      current = '';
+      currentUnquoted = '';
+      separatorBefore = '&&';
+      i++;
+      continue;
+    }
+    current += ch;
+    if (!quote) currentUnquoted += ch;
+  }
+  if (current.trim()) segments.push({ text: current.trim(), unquotedText: currentUnquoted.trim(), separatorBefore });
+  return segments;
+}
+
+function checkExecutionHygiene(cmd) {
+  const segments = splitUnquotedCommandSegments(cmd);
+  if (process.platform === 'win32' && segments.some((s) => s.separatorBefore === '&&')) {
+    return '[EXECUTION HYGIENE GATE] "&&" fails in Windows PowerShell 5.1. Run ONE command per turn, or guard explicitly with "; if ($LASTEXITCODE -eq 0) { ... }".';
+  }
+  let execSegCount = 0;
+  for (const seg of segments) {
+    if (/^(?:Set-Location|cd|Push-Location|New-Item|mkdir|if\s*\(\s*\$(?:\?|LASTEXITCODE))/i.test(seg.text)) {
+      continue;
+    }
+    if (seg.separatorBefore === ';' && execSegCount > 0) {
+      return '[EXECUTION HYGIENE GATE] Unconditional ";" chaining in PowerShell executes subsequent commands even after failure. Run ONE command per turn, or guard with "; if ($LASTEXITCODE -eq 0) { ... }".';
+    }
+    if (/^(?:npm|vp|node|git)\b/i.test(seg.text)) execSegCount++;
+  }
+  const unquotedCmd = segments.map((s) => s.unquotedText).join(' ');
+  const hasFix = /\bnpm\s+run\s+auditor:fix\b/i.test(unquotedCmd);
+  const hasFmt = /\bnpm\s+run\s+fmt\b/i.test(unquotedCmd);
+  const hasLint = /\bnpm\s+run\s+auditor:lint\b/i.test(unquotedCmd);
+  const hasAuditor = /\bnpm\s+run\s+auditor(?::full)?\b/i.test(unquotedCmd);
+  const hasBuild = /\bnpm\s+run\s+build\b/i.test(unquotedCmd);
+  const hasTest = /\bnpm\s+(?:run\s+)?test\b(?!:)/i.test(unquotedCmd);
+  const hasTestCov = /\bnpm\s+run\s+test:coverage\b/i.test(unquotedCmd);
+  if (hasFix && hasFmt) return '[EXECUTION HYGIENE GATE] Redundant chain: "auditor:fix" already formats; do not chain "fmt".';
+  if (hasFmt && (hasLint || hasAuditor || hasBuild)) return '[EXECUTION HYGIENE GATE] Redundant chain: "fmt" is already included in auditor:lint / auditor / build.';
+  if ((hasLint || hasAuditor) && hasBuild) return '[EXECUTION HYGIENE GATE] Redundant chain: "npm run build" already runs "auditor:full".';
+  if (hasTest && hasTestCov) return '[EXECUTION HYGIENE GATE] Redundant chain: "npm run test:coverage" already runs all tests.';
+  return null;
+}
+
 function main() {
   try {
     const rawInput = fs.readFileSync(0, 'utf-8');
@@ -157,6 +225,12 @@ function main() {
             reason: `[GIT SAFETY GATE] Destructive command hard-blocked: "${cmd}". The repository governance strictly forbids AI agents from discarding working tree changes, reverting files with git checkout/restore, or forcing git operations. INSTRUCTION FOR AI AGENT: Do NOT attempt workarounds or alternative destructive commands. Explain to the human user that this destructive operation was blocked for safety, and provide them with the exact command so they can run it manually in their terminal if they choose:\n  ${cmd}`
           })
         );
+        return;
+      }
+
+      const hygieneReason = checkExecutionHygiene(cmd);
+      if (hygieneReason) {
+        process.stdout.write(JSON.stringify({ decision: 'deny', reason: hygieneReason }));
         return;
       }
     }
