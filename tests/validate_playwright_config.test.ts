@@ -225,5 +225,47 @@ describe('ValidatePlaywrightConfigAuditor', () => {
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
     });
+
+    it('never invokes browserInstaller in fix mode when project has no Playwright context', async () => {
+      let installerCalls = 0;
+      const fixAuditor = new ValidatePlaywrightConfigAuditor({
+        projectRoot: tmpDir,
+        browserExecutableResolver: () => null,
+        browserInstaller: () => {
+          installerCalls++;
+        }
+      });
+
+      const fixResult = await fixAuditor.fix();
+      expect(fixResult.status).toBe('skipped');
+      expect(installerCalls).toBe(0);
+    });
+
+    it('never invokes browserInstaller in fix mode when Chromium executable already exists', async () => {
+      fs.writeFileSync(
+        path.join(tmpDir, 'package.json'),
+        JSON.stringify({ devDependencies: { '@playwright/test': '^1.50.0' } }),
+        'utf8'
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, 'playwright.config.ts'),
+        CANONICAL_PLAYWRIGHT_CONFIG_CONTENT,
+        'utf8'
+      );
+
+      let installerCalls = 0;
+      const fixAuditor = new ValidatePlaywrightConfigAuditor({
+        projectRoot: tmpDir,
+        browserExecutableResolver: () => process.execPath,
+        browserInstaller: () => {
+          installerCalls++;
+        }
+      });
+
+      const fixResult = await fixAuditor.fix();
+      expect(fixResult.status).toBe('passed');
+      expect(fixResult.summary.errors).toBe(0);
+      expect(installerCalls).toBe(0);
+    });
   });
 });

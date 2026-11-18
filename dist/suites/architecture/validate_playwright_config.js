@@ -1,3 +1,4 @@
+import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { findConfigRootObject, findPropertyAssignment, getPropertyKeyName, parseTsSourceFile, printTransformedSourceFile, valueToAstExpression } from "../../core/viteConfigAst.js";
@@ -5,7 +6,6 @@ import { createRequire, enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-import { execFileSync } from "node:child_process";
 // src/suites/architecture/validate_playwright_config.ts
 /**
 * src/suites/architecture/validate_playwright_config.ts
@@ -81,28 +81,16 @@ function defaultBrowserExecutableResolver(projectRoot) {
 		return null;
 	}
 }
+const PLAYWRIGHT_INSTALL_TIMEOUT_MS = 12e4;
+function resolvePlaywrightCliBin(projectRoot) {
+	return resolvePackageBin("playwright", { projectRoot }) ?? resolvePackageBin("playwright-core", { projectRoot });
+}
 function defaultBrowserInstaller(projectRoot) {
-	const localBin = path.join(projectRoot, "node_modules", ".bin", "playwright");
-	const timeoutMs = 12e4;
-	if (fs.existsSync(localBin)) {
-		execFileSync(localBin, ["install", "chromium"], {
-			cwd: projectRoot,
-			stdio: "pipe",
-			timeout: timeoutMs
-		});
-		return;
-	}
-	execFileSync("npm", [
-		"exec",
-		"--",
-		"playwright",
-		"install",
-		"chromium"
-	], {
+	const playwrightBin = resolvePlaywrightCliBin(projectRoot);
+	if (!playwrightBin) return;
+	executeNodeCli(playwrightBin, ["install", "chromium"], {
 		cwd: projectRoot,
-		stdio: "pipe",
-		timeout: timeoutMs,
-		shell: process.platform === "win32"
+		timeout: PLAYWRIGHT_INSTALL_TIMEOUT_MS
 	});
 }
 var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
@@ -118,9 +106,8 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			} : {}
 		};
 		super({
-			ruleFixers: { "playwright-browser-missing": () => {
-				this.browserInstaller(this.projectRoot);
-			} },
+			ruleFixers: {},
+			fixableRuleIds: PLAYWRIGHT_CONFIG_RULES,
 			usesThirdPartyTool: false,
 			requiredPermissions: ["--allow-child-process"],
 			ruleCapabilities: createUniformRuleCapabilities(PLAYWRIGHT_CONFIG_RULES, {

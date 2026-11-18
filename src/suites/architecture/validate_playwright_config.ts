@@ -12,13 +12,13 @@
  *      - trace / screenshot on failure
  */
 
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire, enableCompileCache } from 'node:module';
 import path from 'node:path';
 
 import ts from 'typescript';
 
+import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
@@ -127,22 +127,22 @@ function defaultBrowserExecutableResolver(projectRoot: string): string | null {
   }
 }
 
+const PLAYWRIGHT_INSTALL_TIMEOUT_MS = 120_000;
+
+function resolvePlaywrightCliBin(projectRoot: string): string | null {
+  return (
+    resolvePackageBin('playwright', { projectRoot }) ??
+    resolvePackageBin('playwright-core', { projectRoot })
+  );
+}
+
 function defaultBrowserInstaller(projectRoot: string): void {
-  const localBin = path.join(projectRoot, 'node_modules', '.bin', 'playwright');
-  const timeoutMs = 120_000;
-  if (fs.existsSync(localBin)) {
-    execFileSync(localBin, ['install', 'chromium'], {
-      cwd: projectRoot,
-      stdio: 'pipe',
-      timeout: timeoutMs
-    });
-    return;
-  }
-  execFileSync('npm', ['exec', '--', 'playwright', 'install', 'chromium'], {
+  const playwrightBin = resolvePlaywrightCliBin(projectRoot);
+  if (!playwrightBin) return;
+
+  executeNodeCli(playwrightBin, ['install', 'chromium'], {
     cwd: projectRoot,
-    stdio: 'pipe',
-    timeout: timeoutMs,
-    shell: process.platform === 'win32'
+    timeout: PLAYWRIGHT_INSTALL_TIMEOUT_MS
   });
 }
 
@@ -164,11 +164,8 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
     };
 
     super({
-      ruleFixers: {
-        'playwright-browser-missing': () => {
-          this.browserInstaller(this.projectRoot);
-        }
-      },
+      ruleFixers: {},
+      fixableRuleIds: PLAYWRIGHT_CONFIG_RULES,
       usesThirdPartyTool: false,
       requiredPermissions: ['--allow-child-process'],
       ruleCapabilities: createUniformRuleCapabilities(PLAYWRIGHT_CONFIG_RULES, {
