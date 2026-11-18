@@ -27,8 +27,6 @@ import { getAuditConfig } from '../../core/auditConfig.ts';
 import {
   type GitIgnoreRequirement,
   type FindingSeverity,
-  type RuleFixContext,
-  type AnyRuleFixerFn,
   SATELLITE_CONFIG_EXPLANATIONS
 } from '../../core/auditContract.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
@@ -398,53 +396,6 @@ export function persistStylelintReport(
   });
 }
 
-export async function fixStylelint(context: RuleFixContext<StylelintRuleId>): Promise<boolean> {
-  const config = getAuditConfig(context.projectRoot);
-  const roots = Array.from(
-    new Set([...(config.paths.srcRoots ?? []), ...(config.paths.stylesRoots ?? [])])
-  );
-  repairDeprecatedCssPropertiesInRoots(context.projectRoot, roots);
-
-  const configFile = path.resolve(context.projectRoot, '.stylelintrc.json');
-  const cacheDir = path.resolve(context.projectRoot, 'scratch/cache');
-  const cacheLocation = path.resolve(cacheDir, 'stylelint_cache.json');
-  fs.mkdirSync(cacheDir, { recursive: true });
-
-  const stylelintConfig = tryOrNull(() => {
-    if (!fs.existsSync(configFile)) return null;
-    return JSON.parse(fs.readFileSync(configFile, 'utf8'));
-  });
-  const filesToLint = roots.map(
-    (r) => `${normalizePosixPath(r, context.projectRoot)}/**/*.{css,scss,sass,vue}`
-  );
-  const lintConfig = await buildStylelintConfig(configFile, stylelintConfig?.rules);
-
-  try {
-    await stylelint.lint({
-      config: lintConfig,
-      files: filesToLint,
-      cwd: context.projectRoot,
-      ignoreDisables: true,
-      reportNeedlessDisables: true,
-      cache: true,
-      cacheLocation,
-      cacheStrategy: 'content',
-      fix: true,
-      allowEmptyInput: true
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-const STYLELINT_FIXERS: Partial<Record<StylelintRuleId, AnyRuleFixerFn>> = {
-  'stylelint-issue': fixStylelint,
-  'css-duplicate-properties': fixStylelint,
-  'css-empty-blocks': fixStylelint,
-  'css-order-violation': fixStylelint
-};
-
 export interface StylelintAuditorOptions {
   readonly projectRoot?: string;
   readonly id?: string;
@@ -473,7 +424,13 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     );
 
     super({
-      ruleFixers: STYLELINT_FIXERS,
+      ruleFixers: {},
+      fixableRuleIds: [
+        'stylelint-issue',
+        'css-duplicate-properties',
+        'css-empty-blocks',
+        'css-order-violation'
+      ],
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {

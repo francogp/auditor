@@ -37,6 +37,7 @@ export interface ExtractedAuditorMetadata {
   readonly configKey?: string;
   readonly defaultConfig?: Readonly<Record<string, unknown>>;
   readonly criticalConfig?: AuditorCriticalConfig;
+  readonly usesThirdPartyTool?: boolean;
 }
 type MutableExtractedAuditorMetadata = {
   -readonly [K in keyof ExtractedAuditorMetadata]: ExtractedAuditorMetadata[K];
@@ -112,7 +113,8 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
       ...result,
       description: descMatch?.[1],
       configKey: configKeyMatch?.[1],
-      defaultConfig: staticDefaultConfig
+      defaultConfig: staticDefaultConfig,
+      usesThirdPartyTool: content.includes('usesThirdPartyTool: true')
     };
   }, result);
 }
@@ -180,6 +182,7 @@ function extractMetadataFromAuditorInstance(
       result.ruleRemediations = manifest.remediations ?? instance.ruleRemediations;
       result.configKey = manifest.configKey;
       result.defaultConfig = manifest.defaultConfig;
+      result.usesThirdPartyTool = manifest.usesThirdPartyTool;
     } else if (instance?.description) {
       result.description = instance.description;
       result.ruleDescriptions = instance.ruleDescriptions;
@@ -287,6 +290,9 @@ export async function extractAuditorMetadataFromFile(
     }
 
     const staticMeta = extractStaticMetadataFromFile(fullPath);
+    if (result.usesThirdPartyTool === undefined && staticMeta.usesThirdPartyTool !== undefined) {
+      result.usesThirdPartyTool = staticMeta.usesThirdPartyTool;
+    }
     if (!result.configKey && staticMeta.configKey) {
       result.configKey = staticMeta.configKey;
     }

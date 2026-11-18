@@ -4,21 +4,22 @@ import { SharedAstContext } from "../core/astContext.js";
 import { ensureProjectBootstrapped } from "../core/auditBootstrap.js";
 import { buildRatchetConfig } from "../core/auditConfigBuilders.js";
 import "../core/auditConfig.js";
-import { loadAuditConfig, sanitizePath } from "../core/auditConfigLoader.js";
+import { loadAuditConfig, resetAuditConfig, sanitizePath } from "../core/auditConfigLoader.js";
 import { getActiveFamilies, groupFindingsByFileMap, groupResultsByFamily, normalizeSpeeds, resolveFamilyMetadata, sortFindingsByFileAndLine } from "../core/auditContract.js";
 import { COVERAGE_EXPECTED_SUITES_ENV, COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV } from "../core/auditCoverage.js";
-import { BaseAuditor } from "../core/auditorBase.js";
+import { BaseAuditor, clearWorkspaceFileCache } from "../core/auditorBase.js";
 import { isProductionEnvironment } from "../core/auditorEnvironment.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import { extractPhaseBreakdown, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary } from "../core/executiveTheme.js";
-import { REMEDIATION_PHASE_IDS, getRemediationPhaseMetadata } from "../core/remediationPhases.js";
+import { clearPackageJsonCache } from "../core/packageJson.js";
 import { formatDurationMs, formatNumber } from "../core/durationFormatter.js";
 import { isSubAuditorFailed, isSubAuditorWarning, resolveEffectiveErrorsCount, resolveEffectiveWarningsCount } from "../core/subAuditorSeverity.js";
+import { REMEDIATION_PHASE_IDS, getRemediationPhaseMetadata } from "../core/remediationPhases.js";
 import { safeJsonParse, safeReadFileAsync, safeRmSync } from "../core/safeUtils.js";
 import { formatFindingCountBadge } from "../core/streamingFormat.js";
-import { executeAuditorStreaming, isNodeInternalWarning } from "../core/streamingRunner.js";
 import { stringWidth } from "../core/terminalVisuals.js";
 import { renderMarkdownReport } from "../core/markdownReport.js";
+import { executeAuditorStreaming, isNodeInternalWarning } from "../core/streamingRunner.js";
 import { evaluateSuiteStatus } from "../core/suiteGating.js";
 import { TaskStreamCoordinator } from "../core/taskStreamCoordinator.js";
 import { renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixCompletionBanner, renderAutoFixNoticeBanner, renderBanner, renderCliHelp, renderConsolidatedFooter, renderFindingsBreakdownTable, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable } from "../core/unifiedTheme.js";
@@ -334,13 +335,23 @@ async function executeTaskInProcess(task, sharedAstContext, taskArgs, onSubLine)
 					onSubLine(msg);
 				});
 			}
-			const result = taskArgs.includes("--fix") || taskArgs.includes("fix") ? await auditor.fix(sharedAstContext) : await auditor.audit(sharedAstContext);
-			const durationMs = Math.round(performance.now() - taskStart);
-			result.durationMs = durationMs;
-			return {
-				result,
-				durationMs
-			};
+			const isFixMode = taskArgs.includes("--fix") || taskArgs.includes("fix");
+			try {
+				const result = isFixMode ? await auditor.fix(sharedAstContext) : await auditor.audit(sharedAstContext);
+				const durationMs = Math.round(performance.now() - taskStart);
+				result.durationMs = durationMs;
+				return {
+					result,
+					durationMs
+				};
+			} finally {
+				if (isFixMode) {
+					clearWorkspaceFileCache();
+					clearPackageJsonCache();
+					resetAuditConfig();
+					await loadAuditConfig(task.cwd ?? process.cwd());
+				}
+			}
 		}
 	} catch (err) {
 		if (process.env.DEBUG === "true") console.warn(`[AuditFull] in-process execution failed for ${task.id}: ${err.message}`);
@@ -1124,8 +1135,11 @@ function formatSubtitleDetails(details, maxLineWidth = 72) {
 }
 async function runTaskExecution(task, ctx, subLines) {
 	const taskArgs = buildTaskArgs(task, ctx.cliOptions.values, ctx.cliOptions.formattedRules);
-	if (task.requiresAst && ctx.sharedAstContext) {
-		const inProcess = await executeTaskInProcess(task, ctx.sharedAstContext, taskArgs, (line) => subLines.push(line));
+	const isFixMode = Boolean(ctx.cliOptions.values.fix);
+	if (task.requiresAst && Boolean(ctx.sharedAstContext) && !task.usesThirdPartyTool || isFixMode && task.isBuiltin !== false && !task.usesThirdPartyTool) {
+		let astCtx;
+		if (task.requiresAst) astCtx = isFixMode ? new SharedAstContext() : ctx.sharedAstContext;
+		const inProcess = await executeTaskInProcess(task, astCtx, taskArgs, (line) => subLines.push(line));
 		if (inProcess) return {
 			result: inProcess.result,
 			durationMs: inProcess.durationMs

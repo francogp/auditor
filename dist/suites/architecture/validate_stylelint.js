@@ -283,44 +283,6 @@ function persistStylelintReport(projectRoot, suiteId, filesScanned, totals, resu
 		}, null, 2), "utf-8");
 	});
 }
-async function fixStylelint(context) {
-	const config = getAuditConfig(context.projectRoot);
-	const roots = Array.from(/* @__PURE__ */ new Set([...config.paths.srcRoots ?? [], ...config.paths.stylesRoots ?? []]));
-	repairDeprecatedCssPropertiesInRoots(context.projectRoot, roots);
-	const configFile = path.resolve(context.projectRoot, ".stylelintrc.json");
-	const cacheDir = path.resolve(context.projectRoot, "scratch/cache");
-	const cacheLocation = path.resolve(cacheDir, "stylelint_cache.json");
-	fs.mkdirSync(cacheDir, { recursive: true });
-	const stylelintConfig = tryOrNull(() => {
-		if (!fs.existsSync(configFile)) return null;
-		return JSON.parse(fs.readFileSync(configFile, "utf8"));
-	});
-	const filesToLint = roots.map((r) => `${normalizePosixPath(r, context.projectRoot)}/**/*.{css,scss,sass,vue}`);
-	const lintConfig = await buildStylelintConfig(configFile, stylelintConfig?.rules);
-	try {
-		await stylelint.lint({
-			config: lintConfig,
-			files: filesToLint,
-			cwd: context.projectRoot,
-			ignoreDisables: true,
-			reportNeedlessDisables: true,
-			cache: true,
-			cacheLocation,
-			cacheStrategy: "content",
-			fix: true,
-			allowEmptyInput: true
-		});
-		return true;
-	} catch {
-		return false;
-	}
-}
-const STYLELINT_FIXERS = {
-	"stylelint-issue": fixStylelint,
-	"css-duplicate-properties": fixStylelint,
-	"css-empty-blocks": fixStylelint,
-	"css-order-violation": fixStylelint
-};
 var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 	lastLinterResult = null;
 	static gitIgnoreEntries = [{
@@ -335,7 +297,13 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		const config = getAuditConfig(projectRoot);
 		const roots = Array.from(/* @__PURE__ */ new Set([...config.paths.srcRoots ?? [], ...config.paths.stylesRoots ?? []]));
 		super({
-			ruleFixers: STYLELINT_FIXERS,
+			ruleFixers: {},
+			fixableRuleIds: [
+				"stylelint-issue",
+				"css-duplicate-properties",
+				"css-empty-blocks",
+				"css-order-violation"
+			],
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -503,4 +471,4 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new StylelintAuditor());
-export { STYLELINT_BUILTIN_FIXABLE_RULES, STYLELINT_ORDER_FIXABLE_RULES, STYLELINT_RULES, StylelintAuditor, StylelintAuditor as ValidateStylelintAuditor, buildStylelintConfig, buildStylelintIgnoreGlobs, categorizeStylelintRule, fixStylelint, isStylelintRuleFixable, persistStylelintReport, processStylelintResults, repairDeprecatedCssPropertiesInRoots, repairDeprecatedWordBreak, resolveStylelintConfigFile };
+export { STYLELINT_BUILTIN_FIXABLE_RULES, STYLELINT_ORDER_FIXABLE_RULES, STYLELINT_RULES, StylelintAuditor, StylelintAuditor as ValidateStylelintAuditor, buildStylelintConfig, buildStylelintIgnoreGlobs, categorizeStylelintRule, isStylelintRuleFixable, persistStylelintReport, processStylelintResults, repairDeprecatedCssPropertiesInRoots, repairDeprecatedWordBreak, resolveStylelintConfigFile };

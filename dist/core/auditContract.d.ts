@@ -494,6 +494,7 @@ export interface AuditTaskDefinition {
   timeoutMs?: number;
   shell?: boolean;
   requiresAst?: boolean;
+  usesThirdPartyTool?: boolean;
   isBuiltin?: boolean;
   icon?: string;
   capabilities?: AuditorCapabilities;

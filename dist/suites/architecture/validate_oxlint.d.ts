@@ -1,4 +1,4 @@
-import { AuditFinding, RuleFixContext } from "../../core/auditContract.js";
+import { AuditFinding } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { RawLintFileReport, RawLintMessage } from "../../core/reportUtils.js";
 export declare const OXLINT_RULES: readonly ["oxlint-violation", "oxlint-forbidden-suppression"];
@@ -36,7 +36,6 @@ export declare function isOxlintRuleFixable(ruleName: string): boolean;
  * Elevates all diagnostics to severity: 'error' (Zero-Warning Policy).
  */
 export declare function parseOxlintResults(input: string | object | object[], cwd?: string): AuditFinding[];
-export declare function fixOxlint(context: RuleFixContext<'oxlint-violation'>): Promise<boolean>;
 export interface OxlintAuditorOptions {
   readonly projectRoot?: string;
 }

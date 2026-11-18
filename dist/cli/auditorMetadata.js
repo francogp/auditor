@@ -53,7 +53,8 @@ function extractStaticMetadataFromFile(fullPath) {
 			...result,
 			description: descMatch?.[1],
 			configKey: configKeyMatch?.[1],
-			defaultConfig: staticDefaultConfig
+			defaultConfig: staticDefaultConfig,
+			usesThirdPartyTool: content.includes("usesThirdPartyTool: true")
 		};
 	}, result);
 }
@@ -93,6 +94,7 @@ function extractMetadataFromAuditorInstance(val, result) {
 			result.ruleRemediations = manifest.remediations ?? instance.ruleRemediations;
 			result.configKey = manifest.configKey;
 			result.defaultConfig = manifest.defaultConfig;
+			result.usesThirdPartyTool = manifest.usesThirdPartyTool;
 		} else if (instance?.description) {
 			result.description = instance.description;
 			result.ruleDescriptions = instance.ruleDescriptions;
@@ -151,6 +153,7 @@ async function extractAuditorMetadataFromFile(fullPath) {
 		else if (Array.isArray(mod.GITIGNORE_ENTRIES)) result.gitIgnoreEntries = mod.GITIGNORE_ENTRIES;
 		for (const val of Object.values(mod)) extractMetadataFromFunction(val, result);
 		const staticMeta = extractStaticMetadataFromFile(fullPath);
+		if (result.usesThirdPartyTool === void 0 && staticMeta.usesThirdPartyTool !== void 0) result.usesThirdPartyTool = staticMeta.usesThirdPartyTool;
 		if (!result.configKey && staticMeta.configKey) result.configKey = staticMeta.configKey;
 		if (!result.defaultConfig && staticMeta.defaultConfig) result.defaultConfig = staticMeta.defaultConfig;
 		if (!result.description && staticMeta.description) result.description = staticMeta.description;

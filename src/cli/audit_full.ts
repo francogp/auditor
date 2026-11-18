@@ -27,6 +27,7 @@ import {
   type AuditListFilter,
   type ResolvedRatchetConfig
 } from '../core/auditConfig.ts';
+import { resetAuditConfig } from '../core/auditConfigLoader.ts';
 import {
   type StandardAuditResult,
   type SubAuditorReport,
@@ -55,7 +56,7 @@ import {
   COVERAGE_RUN_MODE_ENV,
   COVERAGE_EXPECTED_SUITES_ENV
 } from '../core/auditCoverage.ts';
-import { BaseAuditor } from '../core/auditorBase.ts';
+import { BaseAuditor, clearWorkspaceFileCache } from '../core/auditorBase.ts';
 import { isProductionEnvironment } from '../core/auditorEnvironment.ts';
 import {
   COMMON_CLI_ARGS,
@@ -70,6 +71,7 @@ import {
   renderExecutiveFixSummary,
   extractPhaseBreakdown
 } from '../core/executiveTheme.ts';
+import { clearPackageJsonCache } from '../core/packageJson.ts';
 import {
   REMEDIATION_PHASE_IDS,
   getRemediationPhaseMetadata,
@@ -450,7 +452,7 @@ export function buildTaskArgs(
 
 async function executeTaskInProcess(
   task: AuditTaskDefinition,
-  sharedAstContext: SharedAstContext,
+  sharedAstContext: SharedAstContext | undefined,
   taskArgs: readonly string[],
   onSubLine?: (line: string) => void
 ): Promise<{ result: StandardAuditResult; durationMs: number } | null> {
@@ -481,12 +483,21 @@ async function executeTaskInProcess(
         });
       }
       const isFixMode = taskArgs.includes('--fix') || taskArgs.includes('fix');
-      const result = isFixMode
-        ? await auditor.fix(sharedAstContext)
-        : await auditor.audit(sharedAstContext);
-      const durationMs = Math.round(performance.now() - taskStart);
-      result.durationMs = durationMs;
-      return { result, durationMs };
+      try {
+        const result = isFixMode
+          ? await auditor.fix(sharedAstContext)
+          : await auditor.audit(sharedAstContext);
+        const durationMs = Math.round(performance.now() - taskStart);
+        result.durationMs = durationMs;
+        return { result, durationMs };
+      } finally {
+        if (isFixMode) {
+          clearWorkspaceFileCache();
+          clearPackageJsonCache();
+          resetAuditConfig();
+          await loadAuditConfig(task.cwd ?? process.cwd());
+        }
+      }
     }
   } catch (err: unknown) {
     if (process.env.DEBUG === 'true') {
@@ -2016,8 +2027,16 @@ async function runTaskExecution(
   subLines: string[]
 ): Promise<ExecutedTaskData> {
   const taskArgs = buildTaskArgs(task, ctx.cliOptions.values, ctx.cliOptions.formattedRules);
-  if (task.requiresAst && ctx.sharedAstContext) {
-    const inProcess = await executeTaskInProcess(task, ctx.sharedAstContext, taskArgs, (line) =>
+  const isFixMode = Boolean(ctx.cliOptions.values.fix);
+  const shouldRunInProcess =
+    (task.requiresAst && Boolean(ctx.sharedAstContext) && !task.usesThirdPartyTool) ||
+    (isFixMode && task.isBuiltin !== false && !task.usesThirdPartyTool);
+  if (shouldRunInProcess) {
+    let astCtx: SharedAstContext | undefined;
+    if (task.requiresAst) {
+      astCtx = isFixMode ? new SharedAstContext() : ctx.sharedAstContext;
+    }
+    const inProcess = await executeTaskInProcess(task, astCtx, taskArgs, (line) =>
       subLines.push(line)
     );
     if (inProcess) {

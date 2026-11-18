@@ -30,28 +30,12 @@ function stripAnsiEscapes(text) {
 }
 const MAX_BUFFER_BYTES = 52428800;
 const EXECUTION_TIMEOUT_MS = 0;
-async function fixOxfmt(context) {
-	const vpBin = resolvePackageBin("vite-plus", {
-		projectRoot: context.projectRoot,
-		fallbackRelativeBin: "bin/vp"
-	}) ?? path.resolve(context.projectRoot, "node_modules/vite-plus/bin/vp");
-	try {
-		executeNodeCli(vpBin, ["fmt"], {
-			cwd: context.projectRoot,
-			maxBuffer: MAX_BUFFER_BYTES,
-			timeout: EXECUTION_TIMEOUT_MS
-		});
-		return true;
-	} catch {
-		return false;
-	}
-}
-const OXFMT_FIXERS = { "oxfmt-violation": fixOxfmt };
 var OxfmtAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot || process.cwd();
 		super({
-			ruleFixers: OXFMT_FIXERS,
+			ruleFixers: {},
+			fixableRuleIds: OXFMT_RULES,
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -152,4 +136,4 @@ var OxfmtAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new OxfmtAuditor());
-export { OXFMT_RULES, OxfmtAuditor, fixOxfmt };
+export { OXFMT_RULES, OxfmtAuditor };

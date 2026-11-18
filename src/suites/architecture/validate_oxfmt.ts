@@ -18,11 +18,7 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
 import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
-import {
-  type RuleFixContext,
-  type AnyRuleFixerFn,
-  SATELLITE_CONFIG_EXPLANATIONS
-} from '../../core/auditContract.ts';
+import { SATELLITE_CONFIG_EXPLANATIONS } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -46,28 +42,6 @@ function stripAnsiEscapes(text: string): string {
 const MAX_BUFFER_BYTES = 52428800 as const;
 const EXECUTION_TIMEOUT_MS = 0 as const;
 
-export async function fixOxfmt(context: RuleFixContext<'oxfmt-violation'>): Promise<boolean> {
-  const vpBin =
-    resolvePackageBin('vite-plus', {
-      projectRoot: context.projectRoot,
-      fallbackRelativeBin: 'bin/vp'
-    }) ?? path.resolve(context.projectRoot, 'node_modules/vite-plus/bin/vp');
-  try {
-    executeNodeCli(vpBin, ['fmt'], {
-      cwd: context.projectRoot,
-      maxBuffer: MAX_BUFFER_BYTES,
-      timeout: EXECUTION_TIMEOUT_MS
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-const OXFMT_FIXERS: Partial<Record<OxfmtRuleId, AnyRuleFixerFn>> = {
-  'oxfmt-violation': fixOxfmt
-};
-
 export interface OxfmtAuditOptions {
   readonly projectRoot?: string;
 }
@@ -76,7 +50,8 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
   public constructor(options: OxfmtAuditOptions = {}) {
     const effectiveRoot = options.projectRoot || process.cwd();
     super({
-      ruleFixers: OXFMT_FIXERS,
+      ruleFixers: {},
+      fixableRuleIds: OXFMT_RULES,
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {

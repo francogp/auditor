@@ -33,12 +33,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
-import {
-  type AuditFinding,
-  type RuleFixContext,
-  type AnyRuleFixerFn,
-  SATELLITE_CONFIG_EXPLANATIONS
-} from '../../core/auditContract.ts';
+import { type AuditFinding, SATELLITE_CONFIG_EXPLANATIONS } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   collectRepositoryFiles,
@@ -583,32 +578,6 @@ export function parseOxlintResults(
   });
 }
 
-export async function fixOxlint(context: RuleFixContext<'oxlint-violation'>): Promise<boolean> {
-  const vpBin =
-    resolvePackageBin('vite-plus', {
-      projectRoot: context.projectRoot,
-      fallbackRelativeBin: 'bin/vp'
-    }) ?? path.resolve(context.projectRoot, 'node_modules/vite-plus/bin/vp');
-
-  const threadCount =
-    typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
-  const args: string[] = ['lint', '--fix', '--threads', String(threadCount)];
-  try {
-    executeNodeCli(vpBin, args, {
-      cwd: context.projectRoot,
-      maxBuffer: MAX_BUFFER_BYTES,
-      timeout: EXECUTION_TIMEOUT_MS
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-const OXLINT_FIXERS: Partial<Record<OxlintRuleId, AnyRuleFixerFn>> = {
-  'oxlint-violation': fixOxlint
-};
-
 export interface OxlintAuditorOptions {
   readonly projectRoot?: string;
 }
@@ -617,7 +586,8 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
   public constructor(options: OxlintAuditorOptions = {}) {
     const effectiveRoot = options.projectRoot || process.cwd();
     super({
-      ruleFixers: OXLINT_FIXERS,
+      ruleFixers: {},
+      fixableRuleIds: ['oxlint-violation'],
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {

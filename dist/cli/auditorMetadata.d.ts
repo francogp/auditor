@@ -14,6 +14,7 @@ export interface ExtractedAuditorMetadata {
   readonly configKey?: string;
   readonly defaultConfig?: Readonly<Record<string, unknown>>;
   readonly criticalConfig?: AuditorCriticalConfig;
+  readonly usesThirdPartyTool?: boolean;
 }
 export declare function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata;
 export declare function clearMetadataCache(): void;

@@ -131,6 +131,7 @@ async function createAuditTaskDefinition(fullPath, filename, family, config, opt
 		timeoutMs: getTimeoutForTask(filename, config.runner?.timeoutMs),
 		order: familyMeta.order,
 		requiresAst: Boolean(capabilities?.ast),
+		usesThirdPartyTool: Boolean(metadata.usesThirdPartyTool),
 		isBuiltin,
 		icon: effectiveIcon,
 		capabilities: capabilities ?? void 0,

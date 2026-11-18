@@ -299,6 +299,7 @@ export async function createAuditTaskDefinition(
     timeoutMs: getTimeoutForTask(filename, config.runner?.timeoutMs),
     order: familyMeta.order,
     requiresAst: Boolean(capabilities?.ast),
+    usesThirdPartyTool: Boolean(metadata.usesThirdPartyTool),
     isBuiltin,
     icon: effectiveIcon,
     capabilities: capabilities ?? undefined,

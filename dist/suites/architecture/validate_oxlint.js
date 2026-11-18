@@ -495,35 +495,12 @@ function parseOxlintResults(input, cwd = process.cwd()) {
 		defaultMessage: "Linter violation"
 	});
 }
-async function fixOxlint(context) {
-	const vpBin = resolvePackageBin("vite-plus", {
-		projectRoot: context.projectRoot,
-		fallbackRelativeBin: "bin/vp"
-	}) ?? path.resolve(context.projectRoot, "node_modules/vite-plus/bin/vp");
-	const threadCount = typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length;
-	const args = [
-		"lint",
-		"--fix",
-		"--threads",
-		String(threadCount)
-	];
-	try {
-		executeNodeCli(vpBin, args, {
-			cwd: context.projectRoot,
-			maxBuffer: MAX_BUFFER_BYTES,
-			timeout: EXECUTION_TIMEOUT_MS
-		});
-		return true;
-	} catch {
-		return false;
-	}
-}
-const OXLINT_FIXERS = { "oxlint-violation": fixOxlint };
 var OxlintAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot || process.cwd();
 		super({
-			ruleFixers: OXLINT_FIXERS,
+			ruleFixers: {},
+			fixableRuleIds: ["oxlint-violation"],
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -651,4 +628,4 @@ var OxlintAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new OxlintAuditor());
-export { OXLINT_FIXABLE_RULES, OXLINT_FIXABLE_RULES_LIST, OXLINT_RULES, OxlintAuditor, fixOxlint, isOxlintRuleFixable, parseOxlintResults };
+export { OXLINT_FIXABLE_RULES, OXLINT_FIXABLE_RULES_LIST, OXLINT_RULES, OxlintAuditor, isOxlintRuleFixable, parseOxlintResults };
