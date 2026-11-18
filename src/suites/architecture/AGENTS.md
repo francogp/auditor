@@ -93,7 +93,7 @@ Architecture & Tooling Engineers.
 - [`validate_component_styles.ts`](./validate_component_styles.ts): Component-to-style 1:1 binding, SCSS orphan detection, strict SCSS enforcement (`banned-plain-css-style`, `banned-raw-css-file`), and automated `<style>` lang="scss" repair.
 - [`validate_dead_css.ts`](./validate_dead_css.ts): Dead scoped CSS class detection in Vue components powered by shared AST analysis.
 - [`validate_dependency_vulnerabilities.ts`](./validate_dependency_vulnerabilities.ts): Dependency CVE security vulnerabilities analysis via `npm audit --json`.
-- [`validate_dependency_minimums.ts`](./validate_dependency_minimums.ts): Conditional minimum version validator for shared libraries, with floors read from the auditor `peerDependencies`.
+- [`validate_dependency_minimums.ts`](./validate_dependency_minimums.ts): Conditional minimum/maximum version validator, `dependency-lockfile-out-of-sync` parity check (`npm ci --dry-run`), and `npm run auditor:fix` lockfile auto-sync (`npm install`) for shared libraries with floors read from `peerDependencies`.
 - [`validate_docker_config.ts`](./validate_docker_config.ts): Docker configuration and .dockerignore hygiene verifier enforcing root isolation, automated scaffolding, and coverage over Dockerfile and Compose files.
 - [`validate_editorconfig.ts`](./validate_editorconfig.ts): EditorConfig baseline integrity verifier enforcing charset, indentation, and newline hygiene.
 - [`validate_environment_engines.ts`](./validate_environment_engines.ts): Package.json engines declaration and active runtime alignment validator with automated setup repair.

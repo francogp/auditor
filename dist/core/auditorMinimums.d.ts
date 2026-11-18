@@ -27,6 +27,31 @@ export interface DeclaredDependency {
   readonly section: DependencyDeclarationSection;
 }
 export declare function findDeclaredDependency(pkg: Readonly<Record<string, unknown>>, name: string): DeclaredDependency | null;
+interface LockfileRootEntry {
+  readonly version?: string;
+  readonly dependencies?: Readonly<Record<string, string>>;
+  readonly devDependencies?: Readonly<Record<string, string>>;
+  readonly optionalDependencies?: Readonly<Record<string, string>>;
+}
+export interface LockfileShape {
+  packages?: Record<string, LockfileRootEntry>;
+  dependencies?: Record<string, {
+    readonly version?: string;
+  }>;
+}
+export interface LockfileSyncCheckResult {
+  readonly inSync: boolean;
+  readonly reason: string | null;
+}
+/**
+ * Verifies whether package-lock.json is synchronized with package.json (root sections + overrides).
+ * Skips gracefully when package-lock.json lacks a root `""` entry (e.g. minimal synthetic fixtures).
+ */
+export declare function evaluateLockfileSync(projectRoot: string, pkg: PackageJsonDTO, lock: LockfileShape | null): LockfileSyncCheckResult;
+/**
+ * Runs `npm install --no-audit --no-fund` to resynchronize package-lock.json and node_modules.
+ */
+export declare function defaultLockfileInstaller(projectRoot: string): void;
 export type DependencyEvaluationStatus = 'satisfied' | 'outdated_range' | 'outdated_installed' | 'exceeds_max_range' | 'exceeds_max_installed' | 'undeclared';
 export interface DependencyEvaluation {
   readonly name: string;
@@ -63,3 +88,4 @@ export declare function repairPackageJsonMinimumRanges(projectRoot: string, pkg:
  */
 export declare function pruneStaleVitestClusterFromLockfile(projectRoot: string): boolean;
 export declare function evaluateProjectDependencies(projectRoot?: string, minimumsOverride?: AuditorMinimumVersions): ProjectDependenciesReport;
+export {};

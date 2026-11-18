@@ -3,6 +3,7 @@ import { safeJsonParse, safeReadFileSync } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 import semver from "semver";
 // src/core/auditorMinimums.ts
 /**
@@ -143,6 +144,82 @@ function findDeclaredDependency(pkg, name) {
 		};
 	}
 	return null;
+}
+const LOCKFILE_SYNC_SECTIONS = [
+	"dependencies",
+	"devDependencies",
+	"optionalDependencies"
+];
+const NPM_CI_DRY_RUN_TIMEOUT_MS = 3e4;
+const NPM_INSTALL_TIMEOUT_MS = 12e4;
+function findRootSectionMismatch(pkg, lockRoot) {
+	const pkgRecord = pkg;
+	for (const section of LOCKFILE_SYNC_SECTIONS) {
+		const pkgMap = pkgRecord[section] ?? {};
+		const lockMap = lockRoot[section] ?? {};
+		const allKeys = /* @__PURE__ */ new Set([...Object.keys(pkgMap), ...Object.keys(lockMap)]);
+		for (const key of allKeys) if (pkgMap[key] !== lockMap[key]) return `package.json and package-lock.json root declarations differ (${section}.${key}: "${pkgMap[key] ?? "<missing>"}" vs "${lockMap[key] ?? "<missing>"}")`;
+	}
+	return null;
+}
+function extractNpmCiDryRunError(err) {
+	const errObj = err;
+	const lines = `${errObj.stderr ?? ""}\n${errObj.stdout ?? ""}\n${errObj.message ?? ""}`.split(/\r?\n/).map((line) => line.replace(/^npm error\s+/i, "").trim()).filter((line) => line.length > 0 && !line.startsWith("Command failed:"));
+	return `package-lock.json is out of sync with package.json (${lines.find((line) => /^(Missing:|Invalid:|EUSAGE|ERESOLVE)/i.test(line)) ?? lines[0] ?? "npm ci --dry-run failed"})`;
+}
+/**
+* Verifies whether package-lock.json is synchronized with package.json (root sections + overrides).
+* Skips gracefully when package-lock.json lacks a root `""` entry (e.g. minimal synthetic fixtures).
+*/
+function evaluateLockfileSync(projectRoot, pkg, lock) {
+	const lockRoot = lock?.packages?.[""];
+	if (!lockRoot) return {
+		inSync: true,
+		reason: null
+	};
+	const mismatch = findRootSectionMismatch(pkg, lockRoot);
+	if (mismatch) return {
+		inSync: false,
+		reason: mismatch
+	};
+	try {
+		execFileSync("npm", [
+			"ci",
+			"--dry-run",
+			"--ignore-scripts"
+		], {
+			cwd: path.resolve(projectRoot),
+			stdio: "pipe",
+			encoding: "utf8",
+			timeout: NPM_CI_DRY_RUN_TIMEOUT_MS,
+			shell: process.platform === "win32"
+		});
+		return {
+			inSync: true,
+			reason: null
+		};
+	} catch (err) {
+		return {
+			inSync: false,
+			reason: extractNpmCiDryRunError(err)
+		};
+	}
+}
+/**
+* Runs `npm install --no-audit --no-fund` to resynchronize package-lock.json and node_modules.
+*/
+function defaultLockfileInstaller(projectRoot) {
+	execFileSync("npm", [
+		"install",
+		"--no-audit",
+		"--no-fund"
+	], {
+		cwd: path.resolve(projectRoot),
+		stdio: "pipe",
+		encoding: "utf8",
+		timeout: NPM_INSTALL_TIMEOUT_MS,
+		shell: process.platform === "win32"
+	});
 }
 function readLockfileInstalledVersion(projectRoot, name) {
 	const lockPath = path.resolve(projectRoot, "package-lock.json");
@@ -327,4 +404,4 @@ function evaluateProjectDependencies(projectRoot = process.cwd(), minimumsOverri
 		devInstallCommand: devUpdates.length > 0 ? `npm install -D ${devUpdates.join(" ")}` : void 0
 	};
 }
-export { AUDITOR_MAXIMUM_VERSIONS, evaluateConflictingOverrides, evaluateProjectDependencies, extractExactPinnedVersion, findDeclaredDependency, getAuditorManagedDependencyFloors, getAuditorMaximumVersions, getAuditorMinimumVersions, normalizeToCaretRange, pruneStaleVitestClusterFromLockfile, readHostInstalledAuditorMinimums, repairPackageJsonMinimumRanges };
+export { AUDITOR_MAXIMUM_VERSIONS, defaultLockfileInstaller, evaluateConflictingOverrides, evaluateLockfileSync, evaluateProjectDependencies, extractExactPinnedVersion, findDeclaredDependency, getAuditorManagedDependencyFloors, getAuditorMaximumVersions, getAuditorMinimumVersions, normalizeToCaretRange, pruneStaleVitestClusterFromLockfile, readHostInstalledAuditorMinimums, repairPackageJsonMinimumRanges };

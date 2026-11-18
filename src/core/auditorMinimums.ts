@@ -6,6 +6,7 @@
  * of `@francogp/auditor/package.json`. Zero hardcoded versions in code.
  */
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -267,9 +268,98 @@ export function findDeclaredDependency(
   return null;
 }
 
-interface LockfileShape {
-  packages?: Record<string, { readonly version?: string }>;
+interface LockfileRootEntry {
+  readonly version?: string;
+  readonly dependencies?: Readonly<Record<string, string>>;
+  readonly devDependencies?: Readonly<Record<string, string>>;
+  readonly optionalDependencies?: Readonly<Record<string, string>>;
+}
+
+export interface LockfileShape {
+  packages?: Record<string, LockfileRootEntry>;
   dependencies?: Record<string, { readonly version?: string }>;
+}
+
+export interface LockfileSyncCheckResult {
+  readonly inSync: boolean;
+  readonly reason: string | null;
+}
+
+const LOCKFILE_SYNC_SECTIONS = ['dependencies', 'devDependencies', 'optionalDependencies'] as const;
+const NPM_CI_DRY_RUN_TIMEOUT_MS = 30_000;
+const NPM_INSTALL_TIMEOUT_MS = 120_000;
+
+function findRootSectionMismatch(pkg: PackageJsonDTO, lockRoot: LockfileRootEntry): string | null {
+  const pkgRecord = pkg as Readonly<Record<string, Readonly<Record<string, string>> | undefined>>;
+  for (const section of LOCKFILE_SYNC_SECTIONS) {
+    const pkgMap = pkgRecord[section] ?? {};
+    const lockMap = lockRoot[section] ?? {};
+    const allKeys = new Set([...Object.keys(pkgMap), ...Object.keys(lockMap)]);
+    for (const key of allKeys) {
+      if (pkgMap[key] !== lockMap[key]) {
+        return `package.json and package-lock.json root declarations differ (${section}.${key}: "${pkgMap[key] ?? '<missing>'}" vs "${lockMap[key] ?? '<missing>'}")`;
+      }
+    }
+  }
+  return null;
+}
+
+function extractNpmCiDryRunError(err: unknown): string {
+  const errObj = err as { stderr?: string; stdout?: string; message?: string };
+  const raw = `${errObj.stderr ?? ''}\n${errObj.stdout ?? ''}\n${errObj.message ?? ''}`;
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^npm error\s+/i, '').trim())
+    .filter((line) => line.length > 0 && !line.startsWith('Command failed:'));
+  const detail =
+    lines.find((line) => /^(Missing:|Invalid:|EUSAGE|ERESOLVE)/i.test(line)) ??
+    lines[0] ??
+    'npm ci --dry-run failed';
+  return `package-lock.json is out of sync with package.json (${detail})`;
+}
+
+/**
+ * Verifies whether package-lock.json is synchronized with package.json (root sections + overrides).
+ * Skips gracefully when package-lock.json lacks a root `""` entry (e.g. minimal synthetic fixtures).
+ */
+export function evaluateLockfileSync(
+  projectRoot: string,
+  pkg: PackageJsonDTO,
+  lock: LockfileShape | null
+): LockfileSyncCheckResult {
+  const lockRoot = lock?.packages?.[''];
+  if (!lockRoot) {
+    return { inSync: true, reason: null };
+  }
+  const mismatch = findRootSectionMismatch(pkg, lockRoot);
+  if (mismatch) {
+    return { inSync: false, reason: mismatch };
+  }
+  try {
+    execFileSync('npm', ['ci', '--dry-run', '--ignore-scripts'], {
+      cwd: path.resolve(projectRoot),
+      stdio: 'pipe',
+      encoding: 'utf8',
+      timeout: NPM_CI_DRY_RUN_TIMEOUT_MS,
+      shell: process.platform === 'win32'
+    });
+    return { inSync: true, reason: null };
+  } catch (err) {
+    return { inSync: false, reason: extractNpmCiDryRunError(err) };
+  }
+}
+
+/**
+ * Runs `npm install --no-audit --no-fund` to resynchronize package-lock.json and node_modules.
+ */
+export function defaultLockfileInstaller(projectRoot: string): void {
+  execFileSync('npm', ['install', '--no-audit', '--no-fund'], {
+    cwd: path.resolve(projectRoot),
+    stdio: 'pipe',
+    encoding: 'utf8',
+    timeout: NPM_INSTALL_TIMEOUT_MS,
+    shell: process.platform === 'win32'
+  });
 }
 
 function readLockfileInstalledVersion(projectRoot: string, name: string): string | null {

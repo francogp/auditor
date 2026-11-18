@@ -320,7 +320,7 @@ flowchart TD
   - **Inspection & Diagnosis Tool**: Always inspect via `auditor-dependencies` (or `npm run auditor:dependencies` / `auditor dependencies`). Use `auditor-dependencies --commands` to output ready-to-run grouped `npm install` and `npm install -D` commands.
   - **Conditional Scope**: Only libraries the host already declares are checked (declared range floor + `package-lock.json` version, `severity: 'error'`, lint-only); absent libraries are ignored.
   - **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED; always use `auditor-dependencies`. To raise a floor upstream, edit the auditor `peerDependencies` and release a new `vX.Y.Z` tag.
-- **Updates (`auditor-update` / `npm run auditor:update [targetVersion]`)**: Pull upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`). By default it resolves the latest tag upstream (including major version jumps like `v9.0.0`), or accepts an explicit version parameter (`npm run auditor:update v10.12.12`). It installs the pinned tag in `package.json`, updates `package-lock.json`, synchronizes `.agents/skills/`, updates setup scripts (`setup-windows.ps1`, `setup-linux.sh`), and runs `auditor fix`.
+- **Updates (`auditor-update` / `npm run auditor:update [targetVersion]`)**: Pull upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`). By default it resolves the latest tag upstream (including major version jumps like `v9.0.0`), or accepts an explicit version parameter (`npm run auditor:update v10.12.13`). It installs the pinned tag in `package.json`, updates `package-lock.json`, synchronizes `.agents/skills/`, updates setup scripts (`setup-windows.ps1`, `setup-linux.sh`), and runs `auditor fix`.
   - **Absolute Prohibition on Manual Version or Config Bumps in Consumer Repositories**: AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from manually editing (`write_file`, `edit_file`) `package.json`, `package-lock.json`, or `.auditor/audit.config.ts` (including `auditorVersion`) in consumer repositories to simulate or apply an update. Modifying versions or configs by hand desynchronizes lockfiles, shims, installed modules, satellite configs, and environment scripts. Upgrades MUST be executed exclusively through `npm run auditor:update` (or `auditor-update`) inside the consumer project, or `npm run auditor:update project=<path>` (`auditor-update --project <path>`) from the auditor workspace.
   - **Built-In Post-Update Minimum Library Enforcement (`auditor-dependencies` for Troubleshooting Only)**: `npm run auditor:update` automatically runs `auditor fix`, enforces and installs new `peerDependencies` version floors, and verifies `phase=setup`—so do **NOT** redundantly run `npm run auditor:dependencies` after a green update. Run `npm run auditor:dependencies` (and `npm run auditor:dependencies commands`) only for read-only inspection or if `auditor:update` / `phase=setup` reports an unresolved floor conflict (`dependency-below-minimum-range` or `dependency-below-minimum-installed`).
   - **Read-Only Version Checks vs. Prohibited Diagnostic Updating**: When analyzing dependencies, inspecting versions, or conducting read-only investigations, AI agents and developers are **STRICTLY PROHIBITED** from executing `auditor-update` or `npm run auditor:update`. To inspect current package or framework versions, use `npm run auditor:version` or `auditor --version`. To check if an update is available without modifying any files or running npm install, use `npm run auditor:update check` (or `auditor-update --check`). Safe CLI usage manual can be viewed with `auditor-update help`.
@@ -407,6 +407,13 @@ Root lifecycle scripts (`setup-linux.sh`, `setup-windows.ps1`, `update-linux.sh`
 
 ---
 
+## 🌐 Modern Web Guidance Pillar (`/modern-web-guidance`)
+
+- **Mandatory Web Pillar**: Treat `/modern-web-guidance` as a core pillar for HTML, CSS/SCSS, Vue UI, Accessibility, Performance, and client-side JS. If `modern-web-guidance-plugin` is missing or disabled, surface it via `search_marketplace` or guide the user to install/enable it in the IDE **Plugins Manager**.
+- **Active Audit & Advice Execution**: Whenever auditing web code or giving improvement advice (`auditor:config`, `auditor:motion`, `auditor:magic`), run its internal CLI tools via `npm exec --yes -- modern-web-guidance@latest` (never `npx`): `search`, `retrieve`, `list`, and `legacy-scan <path> --json` (verifying `keepWhen`/`dropWhen`). See [modern-web-guidance-guide.md](./references/modern-web-guidance-guide.md).
+
+---
+
 ## ⚖️ CI Quality Gates vs. Interactive Refactor Engines
 
 The framework strictly partitions verification into two distinct architectural tiers:
@@ -445,12 +452,8 @@ flowchart LR
 
 ## 🚫 Zero-Hardcoding Mandate for AST Rules & Linter Plugins
 
-1. **AST Rules Are Pure Visitors**: Oxlint rules and AST plugins MUST inspect syntax trees and semantic code patterns (`defineStore`, `createApp`), NEVER directory names (`/tests/`, `/cli/`, `/suites/`, `/data/`).
-2. **Scoping Belongs to Sovereign SSoT**: File classification (tests, scripts, CLI, demos) is governed strictly by `paths.*` in `.auditor/audit.config.ts`.
-3. **Zero In-Rule Path Filtering**: If a rule triggers in tests or scripts, developers and AI agents are CATEGORICALLY PROHIBITED from adding `fname.includes(...)` inside the rule. Register the rule in `DYNAMIC_TEST_OFF_RULES` or `DYNAMIC_SCRIPT_OFF_RULES` in `auditConfigDefaults.ts` so `npm run auditor:fix` projects overrides dynamically into `vite.config.ts`.
-4. **Filename Inspection Limit**: `getRuleContextFilename` is restricted exclusively to immutable file extensions (`.vue`, `.ts`, `.js`).
-
-📘 **Path Taxonomy & Overrides Guide**: See [path-taxonomy-and-overrides-guide.md](./references/path-taxonomy-and-overrides-guide.md).
+1. **AST Rules Are Pure Visitors**: Oxlint rules/AST plugins inspect syntax trees and semantic patterns (`defineStore`, `createApp`), NEVER directory names (`/tests/`, `/cli/`). Scoping belongs strictly to `paths.*` in `.auditor/audit.config.ts`.
+2. **Zero In-Rule Path Filtering**: Never add `fname.includes(...)` inside rules; register rules in `DYNAMIC_TEST_OFF_RULES` / `DYNAMIC_SCRIPT_OFF_RULES` (`auditConfigDefaults.ts`) so `npm run auditor:fix` projects overrides dynamically. `getRuleContextFilename` is restricted to extensions (`.vue`, `.ts`, `.js`). See [path-taxonomy-and-overrides-guide.md](./references/path-taxonomy-and-overrides-guide.md).
 
 ---
 

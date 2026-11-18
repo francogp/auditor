@@ -400,13 +400,7 @@ export default defineConfig({
         }
       },
       {
-        files: [
-          '**/src/cli/**',
-          '**/scripts/**',
-          '**/src/core/**',
-          '**/src/suites/**',
-          '**/src/analyzers/**'
-        ],
+        files: ['**/src/cli/**', '**/src/core/**', '**/src/suites/**', '**/src/analyzers/**'],
         rules: {
           'no-console': 'off',
           'unicorn/prefer-global-this': 'off',

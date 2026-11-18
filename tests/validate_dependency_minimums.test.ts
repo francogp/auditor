@@ -5,6 +5,7 @@
  * metadata, clean path, range violation, installed (lockfile) violation, ignored when not declared.
  */
 
+import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -64,7 +65,8 @@ describe('validate_dependency_minimums', () => {
       'dependency-exact-version-pinned',
       'dependency-exceeds-maximum-range',
       'dependency-exceeds-maximum-installed',
-      'dependency-conflicting-override'
+      'dependency-conflicting-override',
+      'dependency-lockfile-out-of-sync'
     ]);
     const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir });
     expect(auditor.id).toBe('validate_dependency_minimums');
@@ -276,5 +278,90 @@ describe('validate_dependency_minimums', () => {
     const result = await run();
     expect(result.status).toBe('passed');
     expect(result.findings.some((f) => f.ruleId === 'dependency-conflicting-override')).toBe(false);
+  });
+
+  it('detects package-lock.json root declaration mismatch with package.json (dependency-lockfile-out-of-sync)', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'lock-sync', devDependencies: { 'html-validate': htmlValidateFloor } })
+    );
+    await fs.writeFile(
+      path.join(tempDir, 'package-lock.json'),
+      JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          '': { devDependencies: { 'html-validate': '^1.0.0' } },
+          'node_modules/html-validate': { version: htmlValidateMin }
+        }
+      })
+    );
+
+    const result = await run();
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find((f) => f.ruleId === 'dependency-lockfile-out-of-sync');
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe('error');
+    expect(finding?.fixable).toBe(true);
+    expect(finding?.file).toBe('package-lock.json');
+  });
+
+  it('detects lockfile desync reported by lockfileSyncChecker and runs lockfileInstaller once in fix mode', async () => {
+    await writeProject({ 'html-validate': '^1.0.0' }, { 'html-validate': '1.0.0' });
+    let installedCalled = 0;
+    let synced = false;
+
+    const auditor = new ValidateDependencyMinimumsAuditor({
+      projectRoot: tempDir,
+      lockfileSyncChecker: () =>
+        synced
+          ? { inSync: true, reason: null }
+          : {
+              inSync: false,
+              reason:
+                'package-lock.json is out of sync (Missing: stylelint-config-recommended@19.0.0)'
+            }
+    });
+    const checkResult = await auditor.audit();
+    expect(checkResult.status).toBe('failed');
+    expect(
+      checkResult.findings.some(
+        (f) => f.ruleId === 'dependency-lockfile-out-of-sync' && f.fixable === true
+      )
+    ).toBe(true);
+    expect(
+      checkResult.findings.some(
+        (f) => f.ruleId === 'dependency-below-minimum-installed' && f.fixable === true
+      )
+    ).toBe(true);
+
+    const fixAuditor = new ValidateDependencyMinimumsAuditor({
+      projectRoot: tempDir,
+      lockfileSyncChecker: () =>
+        synced
+          ? { inSync: true, reason: null }
+          : {
+              inSync: false,
+              reason:
+                'package-lock.json is out of sync (Missing: stylelint-config-recommended@19.0.0)'
+            },
+      lockfileInstaller: (root) => {
+        installedCalled += 1;
+        synced = true;
+        const lockFile = path.join(root, 'package-lock.json');
+        const nextLock = {
+          lockfileVersion: 3,
+          packages: {
+            '': { devDependencies: { 'html-validate': htmlValidateFloor } },
+            'node_modules/html-validate': { version: htmlValidateMin }
+          }
+        };
+        fsSync.writeFileSync(lockFile, JSON.stringify(nextLock), 'utf8');
+      }
+    });
+
+    const fixResult = await fixAuditor.fix();
+    expect(installedCalled).toBe(1);
+    expect(fixResult.status).toBe('passed');
+    expect(fixResult.summary.errors).toBe(0);
   });
 });

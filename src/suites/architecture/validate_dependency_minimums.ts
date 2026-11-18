@@ -29,7 +29,11 @@ import {
   type DeclaredDependency,
   extractExactPinnedVersion,
   repairPackageJsonMinimumRanges,
-  evaluateConflictingOverrides
+  evaluateConflictingOverrides,
+  evaluateLockfileSync,
+  defaultLockfileInstaller,
+  type LockfileShape,
+  type LockfileSyncCheckResult
 } from '../../core/auditorMinimums.ts';
 import { getPackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 
@@ -41,26 +45,49 @@ export const DEPENDENCY_MINIMUMS_RULES = [
   'dependency-exact-version-pinned',
   'dependency-exceeds-maximum-range',
   'dependency-exceeds-maximum-installed',
-  'dependency-conflicting-override'
+  'dependency-conflicting-override',
+  'dependency-lockfile-out-of-sync'
 ] as const;
 
 export type DependencyMinimumsRuleId = (typeof DEPENDENCY_MINIMUMS_RULES)[number];
 
-interface LockfileShape {
-  readonly packages?: Readonly<Record<string, { readonly version?: string }>>; // open-record: lockfile v2/v3 package entries
+export type LockfileSyncChecker = (
+  projectRoot: string,
+  pkg: PackageJsonDTO,
+  lock: LockfileShape | null
+) => LockfileSyncCheckResult;
+
+export type LockfileInstaller = (projectRoot: string) => void;
+
+export interface ValidateDependencyMinimumsOptions extends Partial<
+  AuditorOptions<DependencyMinimumsRuleId>
+> {
+  readonly lockfileSyncChecker?: LockfileSyncChecker;
+  readonly lockfileInstaller?: LockfileInstaller;
 }
 
 export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMinimumsRuleId> {
-  public constructor(options: Partial<AuditorOptions<DependencyMinimumsRuleId>> = {}) {
+  private readonly lockfileSyncChecker: LockfileSyncChecker;
+  private readonly lockfileInstaller: LockfileInstaller;
+
+  public constructor(options: ValidateDependencyMinimumsOptions = {}) {
+    const {
+      lockfileSyncChecker = evaluateLockfileSync,
+      lockfileInstaller = defaultLockfileInstaller,
+      ...baseOptions
+    } = options;
     super({
       ruleFixers: {},
       fixableRuleIds: [
         'dependency-exact-version-pinned',
         'dependency-below-minimum-range',
-        'dependency-exceeds-maximum-range'
+        'dependency-exceeds-maximum-range',
+        'dependency-below-minimum-installed',
+        'dependency-exceeds-maximum-installed',
+        'dependency-lockfile-out-of-sync'
       ],
       usesThirdPartyTool: false,
-      requiredPermissions: [],
+      requiredPermissions: ['--allow-child-process'],
       ruleCapabilities: createRuleCapabilities(DEPENDENCY_MINIMUMS_RULES, {
         speed: 'light',
         phase: 'setup',
@@ -86,7 +113,8 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         'dependency-exact-version-pinned': 'Exact version pinned (no range)',
         'dependency-exceeds-maximum-range': 'Declared range exceeds maximum',
         'dependency-exceeds-maximum-installed': 'Installed version exceeds maximum',
-        'dependency-conflicting-override': 'Conflicting package.json override'
+        'dependency-conflicting-override': 'Conflicting package.json override',
+        'dependency-lockfile-out-of-sync': 'Lockfile out of sync'
       },
       ruleRemediations: {
         'dependency-below-minimum-range':
@@ -149,11 +177,23 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
           '3. Canonical Solution:\n' +
           'Remove the conflicting override from package.json "overrides" (or update it to a compatible range) and run "npm install".\n\n' +
           '4. Example / Auto-fix command:\n' +
-          'Manual review required in package.json > overrides, then run: npm install'
+          'Manual review required in package.json > overrides, then run: npm install',
+        'dependency-lockfile-out-of-sync':
+          '1. Root Cause:\n' +
+          'package-lock.json is out of sync with package.json (modified dependencies, devDependencies, or removed/changed overrides).\n' +
+          'When package-lock.json diverges from package.json, npm ci fails in setup scripts and CI pipelines.\n\n' +
+          '2. Diagnosis:\n' +
+          'The violation message reports the differing section/package or the exact npm ci --dry-run failure.\n\n' +
+          '3. Canonical Solution:\n' +
+          'Run "npm run auditor:fix" or "npm install" to resynchronize package-lock.json and node_modules with package.json.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'npm run auditor:fix'
       },
       coverage: { include: ['package.json', 'package-lock.json'] },
-      ...options
+      ...baseOptions
     });
+    this.lockfileSyncChecker = lockfileSyncChecker;
+    this.lockfileInstaller = lockfileInstaller;
   }
 
   private readInstalledVersions(): LockfileShape | null {
@@ -242,7 +282,7 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
           `"${name}" installed at ${installed} (package-lock.json) below the auditor minimum "${floor}". ` +
           `Run: ${this.installCommand(name, floor, declared)}`,
         severity: 'error',
-        fixable: false
+        fixable: true
       });
     }
   }
@@ -264,9 +304,30 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
           `"${name}" installed at ${installed} (package-lock.json) exceeds allowed maximum "${maxSpec.ceiling}". ` +
           `${maxSpec.reason} Run: ${this.installCommand(name, floor, declared)}`,
         severity: 'error',
-        fixable: false
+        fixable: true
       });
     }
+  }
+
+  private needsLockfileResync(
+    pkg: PackageJsonDTO,
+    minimums: Readonly<Record<string, string>>,
+    maximums: Readonly<Record<string, DependencyMaximumSpec>>,
+    lock: LockfileShape,
+    pkgModified: boolean
+  ): boolean {
+    if (pkgModified) return true;
+    if (!this.lockfileSyncChecker(this.projectRoot, pkg, lock).inSync) return true;
+    for (const [name, floor] of Object.entries(minimums)) {
+      if (!findDeclaredDependency(pkg, name)) continue;
+      const installed = lock.packages?.[`node_modules/${name}`]?.version;
+      if (!installed || !semver.valid(installed)) continue;
+      const requiredMin = semver.minVersion(floor);
+      if (requiredMin && semver.lt(installed, requiredMin)) return true;
+      const maxSpec = maximums[name];
+      if (maxSpec && semver.satisfies(installed, maxSpec.prohibitedRange)) return true;
+    }
+    return false;
   }
 
   public repairDeclaredRangesInPackageJson(
@@ -293,7 +354,15 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
     }
 
     if (this.isFixActive()) {
-      pkg = this.repairDeclaredRangesInPackageJson(pkg, minimums, maximums);
+      const repaired = repairPackageJsonMinimumRanges(this.projectRoot, pkg, minimums, maximums);
+      pkg = repaired.pkg;
+      const preLock = this.readInstalledVersions();
+      if (
+        preLock &&
+        this.needsLockfileResync(pkg, minimums, maximums, preLock, repaired.modified)
+      ) {
+        this.lockfileInstaller(this.projectRoot);
+      }
     }
 
     const currentPkg = pkg;
@@ -364,6 +433,27 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
           line: 1,
           context: `${conflict.name}@${conflict.declaredOverride}`,
           message: conflict.reason
+        });
+      }
+    });
+
+    this.runSubAuditorSync('dependency-lockfile-out-of-sync', () => {
+      if (!lock) {
+        this.markRuleNotApplicable(
+          'dependency-lockfile-out-of-sync',
+          'package-lock.json ausente o ilegible'
+        );
+        return;
+      }
+      const syncResult = this.lockfileSyncChecker(this.projectRoot, currentPkg, lock);
+      if (!syncResult.inSync && syncResult.reason) {
+        this.addViolation({
+          ruleId: 'dependency-lockfile-out-of-sync',
+          severity: 'error',
+          file: 'package-lock.json',
+          line: 1,
+          fixable: true,
+          message: `${syncResult.reason}. Run "npm run auditor:fix" or "npm install" to synchronize package-lock.json.`
         });
       }
     });
