@@ -25,6 +25,7 @@ import {
   createUniformRuleCapabilities,
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
+import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
 import {
   findConfigRootObject,
@@ -437,6 +438,14 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
     }
 
     this.runSubAuditorSync('playwright-browser-missing', () => {
+      if (isProductionEnvironment()) {
+        this.markRuleNotApplicable(
+          'playwright-browser-missing',
+          'Playwright browser binary check skipped in production/CI environment (AUDITOR_ENV=production)'
+        );
+        return;
+      }
+
       const execPath = this.browserExecutableResolver(this.projectRoot);
       if (!execPath || fs.existsSync(execPath)) return;
 

@@ -267,5 +267,46 @@ describe('ValidatePlaywrightConfigAuditor', () => {
       expect(fixResult.summary.errors).toBe(0);
       expect(installerCalls).toBe(0);
     });
+
+    it('skips playwright-browser-missing cleanly in production/deploy environments (AUDITOR_ENV=production) without requiring Chromium binary', async () => {
+      fs.writeFileSync(
+        path.join(tmpDir, 'package.json'),
+        JSON.stringify({ devDependencies: { '@playwright/test': '^1.50.0' } }),
+        'utf8'
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, 'playwright.config.ts'),
+        CANONICAL_PLAYWRIGHT_CONFIG_CONTENT,
+        'utf8'
+      );
+
+      const prevEnv = process.env.AUDITOR_ENV;
+      process.env.AUDITOR_ENV = 'production';
+      let installerCalls = 0;
+      try {
+        const missingBinaryPath = path.join(tmpDir, 'missing-chromium-binary');
+        const prodAuditor = new ValidatePlaywrightConfigAuditor({
+          projectRoot: tmpDir,
+          browserExecutableResolver: () => missingBinaryPath,
+          browserInstaller: () => {
+            installerCalls++;
+          }
+        });
+
+        const checkResult = await prodAuditor.audit();
+        expect(checkResult.status).toBe('passed');
+        expect(checkResult.summary.errors).toBe(0);
+
+        const fixResult = await prodAuditor.fix();
+        expect(fixResult.status).toBe('passed');
+        expect(installerCalls).toBe(0);
+      } finally {
+        if (prevEnv === undefined) {
+          delete process.env.AUDITOR_ENV;
+        } else {
+          process.env.AUDITOR_ENV = prevEnv;
+        }
+      }
+    });
   });
 });

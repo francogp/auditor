@@ -7,8 +7,9 @@
 
 /**
  * Checks whether the auditor is executing in a production deployment or container build.
- * When true, development-only suites (similar-code Candle ML embeddings, test coverage, and git config)
- * are cleanly omitted, while all other architectural and quality gates run with full rigor.
+ * When true, development-only suites/checks (similar-code Candle ML embeddings, test coverage,
+ * git config, and Playwright Chromium binary presence) are cleanly omitted, while all other
+ * architectural and quality gates run with full rigor.
  */
 export function isProductionEnvironment(): boolean {
   return (

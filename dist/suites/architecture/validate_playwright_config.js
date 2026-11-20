@@ -1,5 +1,6 @@
 import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
+import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { findConfigRootObject, findPropertyAssignment, getPropertyKeyName, parseTsSourceFile, printTransformedSourceFile, valueToAstExpression } from "../../core/viteConfigAst.js";
 import { createRequire, enableCompileCache } from "node:module";
@@ -270,6 +271,10 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			fs.writeFileSync(resolvedPath, printed, "utf8");
 		}
 		this.runSubAuditorSync("playwright-browser-missing", () => {
+			if (isProductionEnvironment()) {
+				this.markRuleNotApplicable("playwright-browser-missing", "Playwright browser binary check skipped in production/CI environment (AUDITOR_ENV=production)");
+				return;
+			}
 			const execPath = this.browserExecutableResolver(this.projectRoot);
 			if (!execPath || fs.existsSync(execPath)) return;
 			if (isFix) {

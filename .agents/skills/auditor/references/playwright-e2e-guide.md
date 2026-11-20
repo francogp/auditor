@@ -11,7 +11,7 @@ When `@playwright/test` is installed or upgraded, Playwright bumps its expected 
 > `Error: browserType.launch: Executable doesn't exist at .../ms-playwright/chromium_headless_shell-<rev>/...`
 
 **Canonical Remediation (Zero `npx` Mandate)**:
-- **Automated via Auditor**: Run `npm run auditor:fix`. The `validate_playwright_config` suite detects `playwright-browser-missing` in `phase: 'setup'` and executes the local installer automatically.
+- **Automated via Auditor**: Run `npm run auditor:fix`. The `validate_playwright_config` suite detects `playwright-browser-missing` in `phase: 'setup'` and executes the local installer automatically. In production deploy builds (`AUDITOR_ENV=production` / `npm run build:deploy` / `CI=true`), `playwright-browser-missing` is skipped automatically so servers do not need to download Chromium.
 - **Direct CLI Invocation**: Run `npm exec -- playwright install chromium` (or `node_modules/.bin/playwright install chromium`).
 - **Linux System Libraries (if missing)**: Run `npm exec -- playwright install-deps chromium`.
 - **Prohibition**: NEVER invoke `npx` to install or run Playwright; always use `npm exec -- ...` or local binaries in `node_modules/.bin/`.
