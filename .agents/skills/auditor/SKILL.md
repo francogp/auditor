@@ -429,6 +429,7 @@ flowchart LR
    - Run `npm run auditor:next` to isolate the active strategic phase (`setup` -> `polish`).
    - Consult `npm run auditor:guide <ruleId>` for the canonical solution.
    - Run `npm run auditor:fix` first for auto-fixable rules.
+   - **Windows Unsigned Native Binary Block (`Cannot find native binding` / `An Application Control policy has blocked this file`)**: If Windows blocks an unsigned `.node` addon (such as `oxlint.win32-x64-msvc.node`), run `.\setup-windows.ps1` (`Unblock-File` + Windows Defender `node_modules` exclusion) and **reboot Windows first** so OS security/Defender state refreshes cleanly before escalating to WSL2 or Dev Containers.
    - Formulate a **Correction Plan** for manual fixes; verify with `npm run auditor suite=<id>` during iteration, then finish with ONE `npm run auditor` gate.
 3. **Reaction Protocol for Improvements (Refactor Engines)**:
    - Verify green CI baseline (`npm run auditor`) before touching anything.
