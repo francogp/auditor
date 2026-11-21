@@ -12,7 +12,11 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
-import { findDeclaredDependency, getAuditorMinimumVersions } from '../src/core/auditorMinimums.ts';
+import {
+  findDeclaredDependency,
+  getAuditorManagedDependencyFloors,
+  getAuditorMinimumVersions
+} from '../src/core/auditorMinimums.ts';
 import {
   ValidateDependencyMinimumsAuditor,
   DEPENDENCY_MINIMUMS_RULES
@@ -266,7 +270,7 @@ describe('validate_dependency_minimums', () => {
           name: 'override-compatible',
           overrides: {
             'custom-user-pkg': '^1.0.0',
-            stylelint: '^18.0.0'
+            stylelint: getAuditorManagedDependencyFloors().stylelint as string
           }
         },
         null,

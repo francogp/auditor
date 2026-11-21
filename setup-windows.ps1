@@ -577,15 +577,15 @@ if ($hasFallow) {
     if ($isAdmin) {
         try {
             Add-MpPreference -ExclusionProcess "fallow.exe", "fallow-similar-code.exe" -ErrorAction SilentlyContinue
-            Add-MpPreference -ExclusionPath $fallowUserCache, $fallowCliPath -ErrorAction SilentlyContinue
+            Add-MpPreference -ExclusionPath $fallowUserCache, $fallowCliPath, $nodeModulesDir -ErrorAction SilentlyContinue
             Write-Host "  [OK] Windows Defender exclusions applied successfully." -ForegroundColor Green
         } catch {
             Write-Host "  [WARN] Could not register Defender exclusions: $_" -ForegroundColor Yellow
         }
     } else {
-        Write-Host "  [SECURITY] Administrator privileges required to whitelist Fallow in Windows Defender." -ForegroundColor Yellow
+        Write-Host "  [SECURITY] Administrator privileges required to whitelist Fallow and node_modules in Windows Defender." -ForegroundColor Yellow
         Write-Host "  [SECURITY] Requesting elevation to register Defender exclusions..." -ForegroundColor Cyan
-        $elevateCmd = "Add-MpPreference -ExclusionProcess 'fallow.exe', 'fallow-similar-code.exe' -ErrorAction SilentlyContinue; Add-MpPreference -ExclusionPath '$fallowUserCache', '$fallowCliPath' -ErrorAction SilentlyContinue"
+        $elevateCmd = "Add-MpPreference -ExclusionProcess 'fallow.exe', 'fallow-similar-code.exe' -ErrorAction SilentlyContinue; Add-MpPreference -ExclusionPath '$fallowUserCache', '$fallowCliPath', '$nodeModulesDir' -ErrorAction SilentlyContinue"
         try {
             $elevProc = Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -WindowStyle Hidden -Command `"$elevateCmd`"" -PassThru -Wait
             if ($elevProc.ExitCode -eq 0) {
@@ -597,7 +597,7 @@ if ($hasFallow) {
             Write-Host "  [WARN] Administrator privileges skipped or denied. Defender exclusions could not be registered automatically." -ForegroundColor Yellow
             Write-Host "         To register manually in an elevated Administrator console:" -ForegroundColor Gray
             Write-Host "         Add-MpPreference -ExclusionProcess 'fallow.exe', 'fallow-similar-code.exe'" -ForegroundColor Cyan
-            Write-Host "         Add-MpPreference -ExclusionPath '$fallowUserCache', '$fallowCliPath'" -ForegroundColor Cyan
+            Write-Host "         Add-MpPreference -ExclusionPath '$fallowUserCache', '$fallowCliPath', '$nodeModulesDir'" -ForegroundColor Cyan
         }
     }
 

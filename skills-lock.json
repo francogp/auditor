@@ -12,8 +12,8 @@
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/ci-cd-and-automation/SKILL.md",
-      "computedHash": "fbffe27b3bc3df30ba2895a71b87b2f032bb7b163de762bc8900f2673631c96d",
-      "commit": "39b723ceebf81474d0557c1fecd01eddab585563"
+      "computedHash": "7be96fc2a6cc3d8d769d5769b9024d41a4b40f502372b34bf4438b7056e5b2b9",
+      "commit": "8c99fa36d90068c82d547f7c12a9d67a3e95f4ee"
     },
     "code-review": {
       "source": "mattpocock/skills",
@@ -82,8 +82,8 @@
       "source": "fallow-rs/fallow-skills",
       "sourceType": "github",
       "skillPath": "fallow/skills/fallow/SKILL.md",
-      "computedHash": "eb629bc4a19f808e45f2f99d6614571210e6b2a9970fc4d9526f344fd77b2b75",
-      "commit": "b927931254e9863c303058918aa94365d0df5300"
+      "computedHash": "a8115ee9e8d705bba3783ac70c8b590605dd2cb2136dfd76c55fc2cdce389f3c",
+      "commit": "8bc178a7f0c4beac3a09af8fa704261e32cd6dd4"
     },
     "fallow-review": {
       "source": "fallow-rs/fallow-skills",
@@ -96,8 +96,8 @@
       "source": "fallow-rs/fallow-skills",
       "sourceType": "github",
       "skillPath": "fallow/skills/fallow-setup/SKILL.md",
-      "computedHash": "b2094e5aac7f0596627920629c9f69a7dba049b8d1735105b8e5eaf5cd61b459",
-      "commit": "b927931254e9863c303058918aa94365d0df5300"
+      "computedHash": "e05f8e661e97b33f81ee92ef3d7ad6cbfbb997daf7cb5c0e2b2c2d49110e7afe",
+      "commit": "8bc178a7f0c4beac3a09af8fa704261e32cd6dd4"
     },
     "find-skills": {
       "source": "vercel-labs/skills",
@@ -236,8 +236,8 @@
       "source": "microsoft/playwright-cli",
       "sourceType": "github",
       "skillPath": "skills/playwright-cli/SKILL.md",
-      "computedHash": "d3c50339092b670cdda1ba2bed0bdee1c34247cdf70df475e8b7d83983a39e79",
-      "commit": "b21724888b8100b05ef8dee3a92f2bb03bf4dcde"
+      "computedHash": "54c3f1e47b2566ecc3a2c1515823f77f4609edfe8029351924311dafc0d2ba66",
+      "commit": "c872a33cec77fa03c28fa7c6d1ad99d15d04ce42"
     },
     "ponytail": {
       "source": "DietrichGebert/ponytail",
@@ -397,8 +397,8 @@
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/web-design-guidelines/SKILL.md",
-      "computedHash": "4f68ae07187fb0d1fb78c88b503d089da4cf5a9d9625d1f2e425b1590bf96d92",
-      "commit": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62"
+      "computedHash": "5994e4cfd86144903d2ba750f862b9e36af15e3297aac983679e347b99f6cb71",
+      "commit": "5a37a6329fbad3666c3207392a6a7c0110e92efb"
     }
   }
 }
