@@ -653,6 +653,21 @@ function mapWorkspaceDiagFindings(
   return findings;
 }
 
+function mergeWorkspaceDiagnostics(
+  rootDiagnostics: FallowDeadCodeData['workspace_diagnostics'],
+  nestedDiagnostics: FallowDeadCodeData['workspace_diagnostics']
+): FallowDeadCodeData['workspace_diagnostics'] {
+  const combined = [...(rootDiagnostics ?? []), ...(nestedDiagnostics ?? [])];
+  if (combined.length === 0) return undefined;
+  const seen = new Set<string>();
+  return combined.filter((diag) => {
+    const key = JSON.stringify([diag.kind ?? '', diag.path ?? '', diag.message ?? '']);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function mapDeadCodeFindings(data: FallowAuditData, projectRoot: string): FallowFindingItem[] {
   const dc = data.dead_code || data;
   const allDeps = [...(dc.unused_dependencies || []), ...(dc.unused_dev_dependencies || [])];
@@ -664,7 +679,10 @@ function mapDeadCodeFindings(data: FallowAuditData, projectRoot: string): Fallow
     ...mapCircularDepFindings(dc.circular_dependencies, projectRoot),
     ...mapBoundaryFindings(data.boundary_violations, projectRoot),
     ...mapStaleSuppressions(dc.stale_suppressions, projectRoot),
-    ...mapWorkspaceDiagFindings(dc.workspace_diagnostics, projectRoot)
+    ...mapWorkspaceDiagFindings(
+      mergeWorkspaceDiagnostics(data.workspace_diagnostics, data.dead_code?.workspace_diagnostics),
+      projectRoot
+    )
   ];
 }
 

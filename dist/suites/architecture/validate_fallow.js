@@ -320,6 +320,21 @@ function mapWorkspaceDiagFindings(diagnostics, projectRoot) {
 	}
 	return findings;
 }
+function mergeWorkspaceDiagnostics(rootDiagnostics, nestedDiagnostics) {
+	const combined = [...rootDiagnostics ?? [], ...nestedDiagnostics ?? []];
+	if (combined.length === 0) return void 0;
+	const seen = /* @__PURE__ */ new Set();
+	return combined.filter((diag) => {
+		const key = JSON.stringify([
+			diag.kind ?? "",
+			diag.path ?? "",
+			diag.message ?? ""
+		]);
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+}
 function mapDeadCodeFindings(data, projectRoot) {
 	const dc = data.dead_code || data;
 	const allDeps = [...dc.unused_dependencies || [], ...dc.unused_dev_dependencies || []];
@@ -330,7 +345,7 @@ function mapDeadCodeFindings(data, projectRoot) {
 		...mapCircularDepFindings(dc.circular_dependencies, projectRoot),
 		...mapBoundaryFindings(data.boundary_violations, projectRoot),
 		...mapStaleSuppressions(dc.stale_suppressions, projectRoot),
-		...mapWorkspaceDiagFindings(dc.workspace_diagnostics, projectRoot)
+		...mapWorkspaceDiagFindings(mergeWorkspaceDiagnostics(data.workspace_diagnostics, data.dead_code?.workspace_diagnostics), projectRoot)
 	];
 }
 function mapHealthFindings(data, projectRoot) {

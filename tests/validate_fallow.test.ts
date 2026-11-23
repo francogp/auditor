@@ -208,6 +208,29 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       const violations = mapFallowJson('dead-code', data, tempDir);
       expect(violations.some((v) => v.ruleId === 'fallow-stale-suppressions')).toBe(true);
     });
+
+    it('maps root-level workspace_diagnostics in audit JSON even when dead_code is present', () => {
+      const data = {
+        dead_code: {
+          unused_files: [],
+          workspace_diagnostics: [
+            { kind: 'flag-no-effect', message: 'Duplicate diag', path: 'package.json' }
+          ]
+        },
+        workspace_diagnostics: [
+          { kind: 'flag-no-effect', message: 'Duplicate diag', path: 'package.json' },
+          {
+            kind: 'unknown-security-category',
+            message: 'Unknown category foo',
+            path: '.fallowrc.json'
+          }
+        ]
+      };
+      const violations = mapFallowJson('audit', data, tempDir);
+      const diagViolations = violations.filter((v) => v.ruleId === 'fallow-workspace-diagnostic');
+      expect(diagViolations).toHaveLength(2);
+      expect(diagViolations.some((v) => v.context === 'unknown-security-category')).toBe(true);
+    });
   });
 
   describe('mapFallowJson - Health & Targets', () => {

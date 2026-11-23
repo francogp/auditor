@@ -22,13 +22,6 @@
       "computedHash": "ce86b40a3d1648a0018b712f0c70704e6c2316b2a9b9e915ab116916a31273dc",
       "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
     },
-    "code-simplification": {
-      "source": "addyosmani/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/code-simplification/SKILL.md",
-      "computedHash": "48e59225ea45232623e47d35d4ac6028fb2f37a9fbbc0563313d67bab448f664",
-      "commit": "39b723ceebf81474d0557c1fecd01eddab585563"
-    },
     "codebase-design": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -82,8 +75,8 @@
       "source": "fallow-rs/fallow-skills",
       "sourceType": "github",
       "skillPath": "fallow/skills/fallow/SKILL.md",
-      "computedHash": "a8115ee9e8d705bba3783ac70c8b590605dd2cb2136dfd76c55fc2cdce389f3c",
-      "commit": "8bc178a7f0c4beac3a09af8fa704261e32cd6dd4"
+      "computedHash": "ec7f2dc1d1019b1b6d25e68b83443be88f26ed5224f0895cb0cb581722a194e4",
+      "commit": "be529e6f12cfe586b5524481d81487705e64f936"
     },
     "fallow-review": {
       "source": "fallow-rs/fallow-skills",
@@ -105,13 +98,6 @@
       "skillPath": "skills/find-skills/SKILL.md",
       "computedHash": "7bc223e2aafbdbf6e50ea243ba6ef67fe432bb069ab439fea0390795dac0bf7f",
       "commit": "57217cf86ba38148a57af9e90d14a4c049558330"
-    },
-    "frontend-design": {
-      "source": "anthropics/skills",
-      "sourceType": "github",
-      "skillPath": "skills/frontend-design/SKILL.md",
-      "computedHash": "83485963700bcf11d5bf78118facb301676b69d918fee2e45a95e7f1a2840f6c",
-      "commit": "e4bb5d960d87126ff3b3a8af1a104b7db67560ba"
     },
     "grill-with-docs": {
       "source": "mattpocock/skills",
@@ -155,13 +141,6 @@
       "computedHash": "328b52a98e9704c0349ba2cee23a6a92376c06b6b1fd3e60e5c20395b55e25e8",
       "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760"
     },
-    "gsap-react": {
-      "source": "greensock/gsap-skills",
-      "sourceType": "github",
-      "skillPath": "skills/gsap-react/SKILL.md",
-      "computedHash": "35fd08f2cbfc945f1a8cdd39e232882a19e27781a4043ee1bc71f65432f03389",
-      "commit": "aed9cfd3277740755f6bfc1155c7aa645403b760"
-    },
     "gsap-scrolltrigger": {
       "source": "greensock/gsap-skills",
       "sourceType": "github",
@@ -190,20 +169,6 @@
       "computedHash": "f60a2c3688379b7a306b3a7b8dd4120eab39da44c74fa2cb62d6424935f04aa7",
       "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
     },
-    "implement-spec": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/engineering/implement-spec/SKILL.md",
-      "computedHash": "c3474ef320861d793e8b30d41fbdd2cb0ceaa1081bb5c81b7f26c455eb776573",
-      "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
-    },
-    "improve-codebase-architecture": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
-      "computedHash": "f0820b18426a7d9a6c823a890988ba0ac70bf0fd596d30d7ef07c88558728c23",
-      "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
-    },
     "incremental-implementation": {
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
@@ -224,13 +189,6 @@
       "skillPath": "skills/performance-optimization/SKILL.md",
       "computedHash": "cfa0c39804554198a33e3beb2b0f920a1b468bb2e066822e1d08f4abeda3db33",
       "commit": "39b723ceebf81474d0557c1fecd01eddab585563"
-    },
-    "pinia": {
-      "source": "antfu/skills",
-      "sourceType": "github",
-      "skillPath": "skills/pinia/SKILL.md",
-      "computedHash": "4aaaee39fcaa853a2bcdd6105cf22f4237ff0ad56899f53d59fca5b8e39f9058",
-      "commit": "4a6bb39e7b45e26402eb215393c51ccf5df1ca4c"
     },
     "playwright-cli": {
       "source": "microsoft/playwright-cli",
@@ -309,13 +267,6 @@
       "computedHash": "e3e0f78ff1c2d52ffefa0378baa1e80e129d359288cf9a56f4e59afcd2aac86c",
       "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
     },
-    "to-spec": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/engineering/to-spec/SKILL.md",
-      "computedHash": "eb934b5eda9523c7853a2741544bd4721ee1bea471f5a04f8397827f67bdbdda",
-      "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
-    },
     "valibot": {
       "source": "open-circle/agent-skills",
       "sourceType": "github",
@@ -349,13 +300,6 @@
       "sourceType": "github",
       "skillPath": "skills/vue-debug-guides/SKILL.md",
       "computedHash": "ede183882859cc9abf9425590a8adc66823879dd70484d0ea197cfcf6b3fbba4",
-      "commit": "198f0cd8f7f9c0a3d9b566ccc16de6677519ee78"
-    },
-    "vue-jsx-best-practices": {
-      "source": "vuejs-ai/skills",
-      "sourceType": "github",
-      "skillPath": "skills/vue-jsx-best-practices/SKILL.md",
-      "computedHash": "517d9776075b40a2d3e0b5100d712310bc1aab7071341860a0f406d2ba2cf496",
       "commit": "198f0cd8f7f9c0a3d9b566ccc16de6677519ee78"
     },
     "vue-options-api-best-practices": {
