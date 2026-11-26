@@ -5,7 +5,7 @@ import { safeReadFile, safeResolve, safeWriteFile } from "../core/safePath.js";
 import { buildDummyValidationEnv, extractComposeEnvPlaceholders, transformLocalFullComposeYaml, transformRemoteComposeYaml, validateComposeWithDocker } from "../supabase/composeAstEngine.js";
 import { ensureServerKeys, extractServerVars, generateServerEnvFiles, isManagedCloudServer, listMasterServers, upsertServerBlock, validateEnvSecrets } from "../supabase/envOrchestrator.js";
 import { generateLiteBootstrapSql, resolveLiteCredentials, writeLiteProfileArtifacts } from "../supabase/liteStackGenerator.js";
-import { buildCustomDbImage, composeDown, composeRestart, composeUp, detectContainerPostgresMajor, getDetailedStackStatus, publishCustomDbImage, resolveProfileDbContainerName, syncDatabaseMigrations } from "../supabase/runtimeOrchestrator.js";
+import { applyBootstrapSql, buildCustomDbImage, composeDown, composeRestart, composeUp, detectContainerPostgresMajor, getDetailedStackStatus, publishCustomDbImage, resolveProfileDbContainerName, syncDatabaseMigrations } from "../supabase/runtimeOrchestrator.js";
 import { validateSupabaseDockerConfig } from "../supabase/supabaseConfigTypes.js";
 import { runUpgradePostgres } from "../supabase/upgradePostgres.js";
 import { cloneUpstreamSupabaseDocker } from "../supabase/upstreamSync.js";
@@ -498,8 +498,11 @@ const supabaseManageCommand = defineCommand({
 					return;
 				}
 				const artifacts = await writeLiteProfileArtifacts(loaded.projectRoot, loaded.config, profile);
+				const dbService = resolveProfileDbContainerName(loaded.config.projectSlug, profile);
+				composeUp(artifacts.composePath, artifacts.envFilePath, [dbService]);
+				if (loaded.config.profiles.lite?.get(profile)?.autoSyncMigrations) await syncMigrationsForProfile(loaded, profile, { bootstrapSqlOverride: artifacts.bootstrapSql });
+				else applyBootstrapSql(dbService, artifacts.bootstrapSql);
 				composeUp(artifacts.composePath, artifacts.envFilePath);
-				await syncMigrationsForProfile(loaded, profile, { bootstrapSqlOverride: artifacts.bootstrapSql });
 			}
 		}),
 		down: defineCommand({

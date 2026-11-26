@@ -19,6 +19,7 @@ import { resetAuditConfig } from '../src/core/auditConfigLoader.ts';
 import {
   composeDown,
   composeRestart,
+  composeUp,
   DEFAULT_SUPABASE_DOCKER_CONFIG,
   listOrderedMigrationFiles,
   resolveProfileDbContainerName,
@@ -305,6 +306,91 @@ describe('runtimeOrchestrator & supabase_manage CLI', () => {
       expect(envAfter).toContain('SERVER_prod_REGION=us-east-1');
       expect(envAfter).not.toContain('SERVER_prod_POSTGRES_PASSWORD=');
       expect(envAfter).not.toContain('SERVER_prod_JWT_SECRET=');
+    } finally {
+      delete process.env.AUDIT_PROJECT_ROOT;
+    }
+  });
+
+  it('composeUp supports optional service filtering and lite up boots db -> bootstrap/migrations -> full stack', async () => {
+    composeUp('/tmp/demo/docker-compose.yml', '/tmp/demo/.env', ['demo-dev-db']);
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      'docker',
+      [
+        'compose',
+        '-f',
+        '/tmp/demo/docker-compose.yml',
+        '--env-file',
+        '/tmp/demo/.env',
+        'up',
+        '-d',
+        '--wait',
+        'demo-dev-db'
+      ],
+      { cwd: '/tmp/demo', stdio: 'inherit' }
+    );
+
+    vi.clearAllMocks();
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-lite-up-'));
+    tempDirs.push(tmpRoot);
+    fs.mkdirSync(path.join(tmpRoot, '.auditor'), { recursive: true });
+    fs.mkdirSync(path.join(tmpRoot, 'supabase', 'migrations'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpRoot, '.auditor', 'audit.config.ts'),
+      `export default {
+  supabaseDocker: {
+    enabled: true,
+    projectSlug: 'demo',
+    upstreamRef: 'master',
+    supabaseDir: 'supabase',
+    masterEnvFile: '.env',
+    postgres: { expectedMajor: 17 },
+    profiles: {
+      lite: {
+        dev: {
+          enabled: true,
+          storage: 'tmpfs',
+          images: {
+            postgres: 'supabase/postgres:17.6.1.136',
+            postgrest: 'postgrest/postgrest:v14.18',
+            nginx: 'nginx:alpine'
+          },
+          ports: { postgres: 5434, gateway: 8002 },
+          schemas: ['public'],
+          autoSyncMigrations: true
+        }
+      }
+    }
+  }
+};
+`,
+      'utf8'
+    );
+
+    const subCommands = supabaseManageCommand.subCommands as Record<
+      string,
+      { readonly run?: (ctx: { readonly args: Record<string, unknown> }) => Promise<void> }
+    >;
+
+    process.env.AUDIT_PROJECT_ROOT = tmpRoot;
+    try {
+      await subCommands.up?.run?.({
+        args: { project: tmpRoot, profile: 'dev' }
+      });
+
+      const calls = execFileSyncMock.mock.calls.map((c) => c[1]);
+      const dbOnlyIdx = calls.findIndex(
+        (args) => args.includes('compose') && args.at(-1) === 'demo-dev-db'
+      );
+      const bootstrapIdx = calls.findIndex(
+        (args) => args.includes('psql') && args.includes('supabase_admin')
+      );
+      const fullStackIdx = calls.findIndex(
+        (args) => args.includes('compose') && args.at(-1) === '--wait'
+      );
+
+      expect(dbOnlyIdx).toBeGreaterThan(-1);
+      expect(bootstrapIdx).toBeGreaterThan(dbOnlyIdx);
+      expect(fullStackIdx).toBeGreaterThan(bootstrapIdx);
     } finally {
       delete process.env.AUDIT_PROJECT_ROOT;
     }

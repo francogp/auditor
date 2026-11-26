@@ -753,7 +753,8 @@ function buildSupabaseLocalFullProfile(localFull) {
 			pooler: localFull.ports?.pooler ?? 0,
 			studio: localFull.ports?.studio ?? 0
 		},
-		autoApplyMigrations: localFull.autoApplyMigrations ?? false
+		autoApplyMigrations: localFull.autoApplyMigrations ?? false,
+		...localFull.postGenerateCommand !== void 0 ? { postGenerateCommand: localFull.postGenerateCommand } : {}
 	};
 }
 function collectStringEntries(source) {
@@ -772,6 +773,8 @@ function buildSupabaseLiteEntry(entry) {
 	return {
 		enabled: entry.enabled ?? false,
 		storage: entry.storage === "tmpfs" ? "tmpfs" : "volume",
+		...entry.volumeName !== void 0 ? { volumeName: entry.volumeName } : {},
+		...entry.externalVolume !== void 0 ? { externalVolume: entry.externalVolume } : {},
 		images: {
 			postgres: entry.images?.postgres ?? "",
 			postgrest: entry.images?.postgrest ?? "",
@@ -782,7 +785,13 @@ function buildSupabaseLiteEntry(entry) {
 			gateway: entry.ports?.gateway ?? 0
 		},
 		schemas,
-		autoSyncMigrations: entry.autoSyncMigrations ?? false
+		autoSyncMigrations: entry.autoSyncMigrations ?? false,
+		...entry.nginx ? { nginx: {
+			...entry.nginx.clientMaxBodySize !== void 0 ? { clientMaxBodySize: entry.nginx.clientMaxBodySize } : {},
+			...entry.nginx.proxyRoot !== void 0 ? { proxyRoot: entry.nginx.proxyRoot } : {},
+			...entry.nginx.extraDirectives !== void 0 ? { extraDirectives: entry.nginx.extraDirectives } : {}
+		} } : {},
+		...entry.postGenerateCommand !== void 0 ? { postGenerateCommand: entry.postGenerateCommand } : {}
 	};
 }
 function buildSupabaseLiteProfiles(liteMap) {
@@ -798,7 +807,9 @@ function buildSupabaseExtensions(ext) {
 	const extraEnvVars = collectStringEntries(ext.extraEnvVars);
 	return {
 		...ext.extraEnvVars ? { extraEnvVars } : {},
-		...ext.customComposeOverlay !== void 0 ? { customComposeOverlay: ext.customComposeOverlay } : {}
+		...ext.customComposeOverlay !== void 0 ? { customComposeOverlay: ext.customComposeOverlay } : {},
+		...ext.postMigrateSql !== void 0 ? { postMigrateSql: ext.postMigrateSql } : {},
+		...ext.initDir !== void 0 ? { initDir: ext.initDir } : {}
 	};
 }
 function buildSupabaseProfiles(profiles) {

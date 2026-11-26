@@ -111,7 +111,7 @@ export default defineAuditConfig({
 | `publish` | `--tag <tag>` | `remote` | Pushes the custom Postgres image to the configured registry. |
 | `release` | `--tag <tag>` | `remote` | Runs `build` followed by `publish`. |
 | `all` | `--tag <tag>` | `remote` | Runs `clone`, `generate`, `build`, and `publish` in sequence. |
-| `up` | `--profile <name>` | `localFull`, `lite` | Starts the stack (`docker compose up -d --wait`) and syncs migrations. |
+| `up` | `--profile <name>` | `localFull`, `lite` | Starts the stack (`lite` boots `db` -> runs `bootstrapSql` & migrations -> starts `rest`/`gateway`). |
 | `down` | `--profile <name> --volumes` | `localFull`, `lite` | Stops the stack (`docker compose down`). |
 | `restart` | `--profile <name>` | `localFull`, `lite` | Restarts the stack. |
 | `status` | `[--profile <name>]` | All | Shows running containers, ports, Postgres version, and migration state. |

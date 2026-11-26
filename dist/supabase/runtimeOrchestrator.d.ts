@@ -18,6 +18,11 @@ export interface ComposeDownOptions {
  */
 export declare function listOrderedMigrationFiles(migrationsDir: string): readonly SupabaseMigrationFile[];
 /**
+ * Executes bootstrap SQL (roles, `authenticator` password, JWT GUC) via `supabase_admin`
+ * with automatic fallback to `postgres` when `supabase_admin` is absent.
+ */
+export declare function applyBootstrapSql(containerName: string, sql: string): void;
+/**
  * Applies pending migrations from `migrationsDir` using `supabase_migrations.schema_migrations`
  * with `-v ON_ERROR_STOP=1`, transactional pre-flight dry-run by default, optional `postMigrateSql`,
  * and reloads PostgREST schema cache.
@@ -41,9 +46,9 @@ export declare function publishCustomDbImage(config: SupabaseDockerConfig, tagOv
  */
 export declare function detectContainerPostgresMajor(containerName: string): number | null;
 /**
- * Starts a Compose stack (`up -d --wait`).
+ * Starts a Compose stack (`up -d --wait [services...]`).
  */
-export declare function composeUp(composePath: string, envFilePath?: string): void;
+export declare function composeUp(composePath: string, envFilePath?: string, services?: readonly string[]): void;
 /**
  * Stops a Compose stack (`down` or `down -v`).
  */

@@ -1294,7 +1294,10 @@ function buildSupabaseLocalFullProfile(
       pooler: localFull.ports?.pooler ?? 0,
       studio: localFull.ports?.studio ?? 0
     },
-    autoApplyMigrations: localFull.autoApplyMigrations ?? false
+    autoApplyMigrations: localFull.autoApplyMigrations ?? false,
+    ...(localFull.postGenerateCommand !== undefined
+      ? { postGenerateCommand: localFull.postGenerateCommand }
+      : {})
   };
 }
 
@@ -1322,6 +1325,8 @@ function buildSupabaseLiteEntry(
   return {
     enabled: entry.enabled ?? false,
     storage: entry.storage === 'tmpfs' ? 'tmpfs' : 'volume',
+    ...(entry.volumeName !== undefined ? { volumeName: entry.volumeName } : {}),
+    ...(entry.externalVolume !== undefined ? { externalVolume: entry.externalVolume } : {}),
     images: {
       postgres: entry.images?.postgres ?? '',
       postgrest: entry.images?.postgrest ?? '',
@@ -1332,7 +1337,23 @@ function buildSupabaseLiteEntry(
       gateway: entry.ports?.gateway ?? 0
     },
     schemas,
-    autoSyncMigrations: entry.autoSyncMigrations ?? false
+    autoSyncMigrations: entry.autoSyncMigrations ?? false,
+    ...(entry.nginx
+      ? {
+          nginx: {
+            ...(entry.nginx.clientMaxBodySize !== undefined
+              ? { clientMaxBodySize: entry.nginx.clientMaxBodySize }
+              : {}),
+            ...(entry.nginx.proxyRoot !== undefined ? { proxyRoot: entry.nginx.proxyRoot } : {}),
+            ...(entry.nginx.extraDirectives !== undefined
+              ? { extraDirectives: entry.nginx.extraDirectives }
+              : {})
+          }
+        }
+      : {}),
+    ...(entry.postGenerateCommand !== undefined
+      ? { postGenerateCommand: entry.postGenerateCommand }
+      : {})
   };
 }
 
@@ -1361,7 +1382,9 @@ function buildSupabaseExtensions(
     ...(ext.extraEnvVars ? { extraEnvVars } : {}),
     ...(ext.customComposeOverlay !== undefined
       ? { customComposeOverlay: ext.customComposeOverlay }
-      : {})
+      : {}),
+    ...(ext.postMigrateSql !== undefined ? { postMigrateSql: ext.postMigrateSql } : {}),
+    ...(ext.initDir !== undefined ? { initDir: ext.initDir } : {})
   };
 }
 

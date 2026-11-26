@@ -36,6 +36,7 @@ import {
   writeLiteProfileArtifacts
 } from '../supabase/liteStackGenerator.ts';
 import {
+  applyBootstrapSql,
   buildCustomDbImage,
   composeDown,
   composeRestart,
@@ -649,10 +650,16 @@ export const supabaseManageCommand = defineCommand({
           loaded.config,
           profile
         );
+        const dbService = resolveProfileDbContainerName(loaded.config.projectSlug, profile);
+        composeUp(artifacts.composePath, artifacts.envFilePath, [dbService]);
+        if (loaded.config.profiles.lite?.get(profile)?.autoSyncMigrations) {
+          await syncMigrationsForProfile(loaded, profile, {
+            bootstrapSqlOverride: artifacts.bootstrapSql
+          });
+        } else {
+          applyBootstrapSql(dbService, artifacts.bootstrapSql);
+        }
         composeUp(artifacts.composePath, artifacts.envFilePath);
-        await syncMigrationsForProfile(loaded, profile, {
-          bootstrapSqlOverride: artifacts.bootstrapSql
-        });
       }
     }),
     down: defineCommand({

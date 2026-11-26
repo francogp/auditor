@@ -110,12 +110,17 @@ function extractProcessErrorText(err: unknown): string {
   return parts.join('\n');
 }
 
-function execBootstrapPsql(containerName: string, sql: string): string {
+/**
+ * Executes bootstrap SQL (roles, `authenticator` password, JWT GUC) via `supabase_admin`
+ * with automatic fallback to `postgres` when `supabase_admin` is absent.
+ */
+export function applyBootstrapSql(containerName: string, sql: string): void {
   try {
-    return execDockerPsql(containerName, sql, 'supabase_admin');
+    execDockerPsql(containerName, sql, 'supabase_admin');
   } catch (err: unknown) {
     if (MISSING_SUPABASE_ADMIN_ROLE_REGEX.test(extractProcessErrorText(err))) {
-      return execDockerPsql(containerName, sql, 'postgres');
+      execDockerPsql(containerName, sql, 'postgres');
+      return;
     }
     throw err;
   }
@@ -144,7 +149,7 @@ export function syncDatabaseMigrations(
   const preflightDryRun = options.preflightDryRun ?? true;
 
   if (options.bootstrapSql) {
-    execBootstrapPsql(containerName, options.bootstrapSql);
+    applyBootstrapSql(containerName, options.bootstrapSql);
   } else {
     execDockerPsql(containerName, SCHEMA_MIGRATIONS_BOOTSTRAP_SQL);
   }
@@ -277,10 +282,14 @@ function execDockerCompose(
 }
 
 /**
- * Starts a Compose stack (`up -d --wait`).
+ * Starts a Compose stack (`up -d --wait [services...]`).
  */
-export function composeUp(composePath: string, envFilePath?: string): void {
-  execDockerCompose(composePath, ['up', '-d', '--wait'], envFilePath);
+export function composeUp(
+  composePath: string,
+  envFilePath?: string,
+  services: readonly string[] = []
+): void {
+  execDockerCompose(composePath, ['up', '-d', '--wait', ...services], envFilePath);
 }
 
 /**

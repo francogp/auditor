@@ -68,11 +68,18 @@ function extractProcessErrorText(err) {
 	}
 	return parts.join("\n");
 }
-function execBootstrapPsql(containerName, sql) {
+/**
+* Executes bootstrap SQL (roles, `authenticator` password, JWT GUC) via `supabase_admin`
+* with automatic fallback to `postgres` when `supabase_admin` is absent.
+*/
+function applyBootstrapSql(containerName, sql) {
 	try {
-		return execDockerPsql(containerName, sql, "supabase_admin");
+		execDockerPsql(containerName, sql, "supabase_admin");
 	} catch (err) {
-		if (MISSING_SUPABASE_ADMIN_ROLE_REGEX.test(extractProcessErrorText(err))) return execDockerPsql(containerName, sql, "postgres");
+		if (MISSING_SUPABASE_ADMIN_ROLE_REGEX.test(extractProcessErrorText(err))) {
+			execDockerPsql(containerName, sql, "postgres");
+			return;
+		}
 		throw err;
 	}
 }
@@ -90,7 +97,7 @@ function preflightSingleEntry(containerName, entry) {
 */
 function syncDatabaseMigrations(containerName, migrationsDir, options = {}) {
 	const preflightDryRun = options.preflightDryRun ?? true;
-	if (options.bootstrapSql) execBootstrapPsql(containerName, options.bootstrapSql);
+	if (options.bootstrapSql) applyBootstrapSql(containerName, options.bootstrapSql);
 	else execDockerPsql(containerName, SCHEMA_MIGRATIONS_BOOTSTRAP_SQL);
 	const appliedRaw = execDockerPsql(containerName, "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version ASC;");
 	const appliedSet = new Set(appliedRaw.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean));
@@ -197,13 +204,14 @@ function execDockerCompose(composePath, subcommandArgs, envFilePath) {
 	});
 }
 /**
-* Starts a Compose stack (`up -d --wait`).
+* Starts a Compose stack (`up -d --wait [services...]`).
 */
-function composeUp(composePath, envFilePath) {
+function composeUp(composePath, envFilePath, services = []) {
 	execDockerCompose(composePath, [
 		"up",
 		"-d",
-		"--wait"
+		"--wait",
+		...services
 	], envFilePath);
 }
 /**
@@ -256,4 +264,4 @@ function getDetailedStackStatus(config, profile) {
 	const migRes = tryCatchSync(() => execDockerPsql(dbContainer, "SELECT COUNT(*), COALESCE(MAX(version), 'none') FROM supabase_migrations.schema_migrations;"));
 	return `${psOutput}\nPostgres (${dbContainer}): v${pgMajor} | Migrations: ${migRes.status === "success" ? migRes.value.trim().replace("|", " applied, latest=") : "uninitialized"}`;
 }
-export { buildCustomDbImage, composeDown, composeRestart, composeUp, detectContainerPostgresMajor, getDetailedStackStatus, getStackStatus, listOrderedMigrationFiles, publishCustomDbImage, resolveProfileDbContainerName, resolveRemoteImageRef, syncDatabaseMigrations };
+export { applyBootstrapSql, buildCustomDbImage, composeDown, composeRestart, composeUp, detectContainerPostgresMajor, getDetailedStackStatus, getStackStatus, listOrderedMigrationFiles, publishCustomDbImage, resolveProfileDbContainerName, resolveRemoteImageRef, syncDatabaseMigrations };

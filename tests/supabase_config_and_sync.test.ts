@@ -113,4 +113,75 @@ services:
       'infra/supa/generated/'
     ]);
   });
+
+  it('defineAuditConfig preserves all v10.15.x supabaseDocker fields across localFull, lite, and extensions', () => {
+    const cfg = defineAuditConfig({
+      name: 'SupaPreserve',
+      supabaseDocker: {
+        ...DEFAULT_SUPABASE_DOCKER_CONFIG,
+        enabled: true,
+        projectSlug: 'ipdiff3',
+        upstreamRef: 'master',
+        supabaseDir: 'supabase',
+        masterEnvFile: '.env',
+        postgres: { expectedMajor: 17, allowMajorUpgrade: false },
+        extensions: {
+          extraEnvVars: new Map([['K', 'V']]),
+          customComposeOverlay: 'supabase/overlay.yml',
+          postMigrateSql: 'NOTIFY pgrst;',
+          initDir: 'supabase/init'
+        },
+        profiles: {
+          localFull: {
+            enabled: true,
+            includeLogs: false,
+            realtimeTenantName: 'local',
+            ports: { api: 8000, postgres: 5432, pooler: 6543, studio: 3000 },
+            autoApplyMigrations: true,
+            postGenerateCommand: 'npm run servers:configure'
+          },
+          lite: new Map([
+            [
+              'dev',
+              {
+                enabled: true,
+                storage: 'volume',
+                volumeName: 'supabase_ipdiff3_pgdata',
+                externalVolume: true,
+                images: {
+                  postgres: 'supabase/postgres:17.6.1.136',
+                  postgrest: 'postgrest/postgrest:v14.18',
+                  nginx: 'nginx:alpine'
+                },
+                ports: { postgres: 5434, gateway: 8002 },
+                schemas: ['public'],
+                autoSyncMigrations: true,
+                nginx: {
+                  clientMaxBodySize: '100m',
+                  proxyRoot: false,
+                  extraDirectives: 'proxy_read_timeout 60s;'
+                },
+                postGenerateCommand: 'npm run servers:configure'
+              }
+            ]
+          ])
+        }
+      }
+    });
+
+    expect(cfg.supabaseDocker?.extensions?.postMigrateSql).toBe('NOTIFY pgrst;');
+    expect(cfg.supabaseDocker?.extensions?.initDir).toBe('supabase/init');
+    expect(cfg.supabaseDocker?.profiles.localFull?.postGenerateCommand).toBe(
+      'npm run servers:configure'
+    );
+    const devLite = cfg.supabaseDocker?.profiles.lite?.get('dev');
+    expect(devLite?.volumeName).toBe('supabase_ipdiff3_pgdata');
+    expect(devLite?.externalVolume).toBe(true);
+    expect(devLite?.nginx).toStrictEqual({
+      clientMaxBodySize: '100m',
+      proxyRoot: false,
+      extraDirectives: 'proxy_read_timeout 60s;'
+    });
+    expect(devLite?.postGenerateCommand).toBe('npm run servers:configure');
+  });
 });
