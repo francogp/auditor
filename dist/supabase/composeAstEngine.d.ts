@@ -9,10 +9,14 @@ export declare function transformRemoteComposeYaml(composeYaml: string, config: 
  * Transforms an upstream compose file for isolated concurrent `localFull` execution.
  */
 export declare function transformLocalFullComposeYaml(composeYaml: string, config: SupabaseDockerConfig, options?: SupabaseComposeTransformOptions): SupabaseComposeTransformResult;
+export interface ExtractComposePlaceholdersOptions {
+  readonly requiredOnly?: boolean;
+}
 /**
- * Extracts all `${VAR}` placeholder names referenced inside a compose YAML file.
+ * Extracts `${VAR}` placeholder names referenced inside non-comment YAML nodes of a compose file.
+ * When `requiredOnly` is true, excludes placeholders with defaults or conditionals (`${VAR:-...}`, `${VAR-...}`, `${VAR:+...}`, `${VAR+...}`).
  */
-export declare function extractComposeEnvPlaceholders(composeYaml: string): readonly string[];
+export declare function extractComposeEnvPlaceholders(composeYaml: string, options?: ExtractComposePlaceholdersOptions): readonly string[];
 /**
  * Builds deterministic dummy values for `docker compose config -q` when no server `.env` exists yet.
  */

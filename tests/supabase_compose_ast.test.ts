@@ -123,9 +123,39 @@ services:
     expect(result.report.errors[0]).toContain('expectedMajor (18)');
   });
 
-  it('extracts compose environment placeholders', () => {
+  it('extracts compose environment placeholders while ignoring comments, escaped $$, and defaulted vars in requiredOnly mode', () => {
     const placeholders = extractComposeEnvPlaceholders(ENVOY_FIXTURE);
     expect(placeholders).toContain('POSTGRES_PASSWORD');
     expect(placeholders).toContain('JWT_SECRET');
+
+    const sample = [
+      '# - Nested variable interpolation (${A:-${B}}) requires podman-compose >= 1.6.0',
+      'services:',
+      '  app:',
+      '    environment: # inline comment ${INLINE_COMMENT_VAR}',
+      '      REQUIRED_PLAIN: ${REQ_PLAIN}',
+      '      REQUIRED_STRICT: ${REQ_STRICT:?must be set}',
+      '      REQUIRED_WARN: ${REQ_WARN?warn if unset}',
+      '      OPTIONAL_DEFAULT: ${OPT_COLON:-fallback}',
+      '      OPTIONAL_DASH: ${OPT_DASH-fallback}',
+      '      OPTIONAL_ALT: ${OPT_ALT:+alt}',
+      '      OPTIONAL_NESTED: ${OUTER_OPT:-${INNER_OPT}}',
+      '      ESCAPED_LITERAL: $${ESCAPED_LITERAL}'
+    ].join('\n');
+    expect(extractComposeEnvPlaceholders(sample)).toStrictEqual([
+      'INNER_OPT',
+      'OPT_ALT',
+      'OPT_COLON',
+      'OPT_DASH',
+      'OUTER_OPT',
+      'REQ_PLAIN',
+      'REQ_STRICT',
+      'REQ_WARN'
+    ]);
+    expect(extractComposeEnvPlaceholders(sample, { requiredOnly: true })).toStrictEqual([
+      'REQ_PLAIN',
+      'REQ_STRICT',
+      'REQ_WARN'
+    ]);
   });
 });

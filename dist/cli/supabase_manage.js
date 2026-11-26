@@ -146,7 +146,7 @@ async function generateRemoteProfile(ctx, strictKeys) {
 	const transformed = await prepareAndTransformCompose(ctx, remote.includeLogs, transformRemoteComposeYaml);
 	const outCompose = safeResolve(ctx.projectRoot, ctx.config.supabaseDir, "generated", "docker-compose.yml");
 	await safeWriteFile(outCompose, transformed.yaml);
-	const placeholders = extractComposeEnvPlaceholders(transformed.yaml);
+	const placeholders = extractComposeEnvPlaceholders(transformed.yaml, { requiredOnly: true });
 	const masterPath = safeResolve(ctx.projectRoot, ctx.config.masterEnvFile);
 	let validationEnvFile;
 	if (fs.existsSync(masterPath)) {

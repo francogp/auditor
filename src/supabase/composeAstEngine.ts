@@ -6,7 +6,15 @@
 
 import { execFileSync } from 'node:child_process';
 
-import { parseDocument, type Document, type YAMLMap, type YAMLSeq } from 'yaml';
+import {
+  isMap,
+  isScalar,
+  isSeq,
+  parseDocument,
+  type Document,
+  type YAMLMap,
+  type YAMLSeq
+} from 'yaml';
 
 import { tryCatchSync } from '../core/safeUtils.ts';
 import type {
@@ -18,9 +26,9 @@ import type {
 } from './supabaseConfigTypes.ts';
 import { inspectUpstreamCompose } from './upstreamSync.ts';
 
-const ENV_PLACEHOLDER_REGEX = /\$\{([A-Z0-9_]+)(?::[-?]?[^}]*)?\}/gu;
 const RELATIVE_MOUNT_REGEX = /^\.\.?\//u;
 const SUPAVISOR_NOFILE_LIMIT = 65536 as const;
+const PLACEHOLDER_EXPR_REGEX = /^([A-Z0-9_]+)(.*)$/su;
 
 function nodeItemToString(item: unknown): string {
   if (typeof item === 'string' || typeof item === 'number') return String(item);
@@ -506,14 +514,85 @@ export function transformLocalFullComposeYaml(
   };
 }
 
-/**
- * Extracts all `${VAR}` placeholder names referenced inside a compose YAML file.
- */
-export function extractComposeEnvPlaceholders(composeYaml: string): readonly string[] {
-  const vars = new Set<string>();
-  for (const match of composeYaml.matchAll(ENV_PLACEHOLDER_REGEX)) {
-    if (match[1]) vars.add(match[1]);
+export interface ExtractComposePlaceholdersOptions {
+  readonly requiredOnly?: boolean;
+}
+
+function findClosingBrace(text: string, openBraceIdx: number): number {
+  let depth = 1;
+  for (let idx = openBraceIdx + 1; idx < text.length; idx++) {
+    if (text[idx] === '$' && text[idx + 1] === '{') {
+      depth += 1;
+      idx += 1;
+    } else if (text[idx] === '}') {
+      depth -= 1;
+      if (depth === 0) return idx;
+    }
   }
+  return -1;
+}
+
+function scanScalarEnvPlaceholders(text: string, requiredOnly: boolean, out: Set<string>): void {
+  for (let idx = 0; idx < text.length; idx++) {
+    if (text[idx] === '$' && text[idx + 1] === '$') {
+      idx += 1;
+      continue;
+    }
+    if (text[idx] !== '$' || text[idx + 1] !== '{') continue;
+    const closeIdx = findClosingBrace(text, idx + 1);
+    if (closeIdx < 0) continue;
+
+    const expr = text.slice(idx + 2, closeIdx);
+    const match = PLACEHOLDER_EXPR_REGEX.exec(expr);
+    if (match?.[1]) {
+      const varName = match[1];
+      const suffix = match[2] ?? '';
+      const isOptional =
+        suffix.startsWith(':-') ||
+        suffix.startsWith('-') ||
+        suffix.startsWith(':+') ||
+        suffix.startsWith('+');
+      if (!requiredOnly || !isOptional) {
+        out.add(varName);
+      }
+      if (!requiredOnly && suffix) {
+        scanScalarEnvPlaceholders(suffix, false, out);
+      }
+    }
+    idx = closeIdx;
+  }
+}
+
+function collectYamlNodePlaceholders(node: unknown, requiredOnly: boolean, out: Set<string>): void {
+  if (isMap(node)) {
+    for (const pair of node.items) {
+      collectYamlNodePlaceholders(pair.key, requiredOnly, out);
+      collectYamlNodePlaceholders(pair.value, requiredOnly, out);
+    }
+    return;
+  }
+  if (isSeq(node)) {
+    for (const item of node.items) {
+      collectYamlNodePlaceholders(item, requiredOnly, out);
+    }
+    return;
+  }
+  if (isScalar(node) && typeof node.value === 'string') {
+    scanScalarEnvPlaceholders(node.value, requiredOnly, out);
+  }
+}
+
+/**
+ * Extracts `${VAR}` placeholder names referenced inside non-comment YAML nodes of a compose file.
+ * When `requiredOnly` is true, excludes placeholders with defaults or conditionals (`${VAR:-...}`, `${VAR-...}`, `${VAR:+...}`, `${VAR+...}`).
+ */
+export function extractComposeEnvPlaceholders(
+  composeYaml: string,
+  options: ExtractComposePlaceholdersOptions = {}
+): readonly string[] {
+  const vars = new Set<string>();
+  const doc = parseDocument(composeYaml);
+  collectYamlNodePlaceholders(doc.contents, options.requiredOnly ?? false, vars);
   return [...vars].sort();
 }
 

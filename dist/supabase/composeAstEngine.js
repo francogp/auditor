@@ -1,16 +1,16 @@
 import { tryCatchSync } from "../core/safeUtils.js";
 import { inspectUpstreamCompose } from "./upstreamSync.js";
 import { execFileSync } from "node:child_process";
-import { parseDocument } from "yaml";
+import { isMap, isScalar, isSeq, parseDocument } from "yaml";
 // src/supabase/composeAstEngine.ts
 /**
 * src/supabase/composeAstEngine.ts
 *
 * YAML AST transformer and fail-loud validator for `remote` and `localFull` Supabase stacks.
 */
-const ENV_PLACEHOLDER_REGEX = /\$\{([A-Z0-9_]+)(?::[-?]?[^}]*)?\}/gu;
 const RELATIVE_MOUNT_REGEX = /^\.\.?\//u;
 const SUPAVISOR_NOFILE_LIMIT = 65536;
+const PLACEHOLDER_EXPR_REGEX = /^([A-Z0-9_]+)(.*)$/su;
 function nodeItemToString(item) {
 	if (typeof item === "string" || typeof item === "number") return String(item);
 	if (item && typeof item === "object" && "value" in item) {
@@ -462,12 +462,59 @@ function transformLocalFullComposeYaml(composeYaml, config, options) {
 		}
 	};
 }
+function findClosingBrace(text, openBraceIdx) {
+	let depth = 1;
+	for (let idx = openBraceIdx + 1; idx < text.length; idx++) if (text[idx] === "$" && text[idx + 1] === "{") {
+		depth += 1;
+		idx += 1;
+	} else if (text[idx] === "}") {
+		depth -= 1;
+		if (depth === 0) return idx;
+	}
+	return -1;
+}
+function scanScalarEnvPlaceholders(text, requiredOnly, out) {
+	for (let idx = 0; idx < text.length; idx++) {
+		if (text[idx] === "$" && text[idx + 1] === "$") {
+			idx += 1;
+			continue;
+		}
+		if (text[idx] !== "$" || text[idx + 1] !== "{") continue;
+		const closeIdx = findClosingBrace(text, idx + 1);
+		if (closeIdx < 0) continue;
+		const expr = text.slice(idx + 2, closeIdx);
+		const match = PLACEHOLDER_EXPR_REGEX.exec(expr);
+		if (match?.[1]) {
+			const varName = match[1];
+			const suffix = match[2] ?? "";
+			const isOptional = suffix.startsWith(":-") || suffix.startsWith("-") || suffix.startsWith(":+") || suffix.startsWith("+");
+			if (!requiredOnly || !isOptional) out.add(varName);
+			if (!requiredOnly && suffix) scanScalarEnvPlaceholders(suffix, false, out);
+		}
+		idx = closeIdx;
+	}
+}
+function collectYamlNodePlaceholders(node, requiredOnly, out) {
+	if (isMap(node)) {
+		for (const pair of node.items) {
+			collectYamlNodePlaceholders(pair.key, requiredOnly, out);
+			collectYamlNodePlaceholders(pair.value, requiredOnly, out);
+		}
+		return;
+	}
+	if (isSeq(node)) {
+		for (const item of node.items) collectYamlNodePlaceholders(item, requiredOnly, out);
+		return;
+	}
+	if (isScalar(node) && typeof node.value === "string") scanScalarEnvPlaceholders(node.value, requiredOnly, out);
+}
 /**
-* Extracts all `${VAR}` placeholder names referenced inside a compose YAML file.
+* Extracts `${VAR}` placeholder names referenced inside non-comment YAML nodes of a compose file.
+* When `requiredOnly` is true, excludes placeholders with defaults or conditionals (`${VAR:-...}`, `${VAR-...}`, `${VAR:+...}`, `${VAR+...}`).
 */
-function extractComposeEnvPlaceholders(composeYaml) {
+function extractComposeEnvPlaceholders(composeYaml, options = {}) {
 	const vars = /* @__PURE__ */ new Set();
-	for (const match of composeYaml.matchAll(ENV_PLACEHOLDER_REGEX)) if (match[1]) vars.add(match[1]);
+	collectYamlNodePlaceholders(parseDocument(composeYaml).contents, options.requiredOnly ?? false, vars);
 	return [...vars].sort();
 }
 /**

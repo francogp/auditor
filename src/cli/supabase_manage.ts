@@ -290,7 +290,7 @@ async function generateRemoteProfile(ctx: GenerateContext, strictKeys: boolean):
     'docker-compose.yml'
   );
   await safeWriteFile(outCompose, transformed.yaml);
-  const placeholders = extractComposeEnvPlaceholders(transformed.yaml);
+  const placeholders = extractComposeEnvPlaceholders(transformed.yaml, { requiredOnly: true });
 
   const masterPath = safeResolve(ctx.projectRoot, ctx.config.masterEnvFile);
   let validationEnvFile: string | undefined;
