@@ -32,7 +32,7 @@ function listOrderedMigrationFiles(migrationsDir) {
 	}
 	return files.sort((a, b) => a.version.localeCompare(b.version));
 }
-function execDockerPsql(containerName, sql) {
+function execDockerPsql(containerName, sql, user = "postgres") {
 	return execFileSync("docker", [
 		"exec",
 		"-i",
@@ -41,7 +41,7 @@ function execDockerPsql(containerName, sql) {
 		"-v",
 		"ON_ERROR_STOP=1",
 		"-U",
-		"postgres",
+		user,
 		"-d",
 		"postgres",
 		"-t",
@@ -56,6 +56,33 @@ function execDockerPsql(containerName, sql) {
 		]
 	});
 }
+const MISSING_SUPABASE_ADMIN_ROLE_REGEX = /role\s+"supabase_admin"\s+does\s+not\s+exist/iu;
+function extractProcessErrorText(err) {
+	if (typeof err !== "object" || err === null) return String(err);
+	const parts = [];
+	if ("message" in err && typeof err.message === "string") parts.push(err.message);
+	if ("stderr" in err) {
+		const rawStderr = err.stderr;
+		if (typeof rawStderr === "string") parts.push(rawStderr);
+		else if (Buffer.isBuffer(rawStderr)) parts.push(rawStderr.toString("utf8"));
+	}
+	return parts.join("\n");
+}
+function execBootstrapPsql(containerName, sql) {
+	try {
+		return execDockerPsql(containerName, sql, "supabase_admin");
+	} catch (err) {
+		if (MISSING_SUPABASE_ADMIN_ROLE_REGEX.test(extractProcessErrorText(err))) return execDockerPsql(containerName, sql, "postgres");
+		throw err;
+	}
+}
+function preflightSingleEntry(containerName, entry) {
+	if (entry.isNonTransactional) {
+		process.stderr.write(`[Warning] Skipping transactional pre-flight dry-run for ${entry.file.fileName} (contains non-transactional DDL).\n`);
+		return;
+	}
+	execDockerPsql(containerName, `BEGIN;\n${entry.sql}\nROLLBACK;\n`);
+}
 /**
 * Applies pending migrations from `migrationsDir` using `supabase_migrations.schema_migrations`
 * with `-v ON_ERROR_STOP=1`, transactional pre-flight dry-run by default, optional `postMigrateSql`,
@@ -63,26 +90,29 @@ function execDockerPsql(containerName, sql) {
 */
 function syncDatabaseMigrations(containerName, migrationsDir, options = {}) {
 	const preflightDryRun = options.preflightDryRun ?? true;
-	if (options.bootstrapSql) execDockerPsql(containerName, options.bootstrapSql);
+	if (options.bootstrapSql) execBootstrapPsql(containerName, options.bootstrapSql);
 	else execDockerPsql(containerName, SCHEMA_MIGRATIONS_BOOTSTRAP_SQL);
 	const appliedRaw = execDockerPsql(containerName, "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version ASC;");
 	const appliedSet = new Set(appliedRaw.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean));
 	const files = listOrderedMigrationFiles(migrationsDir);
 	const pendingFiles = files.filter((file) => !appliedSet.has(file.version));
 	const skipped = files.length - pendingFiles.length;
-	if (preflightDryRun) for (const file of pendingFiles) {
+	const pendingEntries = pendingFiles.map((file) => {
 		const sql = fs.readFileSync(file.filePath, "utf8");
-		if (NON_TRANSACTIONAL_SQL_REGEX.test(sql)) {
-			process.stderr.write(`[Warning] Skipping transactional pre-flight dry-run for ${file.fileName} (contains non-transactional DDL).\n`);
-			continue;
-		}
-		execDockerPsql(containerName, `BEGIN;\n${sql}\nROLLBACK;\n`);
-	}
+		return {
+			file,
+			sql,
+			isNonTransactional: NON_TRANSACTIONAL_SQL_REGEX.test(sql)
+		};
+	});
+	const hasNonTransactional = pendingEntries.some((entry) => entry.isNonTransactional);
+	if (preflightDryRun && pendingEntries.length > 0 && !hasNonTransactional) execDockerPsql(containerName, `BEGIN;\n${pendingEntries.map((entry) => entry.sql).join("\n")}\nROLLBACK;\n`);
 	const newlyApplied = [];
-	for (const file of pendingFiles) {
-		execDockerPsql(containerName, fs.readFileSync(file.filePath, "utf8"));
-		execDockerPsql(containerName, `INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('${file.version.replaceAll("'", "''")}') ON CONFLICT (version) DO NOTHING;`);
-		newlyApplied.push(file.version);
+	for (const entry of pendingEntries) {
+		if (preflightDryRun && hasNonTransactional) preflightSingleEntry(containerName, entry);
+		execDockerPsql(containerName, entry.sql);
+		execDockerPsql(containerName, `INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('${entry.file.version.replaceAll("'", "''")}') ON CONFLICT (version) DO NOTHING;`);
+		newlyApplied.push(entry.file.version);
 	}
 	if (options.postMigrateSql?.trim() && newlyApplied.length > 0) execDockerPsql(containerName, options.postMigrateSql);
 	execDockerPsql(containerName, "NOTIFY pgrst, 'reload schema';");

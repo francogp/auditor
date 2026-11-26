@@ -105,8 +105,51 @@ describe('runtimeOrchestrator & supabase_manage CLI', () => {
     expect(subCommands.migrate?.args).toHaveProperty('skip-preflight');
   });
 
-  it('syncDatabaseMigrations enforces ON_ERROR_STOP=1, transactional pre-flight, postMigrateSql, and schema reload', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-sync-'));
+  it('syncDatabaseMigrations runs a single combined transactional pre-flight for sequential migrations, postMigrateSql, and schema reload', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-sync-seq-'));
+    tempDirs.push(tmpDir);
+    fs.writeFileSync(path.join(tmpDir, '20261101100000_init.sql'), 'CREATE TABLE items (id int);');
+    fs.writeFileSync(
+      path.join(tmpDir, '20261102100000_alter.sql'),
+      'ALTER TABLE items ADD COLUMN name text;'
+    );
+
+    execFileSyncMock.mockImplementation(() => '');
+
+    const res = syncDatabaseMigrations('demo-db', tmpDir, {
+      postMigrateSql: 'GRANT SELECT ON items TO anon;'
+    });
+
+    expect(res).toStrictEqual({
+      applied: ['20261101100000', '20261102100000'],
+      skipped: 0
+    });
+
+    const calls = execFileSyncMock.mock.calls;
+    for (const [cmd, args] of calls) {
+      expect(cmd).toBe('docker');
+      expect(args).toContain('-v');
+      expect(args).toContain('ON_ERROR_STOP=1');
+    }
+
+    const inputs = calls.map((c) => (c[2] as { input?: string } | undefined)?.input ?? '');
+    const combinedPreflightIdx = inputs.findIndex(
+      (sql) =>
+        sql.startsWith('BEGIN;\n') &&
+        sql.includes('CREATE TABLE items (id int);') &&
+        sql.includes('ALTER TABLE items ADD COLUMN name text;') &&
+        sql.endsWith('\nROLLBACK;\n')
+    );
+    const firstApplyIdx = inputs.indexOf('CREATE TABLE items (id int);');
+    expect(combinedPreflightIdx).toBeGreaterThan(-1);
+    expect(combinedPreflightIdx).toBeLessThan(firstApplyIdx);
+    expect(inputs.filter((sql) => sql.startsWith('BEGIN;\n'))).toHaveLength(1);
+    expect(inputs.some((sql) => sql.includes('GRANT SELECT ON items TO anon;'))).toBe(true);
+    expect(inputs.at(-1)).toBe("NOTIFY pgrst, 'reload schema';");
+  });
+
+  it('syncDatabaseMigrations runs per-file pre-flight before apply when mixed with non-transactional DDL', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-sync-mixed-'));
     tempDirs.push(tmpDir);
     fs.writeFileSync(path.join(tmpDir, '20261101100000_init.sql'), 'CREATE TABLE items (id int);');
     fs.writeFileSync(
@@ -121,9 +164,7 @@ describe('runtimeOrchestrator & supabase_manage CLI', () => {
     });
     execFileSyncMock.mockImplementation(() => '');
 
-    const res = syncDatabaseMigrations('demo-db', tmpDir, {
-      postMigrateSql: 'GRANT SELECT ON items TO anon;'
-    });
+    const res = syncDatabaseMigrations('demo-db', tmpDir);
 
     expect(res).toStrictEqual({
       applied: ['20261101100000', '20261102100000'],
@@ -131,18 +172,45 @@ describe('runtimeOrchestrator & supabase_manage CLI', () => {
     });
     expect(stderrChunks.join('')).toContain('20261102100000_idx.sql');
 
-    const calls = execFileSyncMock.mock.calls;
-    for (const [cmd, args] of calls) {
-      expect(cmd).toBe('docker');
-      expect(args).toContain('-v');
-      expect(args).toContain('ON_ERROR_STOP=1');
-    }
-
-    const inputs = calls.map((c) => (c[2] as { input?: string } | undefined)?.input ?? '');
-    expect(inputs.some((sql) => sql.startsWith('BEGIN;\nCREATE TABLE items'))).toBe(true);
+    const inputs = execFileSyncMock.mock.calls.map(
+      (c) => (c[2] as { input?: string } | undefined)?.input ?? ''
+    );
+    const preflightInitIdx = inputs.indexOf('BEGIN;\nCREATE TABLE items (id int);\nROLLBACK;\n');
+    const applyInitIdx = inputs.indexOf('CREATE TABLE items (id int);');
+    expect(preflightInitIdx).toBeGreaterThan(-1);
+    expect(applyInitIdx).toBe(preflightInitIdx + 1);
     expect(inputs.some((sql) => sql.includes('BEGIN;\nCREATE INDEX CONCURRENTLY'))).toBe(false);
-    expect(inputs.some((sql) => sql.includes('GRANT SELECT ON items TO anon;'))).toBe(true);
-    expect(inputs.at(-1)).toBe("NOTIFY pgrst, 'reload schema';");
+  });
+
+  it('syncDatabaseMigrations executes bootstrapSql via supabase_admin and falls back to postgres only when role is missing', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-sync-boot-'));
+    tempDirs.push(tmpDir);
+
+    execFileSyncMock.mockImplementationOnce(() => {
+      const err = new Error('psql failed') as Error & { stderr: string };
+      err.stderr =
+        'psql: error: connection to server on socket failed: FATAL:  role "supabase_admin" does not exist';
+      throw err;
+    });
+    execFileSyncMock.mockImplementation(() => '');
+
+    syncDatabaseMigrations('demo-db', tmpDir, {
+      bootstrapSql: "ALTER ROLE authenticator WITH LOGIN PASSWORD 'pw';"
+    });
+
+    expect(execFileSyncMock.mock.calls[0]?.[1]).toContain('supabase_admin');
+    expect(execFileSyncMock.mock.calls[1]?.[1]).toContain('postgres');
+
+    vi.clearAllMocks();
+    execFileSyncMock.mockImplementationOnce(() => {
+      const err = new Error('syntax error at or near "BAD"') as Error & { stderr: string };
+      err.stderr = 'ERROR:  syntax error at or near "BAD"';
+      throw err;
+    });
+
+    expect(() => syncDatabaseMigrations('demo-db', tmpDir, { bootstrapSql: 'BAD SQL;' })).toThrow(
+      'syntax error'
+    );
   });
 
   it('syncDatabaseMigrations skips transactional pre-flight when preflightDryRun is false', () => {

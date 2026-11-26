@@ -94,7 +94,7 @@ export default defineAuditConfig({
 | :--- | :--- | :--- |
 | Upstream `docker/` clone, `Dockerfile`, Envoy/PostgREST/Postgres AST | Yes (`clone`, `generate`, `build`, `publish`) | Optional `customComposeOverlay` / `extraEnvVars` |
 | Stack lifecycle (`up`, `down`, `restart`, `status`, `upgrade-pg`) | Yes | Domain wrappers (`run_dev.ts`, `deploy-*.sh`) |
-| Idempotent SQL migration sync & transactional pre-flight | Yes (`migrate`, `-v ON_ERROR_STOP=1`, `postMigrateSql`) | Ephemeral schema/RLS domain tests (`test:migrations`) |
+| Idempotent SQL migration sync & transactional pre-flight | Yes (`migrate`, `-v ON_ERROR_STOP=1`, combined `BEGIN...ROLLBACK`, `supabase_admin` bootstrap, `postMigrateSql`) | Ephemeral schema/RLS domain tests (`test:migrations`) |
 | Server `.env` inventory, key generation & `local.env` | Yes (`add-server`, `generate`) | App-specific outputs via `postGenerateCommand` (e.g. `servers:configure`) & `auth:sync` |
 
 ---

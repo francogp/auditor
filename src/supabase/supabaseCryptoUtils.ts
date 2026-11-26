@@ -10,7 +10,7 @@ const ALPHANUMERIC_CHARS =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789' as const;
 
 export const SCHEMA_MIGRATIONS_BOOTSTRAP_SQL =
-  'CREATE SCHEMA IF NOT EXISTS supabase_migrations; CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW());' as const;
+  'CREATE SCHEMA IF NOT EXISTS supabase_migrations; CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()); GRANT USAGE, CREATE ON SCHEMA supabase_migrations TO postgres; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA supabase_migrations TO postgres;' as const;
 
 /**
  * Generates an alphanumeric-only secret string of the given length.
