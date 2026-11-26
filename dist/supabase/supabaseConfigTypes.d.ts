@@ -65,6 +65,9 @@ export interface SupabaseLiteProfileConfig {
   readonly schemas: readonly string[];
   readonly autoSyncMigrations: boolean;
   readonly postGenerateCommand?: string;
+  readonly dbEnv?: ReadonlyMap<string, string>;
+  readonly restEnv?: ReadonlyMap<string, string>;
+  readonly customComposeOverlay?: string;
 }
 export declare const MIN_POSTGRES_MAJOR: 12;
 export interface SupabaseDockerExtensionsConfig {

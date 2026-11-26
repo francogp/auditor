@@ -26,7 +26,7 @@ export declare function generateLiteBootstrapSql(jwtSecret: string, postgresPass
 /**
  * Generates the 3-container `docker-compose.yml` for a `lite` profile.
  */
-export declare function generateLiteComposeYaml(target: SupabaseLiteComposeTarget, creds: SupabaseLiteCredentials): string;
+export declare function generateLiteComposeYaml(target: SupabaseLiteComposeTarget, creds: SupabaseLiteCredentials, overlayYaml?: string): string;
 /**
  * Materializes `docker-compose.yml`, `nginx.conf`, and `.env` for a `lite` profile,
  * returning `bootstrapSql` in memory for direct `docker exec psql` application.

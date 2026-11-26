@@ -1353,6 +1353,11 @@ function buildSupabaseLiteEntry(
       : {}),
     ...(entry.postGenerateCommand !== undefined
       ? { postGenerateCommand: entry.postGenerateCommand }
+      : {}),
+    ...(entry.dbEnv ? { dbEnv: collectStringEntries(entry.dbEnv) } : {}),
+    ...(entry.restEnv ? { restEnv: collectStringEntries(entry.restEnv) } : {}),
+    ...(entry.customComposeOverlay !== undefined
+      ? { customComposeOverlay: entry.customComposeOverlay }
       : {})
   };
 }

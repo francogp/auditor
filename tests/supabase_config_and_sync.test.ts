@@ -161,7 +161,10 @@ services:
                   proxyRoot: false,
                   extraDirectives: 'proxy_read_timeout 60s;'
                 },
-                postGenerateCommand: 'npm run servers:configure'
+                postGenerateCommand: 'npm run servers:configure',
+                dbEnv: new Map([['PG_EXTRA', '1']]),
+                restEnv: new Map([['PGRST_DB_MAX_ROWS', '500']]),
+                customComposeOverlay: 'supabase/lite.overlay.yml'
               }
             ]
           ])
@@ -183,5 +186,8 @@ services:
       extraDirectives: 'proxy_read_timeout 60s;'
     });
     expect(devLite?.postGenerateCommand).toBe('npm run servers:configure');
+    expect(devLite?.dbEnv?.get('PG_EXTRA')).toBe('1');
+    expect(devLite?.restEnv?.get('PGRST_DB_MAX_ROWS')).toBe('500');
+    expect(devLite?.customComposeOverlay).toBe('supabase/lite.overlay.yml');
   });
 });

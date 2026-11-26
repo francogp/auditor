@@ -791,7 +791,10 @@ function buildSupabaseLiteEntry(entry) {
 			...entry.nginx.proxyRoot !== void 0 ? { proxyRoot: entry.nginx.proxyRoot } : {},
 			...entry.nginx.extraDirectives !== void 0 ? { extraDirectives: entry.nginx.extraDirectives } : {}
 		} } : {},
-		...entry.postGenerateCommand !== void 0 ? { postGenerateCommand: entry.postGenerateCommand } : {}
+		...entry.postGenerateCommand !== void 0 ? { postGenerateCommand: entry.postGenerateCommand } : {},
+		...entry.dbEnv ? { dbEnv: collectStringEntries(entry.dbEnv) } : {},
+		...entry.restEnv ? { restEnv: collectStringEntries(entry.restEnv) } : {},
+		...entry.customComposeOverlay !== void 0 ? { customComposeOverlay: entry.customComposeOverlay } : {}
 	};
 }
 function buildSupabaseLiteProfiles(liteMap) {

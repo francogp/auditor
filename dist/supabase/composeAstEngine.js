@@ -509,4 +509,4 @@ function validateComposeWithDocker(composePath, envFilePath) {
 		stderr: String(err.stderr ?? err.message ?? "docker compose config failed")
 	};
 }
-export { buildDummyValidationEnv, extractComposeEnvPlaceholders, transformLocalFullComposeYaml, transformRemoteComposeYaml, validateComposeWithDocker };
+export { buildDummyValidationEnv, extractComposeEnvPlaceholders, mergeOverlay, transformLocalFullComposeYaml, transformRemoteComposeYaml, validateComposeWithDocker };

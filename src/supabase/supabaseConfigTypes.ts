@@ -72,6 +72,9 @@ export interface SupabaseLiteProfileConfig {
   readonly schemas: readonly string[];
   readonly autoSyncMigrations: boolean;
   readonly postGenerateCommand?: string;
+  readonly dbEnv?: ReadonlyMap<string, string>;
+  readonly restEnv?: ReadonlyMap<string, string>;
+  readonly customComposeOverlay?: string;
 }
 
 const MAX_TCP_PORT = 65535 as const;

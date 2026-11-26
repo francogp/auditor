@@ -45,15 +45,22 @@ describe('liteStackGenerator', () => {
           },
           ports: { postgres: 5433, gateway: 8001 },
           schemas: ['public', 'storage'],
-          autoSyncMigrations: true
+          autoSyncMigrations: true,
+          dbEnv: new Map([['POSTGRES_INITDB_ARGS', '--encoding=UTF8']]),
+          restEnv: new Map([['PGRST_DB_MAX_ROWS', '500']])
         }
       },
-      { postgresPassword: 'pg@pass#123', jwtSecret: 'jwtsecret123' }
+      { postgresPassword: 'pg@pass#123', jwtSecret: 'jwtsecret123' },
+      'services:\n  demo-test-rest:\n    environment:\n      PGRST_LOG_LEVEL: info\n'
     );
     expect(compose).toContain('/var/lib/postgresql/data');
     expect(compose).toContain('5433:5432');
     expect(compose).toContain('8001:80');
+    expect(compose).toContain('PGRST_SERVER_HOST: 0.0.0.0');
     expect(compose).toContain('PGRST_ADMIN_SERVER_PORT: 3001');
+    expect(compose).toContain('POSTGRES_INITDB_ARGS: --encoding=UTF8');
+    expect(compose).toContain('PGRST_DB_MAX_ROWS: "500"');
+    expect(compose).toContain('PGRST_LOG_LEVEL: info');
     expect(compose).toContain(
       'postgres://authenticator:pg%40pass%23123@demo-test-db:5432/postgres'
     );

@@ -65,9 +65,11 @@ export {
   isValidHs256Jwt,
   listMasterServers,
   parseEnvContent,
+  signSupabaseJwtPair,
   upsertServerBlock,
   validateEnvSecrets,
-  type GeneratedServerEnvFile
+  type GeneratedServerEnvFile,
+  type SignedSupabaseJwtPair
 } from './envOrchestrator.ts';
 
 export {

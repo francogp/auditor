@@ -7,10 +7,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { stringify } from 'yaml';
+import { parseDocument, stringify } from 'yaml';
 
 import { safeReadFile, safeResolve, safeWriteFile } from '../core/safePath.ts';
 import { tryOrNull } from '../core/safeUtils.ts';
+import { mergeOverlay } from './composeAstEngine.ts';
 import { isInsecurePlaceholder, parseEnvContent, signSupabaseJwtPair } from './envOrchestrator.ts';
 import type {
   SupabaseDockerConfig,
@@ -181,7 +182,8 @@ export function generateLiteBootstrapSql(jwtSecret: string, postgresPassword: st
  */
 export function generateLiteComposeYaml(
   target: SupabaseLiteComposeTarget,
-  creds: SupabaseLiteCredentials
+  creds: SupabaseLiteCredentials,
+  overlayYaml?: string
 ): string {
   const { projectSlug, profileName, profile } = target;
   const stackPrefix = `${projectSlug}-${profileName}`;
@@ -190,22 +192,29 @@ export function generateLiteComposeYaml(
   const gwName = `${stackPrefix}-gateway`;
   const volumeName = profile.volumeName?.trim() || `${stackPrefix}-pgdata`;
 
+  const dbEnvEntries = new Map<string, string | number>([
+    ['POSTGRES_HOST', '/var/run/postgresql'],
+    ['PGPORT', 5432],
+    ['POSTGRES_PORT', 5432],
+    ['PGPASSWORD', creds.postgresPassword],
+    ['POSTGRES_PASSWORD', creds.postgresPassword],
+    ['PGDATABASE', 'postgres'],
+    ['POSTGRES_DB', 'postgres'],
+    ['JWT_SECRET', creds.jwtSecret],
+    ['JWT_EXP', 3600]
+  ]);
+  if (profile.dbEnv) {
+    for (const [k, v] of profile.dbEnv.entries()) {
+      dbEnvEntries.set(k, v);
+    }
+  }
+
   const dbService: Record<string, unknown> = {
     image: profile.images.postgres,
     container_name: dbName,
     restart: profile.storage === 'tmpfs' ? 'no' : 'unless-stopped',
     ports: [`${profile.ports.postgres}:5432`],
-    environment: {
-      POSTGRES_HOST: '/var/run/postgresql',
-      PGPORT: 5432,
-      POSTGRES_PORT: 5432,
-      PGPASSWORD: creds.postgresPassword,
-      POSTGRES_PASSWORD: creds.postgresPassword,
-      PGDATABASE: 'postgres',
-      POSTGRES_DB: 'postgres',
-      JWT_SECRET: creds.jwtSecret,
-      JWT_EXP: 3600
-    },
+    environment: Object.fromEntries(dbEnvEntries),
     command: [
       'postgres',
       '-c',
@@ -227,6 +236,26 @@ export function generateLiteComposeYaml(
     dbService.volumes = [`${volumeName}:/var/lib/postgresql/data`];
   }
 
+  const restEnvEntries = new Map<string, string | number>([
+    [
+      'PGRST_DB_URI',
+      `postgres://authenticator:${encodeURIComponent(creds.postgresPassword)}@${dbName}:5432/postgres`
+    ],
+    ['PGRST_DB_SCHEMAS', profile.schemas.join(',')],
+    ['PGRST_DB_ANON_ROLE', 'anon'],
+    ['PGRST_JWT_SECRET', creds.jwtSecret],
+    ['PGRST_SERVER_HOST', '0.0.0.0'],
+    ['PGRST_ADMIN_SERVER_PORT', 3001],
+    ['PGRST_DB_USE_LEGACY_GUCS', 'false'],
+    ['PGRST_APP_SETTINGS_JWT_SECRET', creds.jwtSecret],
+    ['PGRST_APP_SETTINGS_JWT_EXP', 3600]
+  ]);
+  if (profile.restEnv) {
+    for (const [k, v] of profile.restEnv.entries()) {
+      restEnvEntries.set(k, v);
+    }
+  }
+
   const composeObj: Record<string, unknown> = {
     name: stackPrefix,
     services: {
@@ -236,16 +265,7 @@ export function generateLiteComposeYaml(
         container_name: restName,
         restart: profile.storage === 'tmpfs' ? 'no' : 'unless-stopped',
         depends_on: { [dbName]: { condition: 'service_healthy' } },
-        environment: {
-          PGRST_DB_URI: `postgres://authenticator:${encodeURIComponent(creds.postgresPassword)}@${dbName}:5432/postgres`,
-          PGRST_DB_SCHEMAS: profile.schemas.join(','),
-          PGRST_DB_ANON_ROLE: 'anon',
-          PGRST_JWT_SECRET: creds.jwtSecret,
-          PGRST_ADMIN_SERVER_PORT: 3001,
-          PGRST_DB_USE_LEGACY_GUCS: 'false',
-          PGRST_APP_SETTINGS_JWT_SECRET: creds.jwtSecret,
-          PGRST_APP_SETTINGS_JWT_EXP: 3600
-        },
+        environment: Object.fromEntries(restEnvEntries),
         healthcheck: {
           test: ['CMD', 'postgrest', '--ready'],
           interval: '5s',
@@ -270,7 +290,13 @@ export function generateLiteComposeYaml(
     };
   }
 
-  return stringify(composeObj);
+  const rawYaml = stringify(composeObj);
+  if (overlayYaml?.trim()) {
+    const doc = parseDocument(rawYaml);
+    mergeOverlay(doc, overlayYaml);
+    return doc.toString();
+  }
+  return rawYaml;
 }
 
 /**
@@ -301,9 +327,17 @@ export async function writeLiteProfileArtifacts(
   const composePath = path.join(outDir, 'docker-compose.yml');
   const nginxPath = path.join(outDir, 'nginx.conf');
 
+  const overlayYaml = profile.customComposeOverlay?.trim()
+    ? await safeReadFile(safeResolve(projectRoot, profile.customComposeOverlay.trim()))
+    : undefined;
+
   await safeWriteFile(
     composePath,
-    generateLiteComposeYaml({ projectSlug: config.projectSlug, profileName, profile }, creds)
+    generateLiteComposeYaml(
+      { projectSlug: config.projectSlug, profileName, profile },
+      creds,
+      overlayYaml
+    )
   );
   await safeWriteFile(nginxPath, generateLiteNginxConf(restServiceName, profile.nginx));
 

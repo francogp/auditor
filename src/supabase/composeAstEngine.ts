@@ -110,7 +110,7 @@ function deepMergeYamlMap(doc: Document, targetPath: readonly string[], overlayM
   }
 }
 
-function mergeOverlay(doc: Document, overlayYaml: string): void {
+export function mergeOverlay(doc: Document, overlayYaml: string): void {
   const overlayDoc = parseDocument(overlayYaml);
   const services = overlayDoc.get('services') as YAMLMap | undefined;
   if (!services || !Array.isArray(services.items)) return;

@@ -1,4 +1,6 @@
 import { SupabaseComposeTransformOptions, SupabaseComposeTransformResult, SupabaseDockerConfig } from "./supabaseConfigTypes.js";
+import { Document } from "yaml";
+export declare function mergeOverlay(doc: Document, overlayYaml: string): void;
 /**
  * Transforms an upstream Supabase `docker-compose.yml` into a bind-mount-free `remote` stack.
  */
