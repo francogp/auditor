@@ -151,7 +151,36 @@ function installMinimumBatch(options) {
 	};
 	return { ok: true };
 }
-function enforceHostMinimumDependencies(projectRoot, silent) {
+function appendPrunedClusterSpecs(projectRoot, installedMinimums, prodUpdates, devUpdates) {
+	const pkgNow = getPackageJson(projectRoot, true);
+	if (!pkgNow) return;
+	const effectiveMinimums = installedMinimums ?? getAuditorMinimumVersions();
+	for (const clusterDep of ["vite-plus", "@vitest/coverage-v8"]) {
+		const declared = findDeclaredDependency(pkgNow, clusterDep);
+		const floor = effectiveMinimums[clusterDep];
+		if (!declared || !floor) continue;
+		const spec = `${clusterDep}@${floor}`;
+		const targetList = declared.isProduction ? prodUpdates : devUpdates;
+		if (!targetList.includes(spec)) targetList.push(spec);
+	}
+}
+function reconcileStrictPeerInstall(projectRoot, silent) {
+	const strictProc = runNpmCommandSync([
+		"install",
+		"--no-audit",
+		"--no-fund"
+	], {
+		cwd: projectRoot,
+		stdio: silent ? "pipe" : "inherit",
+		encoding: "utf-8"
+	});
+	if (strictProc.error || strictProc.status !== 0) return {
+		ok: false,
+		error: strictProc.error?.message || strictProc.stderr?.toString() || `Strict peer reconciliation failed with exit code ${strictProc.status}`
+	};
+	return { ok: true };
+}
+function enforceHostMinimumDependencies(projectRoot, options = {}) {
 	const installedMinimums = readHostInstalledAuditorMinimums(projectRoot);
 	if (installedMinimums) {
 		const hostPkg = getPackageJson(projectRoot, true);
@@ -162,19 +191,7 @@ function enforceHostMinimumDependencies(projectRoot, silent) {
 	const devUpdates = [...report.devUpdates];
 	const lockPath = path.join(projectRoot, "package-lock.json");
 	const lockSnapshot = fs.existsSync(lockPath) ? fs.readFileSync(lockPath, "utf-8") : null;
-	if (pruneStaleVitestClusterFromLockfile(projectRoot)) {
-		const pkgNow = getPackageJson(projectRoot, true);
-		const effectiveMinimums = installedMinimums ?? getAuditorMinimumVersions();
-		for (const clusterDep of ["vite-plus", "@vitest/coverage-v8"]) {
-			const declared = pkgNow ? findDeclaredDependency(pkgNow, clusterDep) : null;
-			const floor = effectiveMinimums[clusterDep];
-			if (declared && floor) {
-				const spec = `${clusterDep}@${floor}`;
-				const targetList = declared.isProduction ? prodUpdates : devUpdates;
-				if (!targetList.includes(spec)) targetList.push(spec);
-			}
-		}
-	}
+	if (pruneStaleVitestClusterFromLockfile(projectRoot)) appendPrunedClusterSpecs(projectRoot, installedMinimums, prodUpdates, devUpdates);
 	const restoreLockOnFailure = () => {
 		if (lockSnapshot !== null) fs.writeFileSync(lockPath, lockSnapshot, "utf-8");
 	};
@@ -182,7 +199,7 @@ function enforceHostMinimumDependencies(projectRoot, silent) {
 		projectRoot,
 		specs: prodUpdates,
 		isDev: false,
-		silent
+		silent: options.silent
 	});
 	if (!prodRes.ok) {
 		restoreLockOnFailure();
@@ -192,13 +209,126 @@ function enforceHostMinimumDependencies(projectRoot, silent) {
 		projectRoot,
 		specs: devUpdates,
 		isDev: true,
-		silent
+		silent: options.silent
 	});
 	if (!devRes.ok) {
 		restoreLockOnFailure();
 		return devRes;
 	}
+	if (options.usedPeerBootstrap && prodUpdates.length === 0 && devUpdates.length === 0) {
+		const strictRes = reconcileStrictPeerInstall(projectRoot, options.silent);
+		if (!strictRes.ok) {
+			restoreLockOnFailure();
+			return strictRes;
+		}
+	}
 	return { ok: true };
+}
+function isEresolveErrorOutput(output) {
+	return output.includes("ERESOLVE");
+}
+function runAuditorPackageInstall(projectRoot, targetTag, silent) {
+	const pkgSpec = `github:francogp/auditor#${targetTag}`;
+	const npmArgs = [
+		"install",
+		"-D",
+		pkgSpec
+	];
+	const proc = runNpmCommandSync(npmArgs, {
+		cwd: projectRoot,
+		stdio: "pipe",
+		encoding: "utf-8"
+	});
+	const stdoutText = proc.stdout?.toString() ?? "";
+	const stderrText = proc.stderr?.toString() ?? "";
+	if (!silent) {
+		if (stdoutText) process.stdout.write(stdoutText);
+		if (stderrText) process.stderr.write(stderrText);
+	}
+	if (!proc.error && proc.status === 0) return {
+		ok: true,
+		usedPeerBootstrap: false
+	};
+	if (!isEresolveErrorOutput(`${proc.error?.message ?? ""}\n${stdoutText}\n${stderrText}`)) return {
+		ok: false,
+		usedPeerBootstrap: false,
+		error: proc.error?.message || stderrText || `npm ${npmArgs[0]} failed with exit code ${proc.status}`
+	};
+	if (!silent) console.log(styleText("yellow", `[Update] Peer dependency conflict (ERESOLVE) detected while fetching ${targetTag}. Bootstrapping package before enforcing strict new peer minimums...\n`));
+	const bootstrapProc = runNpmCommandSync([
+		"install",
+		"-D",
+		"--legacy-peer-deps",
+		pkgSpec
+	], {
+		cwd: projectRoot,
+		stdio: silent ? "pipe" : "inherit",
+		encoding: "utf-8"
+	});
+	if (bootstrapProc.error || bootstrapProc.status !== 0) return {
+		ok: false,
+		usedPeerBootstrap: true,
+		error: bootstrapProc.error?.message || bootstrapProc.stderr?.toString() || `npm install --legacy-peer-deps failed with exit code ${bootstrapProc.status}`
+	};
+	return {
+		ok: true,
+		usedPeerBootstrap: true
+	};
+}
+function runPostInstallPipeline(projectRoot, options) {
+	preSyncHostPackageJson(projectRoot);
+	const minEnforcement = enforceHostMinimumDependencies(projectRoot, {
+		silent: options.silent,
+		usedPeerBootstrap: options.usedPeerBootstrap
+	});
+	if (!minEnforcement.ok) return {
+		ok: false,
+		error: minEnforcement.error
+	};
+	const agentInitResult = initAgentSkill({ targetDir: projectRoot });
+	if (!options.silent && agentInitResult.created) console.log(styleText("green", `[OK] ${agentInitResult.message}\n`));
+	const envSyncResult = syncEnvScripts({ targetDir: projectRoot });
+	if (!options.silent && envSyncResult.filesUpdated.length > 0) console.log(styleText("green", `[OK] ${envSyncResult.message}\n`));
+	runAuditorFixAutoRemediation(projectRoot, options.silent);
+	const setupHealthy = runAuditorSetupCheck(projectRoot, options.silent);
+	if (!options.silent) {
+		if (setupHealthy) console.log(styleText("green", "[OK] Phase setup verification passed: Project infrastructure and satellite configurations are healthy.\n"));
+		else console.log(styleText("yellow", "[Warning] Phase setup reported unresolved configuration issues. Run \"npm run auditor:setup\" to inspect.\n"));
+		console.log(styleText("cyan", "[Tip] Run \"npm run auditor:config\" to discover new hardening opportunities and default settings for your project.\n"));
+	}
+	return {
+		ok: true,
+		setupHealthy
+	};
+}
+function tryHandoffToInstalledUpdater(projectRoot, options) {
+	if (isSelfProviderProject(projectRoot)) return {
+		handled: false,
+		ok: true
+	};
+	const installedUpdaterPath = path.join(projectRoot, "node_modules/@francogp/auditor/dist/cli/update_package.js");
+	if (!fs.existsSync(installedUpdaterPath)) return {
+		handled: false,
+		ok: true
+	};
+	const args = [installedUpdaterPath, "--post-install-handoff"];
+	if (options.usedPeerBootstrap) args.push("--used-peer-bootstrap");
+	if (options.silent) args.push("--silent");
+	if (!options.silent) console.log(styleText("cyan", "[Update] Handing off post-install pipeline to newly installed @francogp/auditor updater...\n"));
+	const res = childProcess.spawnSync(process.execPath, args, {
+		cwd: projectRoot,
+		encoding: "utf-8",
+		stdio: options.silent ? "pipe" : "inherit"
+	});
+	if (res.status !== 0) return {
+		handled: true,
+		ok: false,
+		error: (res.stderr ? String(res.stderr).trim() : "") || `Post-install handoff exited with status ${res.status ?? "unknown"}.`
+	};
+	return {
+		handled: true,
+		ok: true
+	};
 }
 function updateAuditorPackage(options = {}) {
 	const projectRoot = findHostProjectRoot(options.cwd ?? process.cwd(), options.stopAt);
@@ -233,6 +363,22 @@ function updateAuditorPackage(options = {}) {
 		updated: false,
 		error: "Package @francogp/auditor is not declared in dependencies or devDependencies."
 	};
+	if (options.postInstallHandoff) {
+		const installedVersion = readInstalledAuditorVersion(projectRoot);
+		const pipelineRes = runPostInstallPipeline(projectRoot, {
+			silent: options.silent,
+			usedPeerBootstrap: options.usedPeerBootstrap
+		});
+		return {
+			success: pipelineRes.ok,
+			projectRoot,
+			previousVersion: installedVersion,
+			newVersion: installedVersion,
+			updated: false,
+			setupHealthy: pipelineRes.setupHealthy,
+			error: pipelineRes.error
+		};
+	}
 	const targetTag = options.targetVersion ? options.targetVersion.startsWith("v") ? options.targetVersion : `v${options.targetVersion}` : resolveLatestAuditorTag();
 	const previousVersion = readInstalledAuditorVersion(projectRoot);
 	if (options.checkOnly) {
@@ -258,23 +404,13 @@ function updateAuditorPackage(options = {}) {
 		if (originalNpmrcRaw !== null) fs.writeFileSync(hostNpmrcPath, originalNpmrcRaw, "utf-8");
 		else if (fs.existsSync(hostNpmrcPath)) fs.rmSync(hostNpmrcPath, { force: true });
 	};
-	const npmArgs = [
-		"install",
-		"-D",
-		`github:francogp/auditor#${targetTag}`
-	];
-	preSyncHostPackageJson(projectRoot);
 	ensureNpmrcAllowGit(projectRoot);
 	if (!options.silent) {
 		console.log(renderBanner("@FRANCOGP/AUDITOR - NATIVE PACKAGE UPDATER", `Directory: ${projectRoot}  |  Current Version: ${previousVersion}  |  Target: ${targetTag}`));
-		console.log(styleText("cyan", `[Update] Running native update via npm ${npmArgs.join(" ")}...\n`));
+		console.log(styleText("cyan", `[Update] Running native update via npm install -D github:francogp/auditor#${targetTag}...\n`));
 	}
-	const proc = runNpmCommandSync(npmArgs, {
-		cwd: projectRoot,
-		stdio: options.silent ? "pipe" : "inherit",
-		encoding: "utf-8"
-	});
-	if (proc.error || proc.status !== 0) {
+	const installRes = runAuditorPackageInstall(projectRoot, targetTag, options.silent);
+	if (!installRes.ok) {
 		restoreHostManifestSnapshot();
 		return {
 			success: false,
@@ -282,30 +418,50 @@ function updateAuditorPackage(options = {}) {
 			previousVersion,
 			newVersion: previousVersion,
 			updated: false,
-			error: proc.error?.message || proc.stderr?.toString() || `npm ${npmArgs[0]} failed with exit code ${proc.status}`
+			error: installRes.error
 		};
 	}
 	const newVersion = readInstalledAuditorVersion(projectRoot);
 	const updated = previousVersion !== newVersion;
-	const agentInitResult = initAgentSkill({ targetDir: projectRoot });
-	if (!options.silent && agentInitResult.created) console.log(styleText("green", `[OK] ${agentInitResult.message}\n`));
-	const envSyncResult = syncEnvScripts({ targetDir: projectRoot });
-	if (!options.silent && envSyncResult.filesUpdated.length > 0) console.log(styleText("green", `[OK] ${envSyncResult.message}\n`));
-	runAuditorFixAutoRemediation(projectRoot, options.silent);
-	const minEnforcement = enforceHostMinimumDependencies(projectRoot, options.silent);
-	if (!minEnforcement.ok) return {
-		success: false,
-		projectRoot,
-		previousVersion,
-		newVersion,
-		updated,
-		error: minEnforcement.error
-	};
-	const setupHealthy = runAuditorSetupCheck(projectRoot, options.silent);
-	if (!options.silent) {
-		if (setupHealthy) console.log(styleText("green", "[OK] Phase setup verification passed: Project infrastructure and satellite configurations are healthy.\n"));
-		else console.log(styleText("yellow", "[Warning] Phase setup reported unresolved configuration issues. Run \"npm run auditor:setup\" to inspect.\n"));
-		console.log(styleText("cyan", "[Tip] Run \"npm run auditor:config\" to discover new hardening opportunities and default settings for your project.\n"));
+	const handoffRes = tryHandoffToInstalledUpdater(projectRoot, {
+		silent: options.silent,
+		usedPeerBootstrap: installRes.usedPeerBootstrap
+	});
+	if (handoffRes.handled) {
+		if (!handoffRes.ok) {
+			restoreHostManifestSnapshot();
+			return {
+				success: false,
+				projectRoot,
+				previousVersion,
+				newVersion,
+				updated,
+				error: handoffRes.error
+			};
+		}
+		return {
+			success: true,
+			projectRoot,
+			previousVersion,
+			newVersion,
+			updated,
+			setupHealthy: true
+		};
+	}
+	const pipelineRes = runPostInstallPipeline(projectRoot, {
+		silent: options.silent,
+		usedPeerBootstrap: installRes.usedPeerBootstrap
+	});
+	if (!pipelineRes.ok) {
+		restoreHostManifestSnapshot();
+		return {
+			success: false,
+			projectRoot,
+			previousVersion,
+			newVersion,
+			updated,
+			error: pipelineRes.error
+		};
 	}
 	return {
 		success: true,
@@ -313,7 +469,7 @@ function updateAuditorPackage(options = {}) {
 		previousVersion,
 		newVersion,
 		updated,
-		setupHealthy
+		setupHealthy: pipelineRes.setupHealthy
 	};
 }
 function runHostAuditorSubprocess(projectRoot, options) {
@@ -430,6 +586,16 @@ const UPDATE_PACKAGE_ARGS = {
 		alias: "s",
 		default: false,
 		description: "Suppress console progress output"
+	},
+	postInstallHandoff: {
+		type: "boolean",
+		default: false,
+		description: "Internal flag: execute post-install pipeline from newly installed package"
+	},
+	usedPeerBootstrap: {
+		type: "boolean",
+		default: false,
+		description: "Internal flag: indicates Phase 1 used --legacy-peer-deps bootstrap"
 	}
 };
 function runCli() {
@@ -443,15 +609,19 @@ function runCli() {
 	const targetVersion = typeof parsed.targetVersion === "string" && parsed.targetVersion !== "help" ? parsed.targetVersion : void 0;
 	const silent = Boolean(parsed.silent);
 	const isHuman = resolveHumanModeFromArgs(parsed);
+	const postInstallHandoff = Boolean(parsed.postInstallHandoff);
 	const result = updateAuditorPackage({
 		targetVersion,
 		silent,
-		checkOnly: isCheckMode
+		checkOnly: isCheckMode,
+		postInstallHandoff,
+		usedPeerBootstrap: Boolean(parsed.usedPeerBootstrap)
 	});
 	if (!result.success) {
 		console.error(styleText("red", `\n[Error] Failed to ${isCheckMode ? "check" : "update"} @francogp/auditor: ${result.error}`));
 		process.exit(1);
 	}
+	if (postInstallHandoff) process.exit(0);
 	if (isCheckMode) {
 		if (!isHuman) {
 			const status = result.updateAvailable ? "UPDATE-AVAILABLE" : "UP-TO-DATE";
@@ -536,4 +706,4 @@ if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();
 	runCli();
 }
-export { compareTagsDescending, extractTagsFromLsRemote, findHostProjectRoot, parseTagSemver, preSyncHostPackageJson, readInstalledAuditorVersion, renderUpdateHelp, resolveLatestAuditorTag, runAuditorFixAutoRemediation, runAuditorSetupCheck, runCli, updateAuditorPackage };
+export { compareTagsDescending, extractTagsFromLsRemote, findHostProjectRoot, isEresolveErrorOutput, parseTagSemver, preSyncHostPackageJson, readInstalledAuditorVersion, renderUpdateHelp, resolveLatestAuditorTag, runAuditorFixAutoRemediation, runAuditorSetupCheck, runCli, updateAuditorPackage };

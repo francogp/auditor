@@ -23,6 +23,7 @@ import {
   resolveLatestAuditorTag,
   parseTagSemver,
   compareTagsDescending,
+  isEresolveErrorOutput,
   extractTagsFromLsRemote,
   renderUpdateHelp,
   runCli,
@@ -855,5 +856,147 @@ describe('preSyncHostPackageJson', () => {
       'vite-plus@^99.0.0',
       '@vitest/coverage-v8@^99.0.0'
     ]);
+  });
+
+  it('recovers from ERESOLVE during initial install via --legacy-peer-deps bootstrap and strict reconciliation', () => {
+    expect(isEresolveErrorOutput('npm error code ERESOLVE\nConflicting peer dependency')).toBe(
+      true
+    );
+    expect(isEresolveErrorOutput('ERR! network timeout')).toBe(false);
+
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'host-eresolve-recovery',
+        devDependencies: {
+          '@francogp/auditor': 'github:francogp/auditor#v10.13.0',
+          '@vitest/coverage-v8': '^5.1.0'
+        }
+      })
+    );
+
+    const npmInstallCalls: string[][] = [];
+    const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation((_cmd, args) => {
+      const argList = Array.isArray(args) ? args.map(String) : [];
+      if (argList[0] === 'install') {
+        npmInstallCalls.push(argList);
+        if (
+          argList.includes('github:francogp/auditor#v99.0.0') &&
+          !argList.includes('--legacy-peer-deps')
+        ) {
+          return {
+            status: 1,
+            stdout: Buffer.from(''),
+            stderr: Buffer.from('npm error code ERESOLVE\nnpm error Conflicting peer dependency'),
+            output: [],
+            pid: 1234,
+            signal: null
+          };
+        }
+        const hostAuditorPkgDir = path.join(dir, 'node_modules/@francogp/auditor');
+        fs.mkdirSync(hostAuditorPkgDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(hostAuditorPkgDir, 'package.json'),
+          JSON.stringify({
+            name: '@francogp/auditor',
+            version: '99.0.0',
+            peerDependencies: { '@vitest/coverage-v8': '>=99.0.0 <99.1.0' }
+          })
+        );
+      }
+      return {
+        status: 0,
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        output: [],
+        pid: 1234,
+        signal: null
+      };
+    });
+
+    const result = updateAuditorPackage({ cwd: dir, targetVersion: 'v99.0.0', silent: true });
+    spy.mockRestore();
+
+    expect(result.success).toBe(true);
+    expect(npmInstallCalls).toContainEqual(['install', '-D', 'github:francogp/auditor#v99.0.0']);
+    expect(npmInstallCalls).toContainEqual([
+      'install',
+      '-D',
+      '--legacy-peer-deps',
+      'github:francogp/auditor#v99.0.0'
+    ]);
+    expect(npmInstallCalls).toContainEqual(['install', '--no-audit', '--no-fund']);
+  });
+
+  it('hands off post-install pipeline via --post-install-handoff when installed dist updater exists and rolls back on failure', () => {
+    const originalPkg = JSON.stringify({
+      name: 'host-handoff-test',
+      devDependencies: {
+        '@francogp/auditor': 'github:francogp/auditor#v10.13.0'
+      }
+    });
+    fs.writeFileSync(path.join(dir, 'package.json'), originalPkg);
+
+    const installedUpdater = path.join(
+      dir,
+      'node_modules/@francogp/auditor/dist/cli/update_package.js'
+    );
+    const spawnCalls: { cmd: string; args: string[] }[] = [];
+    let handoffShouldFail = false;
+
+    const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation((cmd, args) => {
+      const argList = Array.isArray(args) ? args.map(String) : [];
+      spawnCalls.push({ cmd: String(cmd), args: argList });
+      if (argList[0] === 'install') {
+        fs.mkdirSync(path.dirname(installedUpdater), { recursive: true });
+        fs.writeFileSync(installedUpdater, '// compiled updater stub');
+        fs.writeFileSync(
+          path.join(dir, 'node_modules/@francogp/auditor/package.json'),
+          JSON.stringify({ name: '@francogp/auditor', version: '99.0.0' })
+        );
+        fs.writeFileSync(
+          path.join(dir, 'package.json'),
+          JSON.stringify({
+            name: 'host-handoff-test',
+            devDependencies: { '@francogp/auditor': 'github:francogp/auditor#v99.0.0' }
+          })
+        );
+      }
+      if (argList.includes('--post-install-handoff') && handoffShouldFail) {
+        return {
+          status: 1,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from('handoff failed'),
+          output: [],
+          pid: 1234,
+          signal: null
+        };
+      }
+      return {
+        status: 0,
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        output: [],
+        pid: 1234,
+        signal: null
+      };
+    });
+
+    const okResult = updateAuditorPackage({ cwd: dir, targetVersion: 'v99.0.0', silent: true });
+    expect(okResult.success).toBe(true);
+    expect(
+      spawnCalls.some(
+        (c) => c.args[0] === installedUpdater && c.args.includes('--post-install-handoff')
+      )
+    ).toBe(true);
+
+    handoffShouldFail = true;
+    fs.writeFileSync(path.join(dir, 'package.json'), originalPkg);
+    const failResult = updateAuditorPackage({ cwd: dir, targetVersion: 'v99.0.0', silent: true });
+    spy.mockRestore();
+
+    expect(failResult.success).toBe(false);
+    expect(failResult.error).toContain('handoff failed');
+    expect(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8')).toBe(originalPkg);
   });
 });

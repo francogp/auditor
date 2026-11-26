@@ -10,6 +10,8 @@ export interface UpdateAuditorOptions {
   stopAt?: string;
   targetVersion?: string;
   checkOnly?: boolean;
+  readonly postInstallHandoff?: boolean;
+  readonly usedPeerBootstrap?: boolean;
 }
 export interface UpdateAuditorResult {
   success: boolean;
@@ -33,6 +35,7 @@ export declare function compareTagsDescending(tagA: string, tagB: string): numbe
 export declare function extractTagsFromLsRemote(stdout: string): string[];
 export declare function resolveLatestAuditorTag(repoUrl?: string): string;
 export declare function preSyncHostPackageJson(projectRoot: string): boolean;
+export declare function isEresolveErrorOutput(output: string): boolean;
 export declare function updateAuditorPackage(options?: UpdateAuditorOptions): UpdateAuditorResult;
 export declare function runAuditorSetupCheck(projectRoot: string, silent?: boolean): boolean;
 export declare function runAuditorFixAutoRemediation(projectRoot: string, silent?: boolean): boolean;
