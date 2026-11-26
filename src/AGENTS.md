@@ -1,6 +1,6 @@
 # Purpose
 
-Core source directory for `@francogp/auditor`. Contains framework foundations (`core/`), CLI runners and reporting tools (`cli/`), static code analyzers (`analyzers/`), Antigravity agent plugin registration (`plugin/`), isomorphic modal stack governance (`modals/`), and modular audit suites (`suites/`).
+Core source directory for `@francogp/auditor`. Contains framework foundations (`core/`), CLI runners and reporting tools (`cli/`), static code analyzers (`analyzers/`), Antigravity agent plugin registration (`plugin/`), isomorphic modal stack governance (`modals/`), unified Supabase Docker orchestration (`supabase/`), and modular audit suites (`suites/`).
 
 ## Ownership
 
@@ -37,4 +37,5 @@ Architecture & Tooling Engineers.
 - [`analyzers/AGENTS.md`](./analyzers/AGENTS.md): Specialized static analyzers (AST constant analysis, Z-index rules, DOX integrity, TypeScript AST helpers).
 - [`plugin/AGENTS.md`](./plugin/AGENTS.md): Antigravity plugin manifest discovery and agent hooks.
 - [`modals/AGENTS.md`](./modals/AGENTS.md): Browser-safe LIFO modal stack manager, monotonic Z-index bridge, DOM dismissal guards, and priority sequence queue (`@francogp/auditor/modals`).
+- [`supabase/AGENTS.md`](./supabase/AGENTS.md): Unified Supabase Docker stack generator, validator, migration runner, and PostgreSQL major-version upgrade orchestrator (`@francogp/auditor/supabase`).
 - [`suites/AGENTS.md`](./suites/AGENTS.md): Automated verification suites grouped by architectural families.

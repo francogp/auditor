@@ -467,7 +467,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
   });
 
   describe('Fallow Modern Capabilities & Flags Dispatching', () => {
-    it('dispatches --dupes-near and --dupes-mode when configured in fallow.duplicates', async () => {
+    it('dispatches --near and --mode when configured in fallow.duplicates', async () => {
       setAuditConfig(
         defineAuditConfig({
           name: 'validate-fallow-test',
@@ -492,8 +492,8 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       await auditor.runAudit();
 
       expect(dispatchedArgs.dupes).toBeDefined();
-      expect(dispatchedArgs.dupes).toContain('--dupes-near');
-      expect(dispatchedArgs.dupes).toContain('--dupes-mode');
+      expect(dispatchedArgs.dupes).toContain('--near');
+      expect(dispatchedArgs.dupes).toContain('--mode');
       expect(dispatchedArgs.dupes).toContain('semantic');
     });
 

@@ -75,6 +75,12 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     category: 'core'
   },
   {
+    name: 'auditor:supabase',
+    command: 'auditor-supabase',
+    description: 'Unified Supabase Docker stack orchestrator (remote, localFull, lite)',
+    category: 'core'
+  },
+  {
     name: 'auditor:by-file',
     command: 'auditor-by-file',
     description: 'Detailed breakdown of findings sorted by file and line',

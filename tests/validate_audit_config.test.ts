@@ -138,7 +138,9 @@ describe('ValidateAuditConfigAuditor', () => {
       'audit-config-ratchet-relaxation',
       'audit-config-duplicate-key',
       'audit-config-duplicate-entry',
-      'audit-config-missing-enabled'
+      'audit-config-missing-enabled',
+      'audit-config-untracked-style-root',
+      'audit-config-invalid-supabase-docker'
     ]);
   });
 
@@ -1250,5 +1252,34 @@ describe('migrateLegacyAuditConfig', () => {
     const depScript = PackageScriptRegistry.get('auditor:dependencies');
     expect(depScript).toBeDefined();
     expect(depScript?.command).toBe('auditor-dependencies');
+  });
+
+  it('flags untracked .scss/.css files outside stylesRoots and srcRoots via audit-config-untracked-style-root', async () => {
+    process.env.AUDIT_SUBPROCESS = 'true';
+    await fs.mkdir(path.join(root, '.auditor'), { recursive: true });
+    await fs.mkdir(path.join(root, 'src'), { recursive: true });
+    await fs.mkdir(path.join(root, 'public', 'css'), { recursive: true });
+    await fs.writeFile(
+      path.join(root, 'public', 'css', 'extra.scss'),
+      '.extra { color: red; }\n',
+      'utf-8'
+    );
+    await fs.writeFile(
+      path.join(root, '.auditor', 'audit.config.ts'),
+      `export default {
+        name: 'untracked-style-test',
+        paths: {
+          srcRoots: ['src'],
+          stylesRoots: []
+        }
+      };`,
+      'utf-8'
+    );
+
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: root, tasks: [] });
+    const res = await auditor.audit();
+    const findings = res.findings.filter((f) => f.ruleId === 'audit-config-untracked-style-root');
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.context).toBe('public/css');
   });
 });

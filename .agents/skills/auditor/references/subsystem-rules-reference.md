@@ -201,6 +201,7 @@ Governed by `validate_oxlint` (`@francogp/domain-type` GSAP rules) and `validate
 - **Universal GSAP Standard**: `gsapSleep` and `delayedCall` are universal standards for UI delays and animation timing across all projects, scaling deterministically with `timeScale(100)` during automated tests.
 - **GPU Transforms vs Layout Properties (`@francogp/domain-type/gsap-no-layout-properties`)**: UI animations must use GPU transforms (`scaleX`, `scaleY`, `x`, `y`, `Flip`). Static style applications are configured via `gsap.set()`, and variable collapsible content uses recognized zero-to-auto height transitions without escape hatches.
 - **Anti-Destruction Mandate for CSS/SCSS Transitions**: Developers and AI agents are strictly prohibited from deleting CSS/SCSS transitions (`transition: ...`) to pass audits or silence `gsap-banned-css-animations`. Interactive UI transitions must be cleanly migrated to GSAP tweens (`gsap.to`, `gsap.fromTo`, `useGSAP`). Deleting transitions without migration degrades UX and is treated as architectural sabotage.
+- **Conditional DOM→GSAP Migration Oxlint Rules (`gsap` in `package.json`)**: When `gsap` is declared in `package.json`, `validate_vite_plus_config` automatically projects 3 rules from `@francogp/domain-type` into `vite.config.ts` (and purges them when `gsap` is absent): `@francogp/domain-type/no-dom-intersection-reveal`, `@francogp/domain-type/no-scroll-mousemove-style-mutation` (excluding `requestAnimationFrame`), and `@francogp/domain-type/no-smooth-scroll-into-view`. Inspect remediation manuals via `npm run auditor:guide <ruleId>`.
 
 ---
 
@@ -236,12 +237,12 @@ Governed by `validate_oxlint` (`@francogp/domain-type` GSAP rules) and `validate
    - Flags redundant else branches after `return` or `throw`.
    - Flags premature abstraction wrappers.
    - Restricts massive switch branching (>10 cases).
-5. **`validate_scss_architecture.ts`** (`architecture` suite, 5 rules):
+5. **`validate_scss_architecture.ts`** (`architecture` suite, 21 rules):
    - Enforces SCSS preprocessor architecture across Single File Components.
-   - Governs `:deep()` selector scope.
-   - Prohibits obsolete non-standard spacing units (`pt`, `in`, `cm`, `mm`).
-   - Mandates design system theme token usage.
-   - Limits SCSS selector nesting depth (`<= 3` global, `<= 4` scoped).
+   - Governs `:deep()` selector scope, spacing grid tokens, theme tokens, and nesting depth (`<= 3` global, `<= 4` scoped).
+   - Enforces 8 auto-fixable modern CSS/SCSS rules (`MODERN_SCSS_RULES`).
+   - Enforces 3 universal CSS animation hygiene AST rules (`scss-transition-all`, `scss-layout-property-animation`, `scss-will-change-in-keyframes`) and 5 GSAP-conditional AST rules (`scss-gsap-transform-important`, `scss-gsap-smooth-scroll`, `scss-gsap-stagger-for-loop`, `scss-gsap-auto-alpha-candidate`, `scss-gsap-svg-stroke-animation`) active only when `gsap` is declared in `package.json`.
+   - Complementary Setup Guard (`validate_audit_config`, `phase: 'setup'`): `audit-config-untracked-style-root` flags `.scss`/`.css` files located outside `paths.stylesRoots` and `paths.srcRoots` (excluding `paths.testRoots`, `paths.e2eRoots`, `paths.demoRoots`, `coverage.exemptGlobs`, and `CANONICAL_SYSTEM_IGNORE_GLOBS`).
 
 ---
 

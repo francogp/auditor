@@ -1,5 +1,20 @@
 import { BaseEntityRegistry } from "./baseRegistry.js";
 // src/core/gitIgnoreRegistry.ts
+function normalizeSupabaseDir(config) {
+	return (config.supabaseDocker?.supabaseDir ?? "").trim().replaceAll("\\", "/").replace(/\/+$/u, "");
+}
+/**
+* Resolves dynamic `resolvePattern` / `resolveSamplePath` hooks on a `GitIgnoreRequirement`.
+*/
+function resolveGitIgnoreRequirement(requirement, config) {
+	const pattern = requirement.resolvePattern ? requirement.resolvePattern(config) : requirement.pattern;
+	const samplePath = requirement.resolveSamplePath ? requirement.resolveSamplePath(config) : requirement.samplePath;
+	return {
+		...requirement,
+		pattern,
+		samplePath
+	};
+}
 const CORE_GITIGNORE_REQUIREMENTS = [
 	{
 		id: "node_modules",
@@ -21,6 +36,22 @@ const CORE_GITIGNORE_REQUIREMENTS = [
 		samplePath: "npm-debug.log",
 		reason: "Execution logs and debug dump files from CLI and Node.js",
 		isApplicable: () => true
+	},
+	{
+		id: "supabase-docker-clone",
+		pattern: "",
+		reason: "Cloned official Supabase docker template managed by auditor-supabase",
+		isApplicable: (config) => Boolean(config.supabaseDocker?.enabled && normalizeSupabaseDir(config).length > 0),
+		resolvePattern: (config) => `${normalizeSupabaseDir(config)}/docker/`,
+		resolveSamplePath: (config) => `${normalizeSupabaseDir(config)}/docker/docker-compose.yml`
+	},
+	{
+		id: "supabase-docker-generated",
+		pattern: "",
+		reason: "Generated Supabase compose and per-server .env files managed by auditor-supabase",
+		isApplicable: (config) => Boolean(config.supabaseDocker?.enabled && normalizeSupabaseDir(config).length > 0),
+		resolvePattern: (config) => `${normalizeSupabaseDir(config)}/generated/`,
+		resolveSamplePath: (config) => `${normalizeSupabaseDir(config)}/generated/docker-compose.yml`
 	}
 ];
 var GitIgnoreRegistryImpl = class extends BaseEntityRegistry {
@@ -33,7 +64,7 @@ var GitIgnoreRegistryImpl = class extends BaseEntityRegistry {
 	* Registers a single gitignore requirement with validation.
 	*/
 	register(requirement) {
-		if (!requirement || !requirement.id || !requirement.pattern) return;
+		if (!requirement || !requirement.id || !requirement.pattern && !requirement.resolvePattern) return;
 		super.register(requirement);
 	}
 };
@@ -42,4 +73,4 @@ var GitIgnoreRegistryImpl = class extends BaseEntityRegistry {
 * Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
 */
 const GitIgnoreRegistry = new GitIgnoreRegistryImpl();
-export { CORE_GITIGNORE_REQUIREMENTS, GitIgnoreRegistry, GitIgnoreRegistryImpl };
+export { CORE_GITIGNORE_REQUIREMENTS, GitIgnoreRegistry, GitIgnoreRegistryImpl, resolveGitIgnoreRequirement };

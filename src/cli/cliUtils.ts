@@ -32,9 +32,22 @@ export function isMainModule(metaUrl: string, binaryAliases?: readonly string[])
         : realScript === targetPath;
     if (isExact) return true;
 
-    // Check base name without extension (supports .ts vs .js runtime variance)
+    const nmSegment = `${path.sep}node_modules${path.sep}`;
+    const nmBinSegment = `${path.sep}node_modules${path.sep}.bin${path.sep}`;
     const targetBase = path.basename(targetPath, path.extname(targetPath));
     const scriptBase = path.basename(realScript, path.extname(realScript));
+
+    if (targetPath.includes(nmSegment) !== realScript.includes(nmSegment)) {
+      if (
+        realScript.includes(nmBinSegment) &&
+        binaryAliases?.some((alias) => scriptBase.toLowerCase() === alias.toLowerCase())
+      ) {
+        return true;
+      }
+      return false;
+    }
+
+    // Check base name without extension (supports .ts vs .js runtime variance)
     if (targetBase.toLowerCase() === scriptBase.toLowerCase()) return true;
 
     if (

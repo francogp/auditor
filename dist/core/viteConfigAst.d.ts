@@ -54,14 +54,15 @@ export declare function areStringArraysEqual(a: readonly string[], b: readonly s
 export declare function buildPackAstObject(auditConfig?: AuditConfig, projectRoot?: string): ts.ObjectLiteralExpression;
 export declare function resolveDynamicTestExemptGlobs(auditConfig: AuditConfig): readonly string[];
 export declare function resolveDynamicDemoExemptGlobs(auditConfig: AuditConfig): readonly string[];
-export declare function resolveEffectiveLintOverrides(auditConfig: AuditConfig): readonly {
+export declare function resolveCanonicalLintRules(hasGsap: boolean): Readonly<Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>>;
+export declare function resolveEffectiveLintOverrides(auditConfig: AuditConfig, hasGsap?: boolean): readonly {
   readonly files: readonly string[];
   readonly rules?: Readonly<Record<string, unknown>>;
 }[];
 export declare function buildIgnorePatternsAst(ignores: readonly string[], lockedSkillsIgnores?: readonly string[]): ts.ArrayLiteralExpression;
 export declare function buildLockedSkillsVariableStatement(lockedSkillsIgnores: readonly string[]): ts.VariableStatement;
 export declare function collectCanonicalConfiguredRules(auditConfig: AuditConfig): ReadonlyMap<string, unknown>;
-export declare function buildLintAstObject(auditConfig: AuditConfig, lintIgnores: readonly string[], lockedSkillsIgnores?: readonly string[]): ts.ObjectLiteralExpression;
+export declare function buildLintAstObject(auditConfig: AuditConfig, lintIgnores: readonly string[], lockedSkillsIgnores?: readonly string[], hasGsap?: boolean): ts.ObjectLiteralExpression;
 export declare function buildFmtAstObject(auditConfig: AuditConfig, fmtIgnores: readonly string[], lockedSkillsIgnores?: readonly string[]): ts.ObjectLiteralExpression;
 export declare function resolveVitestRoots(auditConfig: AuditConfig): readonly string[];
 export declare function buildTestAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression;

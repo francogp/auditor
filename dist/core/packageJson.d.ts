@@ -41,3 +41,8 @@ export declare function clearPackageJsonCache(): void;
  * Writes updated package.json to disk and refreshes the in-memory cache.
  */
 export declare function writePackageJson(projectRoot: string, data: PackageJsonDTO): void;
+/**
+ * Returns true if packageName is declared in dependencies or devDependencies
+ * of the project's package.json (returns false if package.json is absent).
+ */
+export declare function hasPackageDependency(projectRoot: string | undefined, packageName: string): boolean;

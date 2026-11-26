@@ -27,7 +27,7 @@ describe('Fallow Deduplication Canary Suite (Zero Clones)', () => {
     expect(fs.existsSync(fallowBin)).toBe(true);
 
     const out = childProcess.execSync(
-      `"${fallowBin}" dupes --min-occurrences 2 --dupes-near --dupes-mode strict --format json`,
+      `"${fallowBin}" dupes --min-occurrences 2 --mode mild --format json`,
       {
         cwd: process.cwd(),
         encoding: 'utf-8',

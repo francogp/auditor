@@ -46,7 +46,13 @@ describe('Auditor Manifest & Introspection Registry', () => {
     expect(manifest.rules['audit-config-duplicate-key']).toBe('Duplicate property in config');
     expect(manifest.rules['audit-config-duplicate-entry']).toBe('Duplicate entry in array');
     expect(manifest.rules['audit-config-missing-enabled']).toBe('Subsystem missing enabled');
-    expect(Object.keys(manifest.rules)).toHaveLength(12);
+    expect(manifest.rules['audit-config-untracked-style-root']).toBe(
+      'Untracked style root outside config'
+    );
+    expect(manifest.rules['audit-config-invalid-supabase-docker']).toBe(
+      'Invalid supabaseDocker configuration'
+    );
+    expect(Object.keys(manifest.rules)).toHaveLength(14);
   });
 
   it('rejects descriptions exceeding 60 characters or containing newlines in BaseAuditor', () => {

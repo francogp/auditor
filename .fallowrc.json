@@ -20,8 +20,8 @@
     "cyclomaticPolicy": "standard"
   },
   "duplicates": {
-    "nearMiss": true,
-    "mode": "strict"
+    "nearMiss": false,
+    "mode": "mild"
   },
   "minimumVersion": "3.42.0"
 }

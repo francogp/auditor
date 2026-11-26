@@ -416,6 +416,8 @@ export interface GitIgnoreRequirement {
   readonly samplePath?: string;
   readonly reason: string;
   readonly isApplicable?: (config: AuditEngineConfig) => boolean;
+  readonly resolvePattern?: (config: AuditEngineConfig) => string;
+  readonly resolveSamplePath?: (config: AuditEngineConfig) => string;
 }
 
 /**

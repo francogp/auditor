@@ -44,6 +44,9 @@ import { findForbiddenSuppressions } from "./suppressionDirectives.js";
 * 35. no-insecure-random: Forbids Math.random() for sensitive tokens, IDs or cryptography.
 * 36. no-permissive-cors: Forbids wildcard '*' in Access-Control-Allow-Origin.
 * 37. no-unvalidated-redirect: Forbids open redirects with unvalidated parameters.
+* 38. no-dom-intersection-reveal: Forbids IntersectionObserver DOM reveal mutations (use GSAP ScrollTrigger).
+* 39. no-scroll-mousemove-style-mutation: Forbids scroll/pointer style mutations (use GSAP quickTo/ScrollTrigger).
+* 40. no-smooth-scroll-into-view: Forbids smooth scrollIntoView() (use GSAP ScrollToPlugin).
 *
 * All rules strictly inspect AST nodes without bypass comments (Zero-Ignore Mandate).
 * INVARIANT: Zero hardcoded directory names or folder paths. Rules MUST be pure AST visitors;
@@ -1900,7 +1903,126 @@ const domainTypeOxlintPlugin = {
 					}
 				} };
 			}
+		},
+		"no-dom-intersection-reveal": {
+			meta: {
+				type: "problem",
+				docs: { description: "Replace IntersectionObserver DOM reveal with ScrollTrigger" }
+			},
+			create(context) {
+				return { NewExpression(node) {
+					if (node.callee?.type !== "Identifier" || node.callee.name !== "IntersectionObserver") return;
+					const cb = node.arguments?.[0];
+					if (!cb || cb.type !== "ArrowFunctionExpression" && cb.type !== "FunctionExpression") return;
+					const mutation = findDomRevealMutationInInlineBody(cb.body);
+					if (mutation) context.report({
+						node: mutation,
+						message: "IntersectionObserver mutates DOM classList/style for scroll reveal. Use GSAP ScrollTrigger inside gsap.context(). Run: npm run auditor:guide @francogp/domain-type/no-dom-intersection-reveal"
+					});
+				} };
+			}
+		},
+		"no-scroll-mousemove-style-mutation": {
+			meta: {
+				type: "problem",
+				docs: { description: "Replace scroll/pointer style mutation with GSAP quickTo" }
+			},
+			create(context) {
+				return { CallExpression(node) {
+					if (node.callee?.type !== "MemberExpression" || node.callee.property?.name !== "addEventListener") return;
+					const eventArg = node.arguments?.[0];
+					const eventName = eventArg?.type === "Literal" && typeof eventArg.value === "string" ? eventArg.value : "";
+					if (eventName !== "scroll" && eventName !== "mousemove" && eventName !== "pointermove") return;
+					const cb = node.arguments?.[1];
+					if (!cb || cb.type !== "ArrowFunctionExpression" && cb.type !== "FunctionExpression") return;
+					const mutation = findDirectStyleMutationInListenerBody(cb.body);
+					if (mutation) context.report({
+						node: mutation,
+						message: `Direct inline style mutation inside '${eventName}' listener causes layout/paint thrashing. Use gsap.quickTo() or ScrollTrigger. Run: npm run auditor:guide @francogp/domain-type/no-scroll-mousemove-style-mutation`
+					});
+				} };
+			}
+		},
+		"no-smooth-scroll-into-view": {
+			meta: {
+				type: "problem",
+				docs: { description: "Replace smooth scrollIntoView with GSAP ScrollToPlugin" }
+			},
+			create(context) {
+				return { CallExpression(node) {
+					if (node.callee?.type !== "MemberExpression" || node.callee.property?.name !== "scrollIntoView") return;
+					const firstArg = node.arguments?.[0];
+					if (firstArg?.type !== "ObjectExpression") return;
+					if ((firstArg.properties ?? []).some((prop) => {
+						if (getNodePropKeyName(prop) !== "behavior") return false;
+						const propVal = prop.value;
+						return propVal?.type === "Literal" && propVal.value === "smooth";
+					})) context.report({
+						node,
+						message: "scrollIntoView({ behavior: \"smooth\" }) conflicts with GSAP ScrollTrigger/ScrollSmoother. Use GSAP ScrollToPlugin. Run: npm run auditor:guide @francogp/domain-type/no-smooth-scroll-into-view"
+					});
+				} };
+			}
 		}
 	}
 };
+function isStyleMemberExpression(node) {
+	if (!node || node.type !== "MemberExpression") return false;
+	if (node.property?.name === "style") return true;
+	return isStyleMemberExpression(node.object);
+}
+function isClassListAddOrToggleCall(node) {
+	if (node.type !== "CallExpression") return false;
+	const callee = node.callee;
+	if (callee?.type !== "MemberExpression") return false;
+	const method = callee.property?.name;
+	if (method !== "add" && method !== "toggle") return false;
+	return callee.object?.type === "MemberExpression" && callee.object.property?.name === "classList";
+}
+function isStyleSetPropertyCall(node) {
+	if (node.type !== "CallExpression") return false;
+	const callee = node.callee;
+	if (callee?.type !== "MemberExpression" || callee.property?.name !== "setProperty") return false;
+	return callee.object?.type === "MemberExpression" && callee.object.property?.name === "style";
+}
+function walkAstSubtree(root, visitor) {
+	if (!root || typeof root !== "object") return;
+	if (Array.isArray(root)) {
+		for (const item of root) walkAstSubtree(item, visitor);
+		return;
+	}
+	const astNode = root;
+	if (typeof astNode.type === "string") {
+		const decision = visitor(astNode);
+		if (decision === "stop" || decision === "skip") return;
+	}
+	for (const [key, val] of Object.entries(astNode)) {
+		if (key === "parent" || key === "range" || key === "loc") continue;
+		if (val && typeof val === "object") walkAstSubtree(val, visitor);
+	}
+}
+function findFirstMatchingAstNode(body, matches, shouldSkip) {
+	let matched = null;
+	walkAstSubtree(body, (node) => {
+		if (matched) return "stop";
+		if (shouldSkip?.(node)) return "skip";
+		if (matches(node)) {
+			matched = node;
+			return "stop";
+		}
+	});
+	return matched;
+}
+function findDomRevealMutationInInlineBody(body) {
+	return findFirstMatchingAstNode(body, (node) => isClassListAddOrToggleCall(node) || node.type === "AssignmentExpression" && isStyleMemberExpression(node.left));
+}
+function isRequestAnimationFrameCall(node) {
+	if (node.type !== "CallExpression" || !node.callee) return false;
+	if (node.callee.type === "Identifier") return node.callee.name === "requestAnimationFrame";
+	if (node.callee.type === "MemberExpression" && node.callee.object?.type === "Identifier" && (node.callee.object.name === "window" || node.callee.object.name === "globalThis") && node.callee.property?.type === "Identifier") return node.callee.property.name === "requestAnimationFrame";
+	return false;
+}
+function findDirectStyleMutationInListenerBody(body) {
+	return findFirstMatchingAstNode(body, (node) => isStyleSetPropertyCall(node) || node.type === "AssignmentExpression" && isStyleMemberExpression(node.left), isRequestAnimationFrameCall);
+}
 export { CANONICAL_INFRA_ID_WHITELIST, COMMON_NON_DOMAIN_SET_NAMES, NON_DOMAIN_COLLECTION_KEYWORDS, NON_DOMAIN_COLLECTION_REGEX, domainTypeOxlintPlugin as default, domainTypeOxlintPlugin };

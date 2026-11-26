@@ -1,4 +1,5 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
@@ -22,7 +23,11 @@ import fs from "node:fs";
 *   4. Preserves custom patterns and comments without destruction.
 */
 enableCompileCache();
-const DOCKER_CONFIG_RULES = ["dockerignore-missing", "dockerignore-missing-pattern"];
+const DOCKER_CONFIG_RULES = [
+	"dockerignore-missing",
+	"dockerignore-missing-pattern",
+	"dockerignore-missing-supabase-pattern"
+];
 const MANDATORY_DOCKER_IGNORE_PATTERNS = [
 	"node_modules",
 	".git",
@@ -85,6 +90,11 @@ const DOCKER_CONFIG_REQUIREMENT = {
 	isApplicable: (_config, projectRoot) => isDockerProjectContext(projectRoot),
 	generateDefaultContent: () => CANONICAL_DOCKERIGNORE_CONTENT
 };
+function collectMissingDockerignorePatterns(patterns, existingPatterns) {
+	const missing = [];
+	for (const pattern of patterns) if (!(existingPatterns.has(pattern) || pattern.endsWith("*") && [...existingPatterns].some((ep) => ep.startsWith(pattern.slice(0, -1))))) missing.push(pattern);
+	return missing;
+}
 var ValidateDockerConfigAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot ?? process.cwd();
@@ -121,11 +131,13 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			ruleDescriptions: {
 				"dockerignore-missing": "Missing .dockerignore file",
-				"dockerignore-missing-pattern": "Missing critical pattern in .dockerignore"
+				"dockerignore-missing-pattern": "Missing critical pattern in .dockerignore",
+				"dockerignore-missing-supabase-pattern": "Missing Supabase .dockerignore pattern"
 			},
 			ruleRemediations: {
 				"dockerignore-missing": "📖 REMEDIATION GUIDE: dockerignore-missing\n1. Root Cause: The project contains Dockerfile or compose files but lacks a `.dockerignore` file, leading to excessive build context and secret leaks.\n2. Diagnosis: Check project root for `.dockerignore`.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to automatically scaffold the canonical `.dockerignore` file.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
-				"dockerignore-missing-pattern": "📖 REMEDIATION GUIDE: dockerignore-missing-pattern\n1. Root Cause: Critical ignore patterns (`node_modules`, `.git`, `scratch`, `.env*`) are missing from `.dockerignore`.\n2. Diagnosis: Inspect existing `.dockerignore` against mandatory exclusions.\n3. Canonical Solution: Run `npm run auditor:fix` to append missing patterns without modifying existing rules.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
+				"dockerignore-missing-pattern": "📖 REMEDIATION GUIDE: dockerignore-missing-pattern\n1. Root Cause: Critical ignore patterns (`node_modules`, `.git`, `scratch`, `.env*`) are missing from `.dockerignore`.\n2. Diagnosis: Inspect existing `.dockerignore` against mandatory exclusions.\n3. Canonical Solution: Run `npm run auditor:fix` to append missing patterns without modifying existing rules.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"dockerignore-missing-supabase-pattern": "📖 REMEDIATION GUIDE: dockerignore-missing-supabase-pattern\n1. Root Cause: `supabaseDocker.profiles.remote` is enabled, but `.dockerignore` is missing Supabase managed artifact exclusions (`docker`, `generated`, `.env*`).\n2. Diagnosis: Inspect `.dockerignore` for `<supabaseDir>/docker`, `<supabaseDir>/generated`, and `<supabaseDir>/.env*`.\n3. Canonical Solution: Run `npm run auditor:fix` to append missing Supabase exclusions under `# Supabase Docker managed artifacts`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: [".dockerignore", ...DOCKER_TRIGGER_PATTERNS] },
 			projectRoot
@@ -147,6 +159,7 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 			const ensured = await this.runSubAuditor("dockerignore-missing", () => this.ensureConfigFile(DOCKER_CONFIG_REQUIREMENT));
 			if (!ensured) {
 				this.markRuleNotApplicable("dockerignore-missing-pattern", "Missing .dockerignore file");
+				this.markRuleNotApplicable("dockerignore-missing-supabase-pattern", "Missing .dockerignore file");
 				return;
 			}
 			configFile = ensured.resolvedPath;
@@ -174,21 +187,46 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 		let modified = false;
 		const toAppend = [];
 		this.runSubAuditorSync("dockerignore-missing-pattern", () => {
-			for (const pattern of MANDATORY_DOCKER_IGNORE_PATTERNS) if (!(existingPatterns.has(pattern) || pattern.endsWith("*") && [...existingPatterns].some((ep) => ep.startsWith(pattern.slice(0, -1))))) {
-				if (isFix) {
-					toAppend.push(pattern);
+			const missingCore = collectMissingDockerignorePatterns(MANDATORY_DOCKER_IGNORE_PATTERNS, existingPatterns);
+			for (const pattern of missingCore) if (isFix) {
+				toAppend.push(pattern);
+				modified = true;
+			} else this.addViolation({
+				ruleId: "dockerignore-missing-pattern",
+				severity: "error",
+				file: relPath,
+				line: 1,
+				message: `Pattern "${pattern}" is mandatory in .dockerignore for security and isolation.`
+			});
+		});
+		const supabaseToAppend = [];
+		const supabaseDocker = getAuditConfig().supabaseDocker;
+		const trimmedSupabaseDir = supabaseDocker?.supabaseDir?.trim() ?? "";
+		if (supabaseDocker?.enabled && supabaseDocker.profiles.remote?.enabled && trimmedSupabaseDir) {
+			const baseDir = normalizePosixPath(trimmedSupabaseDir).replace(/\/+$/u, "");
+			const requiredSupabasePatterns = [
+				`${baseDir}/docker`,
+				`${baseDir}/generated`,
+				`${baseDir}/.env*`
+			];
+			this.runSubAuditorSync("dockerignore-missing-supabase-pattern", () => {
+				const missingSupa = collectMissingDockerignorePatterns(requiredSupabasePatterns, existingPatterns);
+				for (const pattern of missingSupa) if (isFix) {
+					supabaseToAppend.push(pattern);
 					modified = true;
 				} else this.addViolation({
-					ruleId: "dockerignore-missing-pattern",
+					ruleId: "dockerignore-missing-supabase-pattern",
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: `Pattern "${pattern}" is mandatory in .dockerignore for security and isolation.`
+					message: `Pattern "${pattern}" is mandatory in .dockerignore when supabaseDocker.profiles.remote is enabled.`
 				});
-			}
-		});
-		if (isFix && modified && toAppend.length > 0) {
-			const addition = "\n" + toAppend.join("\n") + "\n";
+			});
+		} else this.runSubAuditorSync("dockerignore-missing-supabase-pattern", () => this.markRuleNotApplicable("dockerignore-missing-supabase-pattern", "supabaseDocker remote profile is not enabled"));
+		if (isFix && modified && (toAppend.length > 0 || supabaseToAppend.length > 0)) {
+			let addition = "";
+			if (toAppend.length > 0) addition += "\n" + toAppend.join("\n") + "\n";
+			if (supabaseToAppend.length > 0) addition += "\n# Supabase Docker managed artifacts\n" + supabaseToAppend.join("\n") + "\n";
 			fs.appendFileSync(resolvedPath, addition, "utf8");
 		}
 	}

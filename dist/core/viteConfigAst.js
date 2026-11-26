@@ -1,9 +1,10 @@
 import "./auditConfig.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
-import { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_GSAP_DOM_OFF_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, CANONICAL_GSAP_DOM_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { getEffectiveIgnoreGlobs, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
 import { isPatternContainedInGlobs } from "./globContainment.js";
+import { hasPackageDependency } from "./packageJson.js";
 import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import { getAllowedSatellitePathExcludes } from "./satelliteGlobMatcher.js";
 import path from "node:path";
@@ -509,7 +510,13 @@ function mergeDynamicOverride(effective, globs, canonicalRules, discriminatorRul
 		rules: { ...canonicalRules }
 	});
 }
-function resolveEffectiveLintOverrides(auditConfig) {
+function resolveCanonicalLintRules(hasGsap) {
+	return hasGsap ? {
+		...DEFAULT_CANONICAL_LINT_RULES,
+		...CANONICAL_GSAP_DOM_RULES
+	} : DEFAULT_CANONICAL_LINT_RULES;
+}
+function resolveEffectiveLintOverrides(auditConfig, hasGsap = false) {
 	const effective = (auditConfig.vitePlusConfig?.lint?.overrides ?? []).map((ov) => {
 		if (!ov.rules) return { files: ov.files };
 		const canonicalRules = {};
@@ -519,9 +526,17 @@ function resolveEffectiveLintOverrides(auditConfig) {
 			rules: canonicalRules
 		};
 	});
-	mergeDynamicOverride(effective, resolveDynamicTestExemptGlobs(auditConfig), CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, "vitest/prefer-to-be-truthy");
+	const testOverrideRules = hasGsap ? {
+		...CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES,
+		...CANONICAL_DYNAMIC_GSAP_DOM_OFF_RULES
+	} : CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES;
+	mergeDynamicOverride(effective, resolveDynamicTestExemptGlobs(auditConfig), testOverrideRules, "vitest/prefer-to-be-truthy");
 	mergeDynamicOverride(effective, resolveDynamicScriptExemptGlobs(auditConfig), CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, "no-console");
-	mergeDynamicOverride(effective, resolveDynamicDemoExemptGlobs(auditConfig), CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, "no-console");
+	const demoOverrideRules = hasGsap ? {
+		...CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES,
+		...CANONICAL_DYNAMIC_GSAP_DOM_OFF_RULES
+	} : CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES;
+	mergeDynamicOverride(effective, resolveDynamicDemoExemptGlobs(auditConfig), demoOverrideRules, "no-console");
 	const toolingFiles = auditConfig.paths?.toolingFiles ?? [];
 	if (toolingFiles.length > 0) mergeDynamicOverride(effective, toolingFiles, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, "typescript/no-floating-promises");
 	const loggerFiles = auditConfig.paths?.loggerFiles ?? [];
@@ -561,11 +576,11 @@ function collectCanonicalConfiguredRules(auditConfig) {
 	if (auditConfig.vitePlusConfig?.lint?.rules) for (const [k, v] of Object.entries(auditConfig.vitePlusConfig.lint.rules)) configured.set(toCanonicalLintRuleName(k), v);
 	return configured;
 }
-function buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores = []) {
+function buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores = [], hasGsap = false) {
 	const lintCfg = auditConfig.vitePlusConfig?.lint;
 	const typeAware = lintCfg?.typeAware ?? true;
 	const typeCheck = lintCfg?.typeCheck ?? true;
-	const mergedRules = { ...DEFAULT_CANONICAL_LINT_RULES };
+	const mergedRules = { ...resolveCanonicalLintRules(hasGsap) };
 	for (const [canonicalKey, ruleVal] of collectCanonicalConfiguredRules(auditConfig)) mergedRules[canonicalKey] = ruleVal;
 	const props = [ts.factory.createPropertyAssignment("options", valueToAstExpression({
 		typeAware,
@@ -575,7 +590,7 @@ function buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores = []) 
 	const configuredPlugins = lintCfg?.plugins ?? DEFAULT_VITE_PLUS_AUDIT_CONFIG.lint?.plugins ?? [];
 	if (configuredPlugins.length > 0) props.push(ts.factory.createPropertyAssignment("plugins", valueToAstExpression([...configuredPlugins])));
 	props.push(ts.factory.createPropertyAssignment("jsPlugins", valueToAstExpression(["@francogp/auditor/domain-type-plugin"])), ts.factory.createPropertyAssignment("rules", valueToAstExpression(mergedRules, true)), ts.factory.createPropertyAssignment("ignorePatterns", buildIgnorePatternsAst(lintIgnores, lockedSkillsIgnores)));
-	const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig);
+	const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig, hasGsap);
 	if (effectiveOverrides.length > 0) props.push(ts.factory.createPropertyAssignment("overrides", buildLintOverridesArrayAst(effectiveOverrides)));
 	return ts.factory.createObjectLiteralExpression(props, true);
 }
@@ -655,7 +670,8 @@ function buildCanonicalVitePlusAstSource(auditConfig, lintIgnores, fmtIgnores, l
 	const pluginsFileExists = projectRoot ? fs.existsSync(path.resolve(projectRoot, "vite.plugins.ts")) : false;
 	if (pluginsFileExists) rootProps.push(ts.factory.createShorthandPropertyAssignment(ts.factory.createIdentifier("plugins")));
 	if (isLibrary) rootProps.push(ts.factory.createPropertyAssignment("pack", buildPackAstObject(auditConfig, projectRoot)));
-	rootProps.push(ts.factory.createPropertyAssignment("run", buildRunAstObject(auditConfig)), ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores)), ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores, lockedSkillsIgnores)), legacyTestProperty ?? ts.factory.createPropertyAssignment("test", buildTestAstObject(auditConfig)), ts.factory.createPropertyAssignment("staged", buildStagedAstObject(auditConfig)));
+	const hasGsap = projectRoot ? hasPackageDependency(projectRoot, "gsap") : false;
+	rootProps.push(ts.factory.createPropertyAssignment("run", buildRunAstObject(auditConfig)), ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores, hasGsap)), ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores, lockedSkillsIgnores)), legacyTestProperty ?? ts.factory.createPropertyAssignment("test", buildTestAstObject(auditConfig)), ts.factory.createPropertyAssignment("staged", buildStagedAstObject(auditConfig)));
 	const importDecl = ts.factory.createImportDeclaration(void 0, ts.factory.createImportClause(false, void 0, ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, void 0, ts.factory.createIdentifier("defineConfig"))])), ts.factory.createStringLiteral("vite-plus", true));
 	const exportDefault = ts.factory.createExportAssignment(void 0, false, ts.factory.createCallExpression(ts.factory.createIdentifier("defineConfig"), void 0, [ts.factory.createObjectLiteralExpression(rootProps, true)]));
 	const statements = [importDecl];
@@ -837,7 +853,7 @@ function migrateLegacyLintRulesAst(rulesProps, sf) {
 		modified
 	};
 }
-function syncLintRulesAst(rulesProp, auditConfig, sf) {
+function syncLintRulesAst(rulesProp, auditConfig, sf, hasGsap = false) {
 	let rulesProps = [];
 	let rulesModified = false;
 	if (rulesProp && ts.isObjectLiteralExpression(rulesProp.initializer)) {
@@ -850,7 +866,8 @@ function syncLintRulesAst(rulesProp, auditConfig, sf) {
 	} else rulesModified = true;
 	const currentRuleMap = /* @__PURE__ */ new Map();
 	for (const rp of rulesProps) if (ts.isPropertyAssignment(rp)) currentRuleMap.set(getPropertyKeyName(rp.name, sf), astExpressionToValue(rp.initializer, sf));
-	for (const [ruleName, canonicalVal] of Object.entries(DEFAULT_CANONICAL_LINT_RULES)) if (!isRuleValueCompliant(ruleName, currentRuleMap.get(ruleName))) {
+	const canonicalLintRules = resolveCanonicalLintRules(hasGsap);
+	for (const [ruleName, canonicalVal] of Object.entries(canonicalLintRules)) if (!isRuleValueCompliant(ruleName, currentRuleMap.get(ruleName))) {
 		rulesProps = updateObjectProperty(rulesProps, ruleName, valueToAstExpression(canonicalVal), sf, true);
 		currentRuleMap.set(ruleName, canonicalVal);
 		rulesModified = true;
@@ -861,7 +878,7 @@ function syncLintRulesAst(rulesProp, auditConfig, sf) {
 		currentRuleMap.set(ruleName, ruleVal);
 		rulesModified = true;
 	}
-	const allowedRuleKeys = /* @__PURE__ */ new Set([...Object.keys(DEFAULT_CANONICAL_LINT_RULES), ...configuredRules.keys()]);
+	const allowedRuleKeys = /* @__PURE__ */ new Set([...Object.keys(canonicalLintRules), ...configuredRules.keys()]);
 	const purge = purgeOrphanLintRulesAst(rulesProps, currentRuleMap, allowedRuleKeys, sf);
 	if (purge.modified) {
 		rulesProps = purge.rulesProps;
@@ -911,7 +928,7 @@ function syncIgnorePatternsProperty(existingProp, requiredIgnores, sf, lockedSki
 		modified: true
 	};
 }
-function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf, lockedSkillsIgnores = []) {
+function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf, lockedSkillsIgnores = [], hasGsap = false) {
 	const dedup = deduplicateObjectProperties(lintObj.properties, sf);
 	let props = dedup.props;
 	let modified = dedup.modified;
@@ -948,7 +965,7 @@ function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf, lockedSkillsI
 		props = updateObjectProperty(props, "jsPlugins", pluginSync.expr, sf);
 		modified = true;
 	}
-	const syncedRules = syncLintRulesAst(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "rules", sf), auditConfig, sf);
+	const syncedRules = syncLintRulesAst(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "rules", sf), auditConfig, sf, hasGsap);
 	if (syncedRules.modified) {
 		props = updateObjectProperty(props, "rules", ts.factory.createObjectLiteralExpression(syncedRules.rulesProps, true), sf);
 		modified = true;
@@ -958,7 +975,7 @@ function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf, lockedSkillsI
 		props = updateObjectProperty(props, "ignorePatterns", ignoreSync.expr, sf);
 		modified = true;
 	}
-	const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig);
+	const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig, hasGsap);
 	if (effectiveOverrides && effectiveOverrides.length > 0) {
 		const ovProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "overrides", sf);
 		const currentOvVal = ovProp ? astExpressionToValue(ovProp.initializer, sf) : void 0;
@@ -1480,16 +1497,16 @@ function syncViteTestSection(rootProps, sf, auditConfig, legacyTestProp, project
 		modified: false
 	};
 }
-function syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmtIgnores, lockedSkillsIgnores = []) {
+function syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmtIgnores, lockedSkillsIgnores = [], hasGsap = false) {
 	let props = rootProps;
 	let modified = false;
 	const currentRoot = () => ts.factory.createObjectLiteralExpression(props, true);
 	const lintProp = findPropertyAssignment(currentRoot(), "lint", sf);
 	if (!lintProp || !ts.isObjectLiteralExpression(lintProp.initializer)) {
-		props = [...props, ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores))];
+		props = [...props, ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores, hasGsap))];
 		modified = true;
 	} else {
-		const syncedLint = syncLintSectionAst(lintProp.initializer, auditConfig, lintIgnores, sf, lockedSkillsIgnores);
+		const syncedLint = syncLintSectionAst(lintProp.initializer, auditConfig, lintIgnores, sf, lockedSkillsIgnores, hasGsap);
 		if (syncedLint.modified) {
 			props = updateObjectProperty(props, "lint", syncedLint.obj, sf);
 			modified = true;
@@ -1541,7 +1558,8 @@ function synchronizeViteConfigAst(fileContent, auditConfig, lintIgnores, fmtIgno
 	const testResult = syncViteTestSection(rootProps, sf, auditConfig, legacyTestProp, projectRoot);
 	rootProps = testResult.props;
 	if (testResult.modified) modified = true;
-	const lintFmtResult = syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmtIgnores, lockedSkillsIgnores);
+	const hasGsap = projectRoot ? hasPackageDependency(projectRoot, "gsap") : false;
+	const lintFmtResult = syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmtIgnores, lockedSkillsIgnores, hasGsap);
 	rootProps = lintFmtResult.props;
 	if (lintFmtResult.modified) modified = true;
 	if (sf.statements.some((stmt) => ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && stmt.moduleSpecifier.text === "vite")) modified = true;
@@ -2170,4 +2188,4 @@ function sanitizeEmptyCatchClausesInViteConfig(content) {
 		modified: true
 	};
 }
-export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, areStringArraysEqual, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildExpectedCoverageIncludeGlobs, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildPackEntryGlobs, buildRunAstObject, buildStagedAstObject, buildTestAstObject, collectCanonicalConfiguredRules, createPropertyNameNode, createVitePluginsImportDeclaration, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveDynamicDemoExemptGlobs, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, toCanonicalLintRuleName, valueToAstExpression };
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, areStringArraysEqual, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildExpectedCoverageIncludeGlobs, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildPackEntryGlobs, buildRunAstObject, buildStagedAstObject, buildTestAstObject, collectCanonicalConfiguredRules, createPropertyNameNode, createVitePluginsImportDeclaration, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveCanonicalLintRules, resolveDynamicDemoExemptGlobs, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, toCanonicalLintRuleName, valueToAstExpression };

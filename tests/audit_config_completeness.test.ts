@@ -399,5 +399,25 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
       expect(process.env.AUDIT_CONFIG_DATA).toBeUndefined();
       expect(process.env.AUDIT_ACTIVE_CONFIG_FILE).toBeUndefined();
     });
+
+    it('defaults supabaseDocker.enabled to false and preserves explicit supabaseDocker config', () => {
+      const defaultCfg = defineAuditConfig({ name: 'Default Supabase Check' });
+      expect(defaultCfg.supabaseDocker?.enabled).toBe(false);
+
+      const customCfg = defineAuditConfig({
+        name: 'Custom Supabase Check',
+        supabaseDocker: {
+          enabled: true,
+          projectSlug: 'demo',
+          upstreamRef: 'self-hosted/v0.8.5',
+          supabaseDir: 'supabase',
+          masterEnvFile: '.env',
+          postgres: { expectedMajor: 17 }
+        }
+      });
+      expect(customCfg.supabaseDocker?.enabled).toBe(true);
+      expect(customCfg.supabaseDocker?.projectSlug).toBe('demo');
+      expect(customCfg.supabaseDocker?.postgres.expectedMajor).toBe(17);
+    });
   });
 });

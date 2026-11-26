@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vite-plus/test';
 
+import { findRuleGuide } from '../src/cli/guideRenderer.ts';
+import type { AuditTaskDefinition } from '../src/core/auditContract.ts';
 import {
   domainTypeOxlintPlugin,
   type OxlintAstNode,
@@ -1000,6 +1002,41 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         }
       });
       expect(reports).toHaveLength(0);
+    });
+  });
+
+  describe('GSAP DOM Migration Oxlint Rules & Guide Lookup', () => {
+    it('resolves @francogp/domain-type/* GSAP migration guides with or without plugin prefix', () => {
+      const mockTasks: readonly AuditTaskDefinition[] = [
+        {
+          id: 'validate_oxlint',
+          name: 'Oxlint',
+          family: 'architecture',
+          description: 'Oxlint runner',
+          scriptPath: 'src/suites/architecture/validate_oxlint.ts',
+          command: 'node',
+          args: [],
+          icon: '🧹',
+          configKey: 'oxlint.enabled',
+          defaultConfig: { enabled: true },
+          criticalConfig: {},
+          ruleDescriptions: {},
+          ruleRemediations: {}
+        }
+      ];
+
+      const fullMatch = findRuleGuide(
+        mockTasks,
+        '@francogp/domain-type/no-dom-intersection-reveal'
+      );
+      const shortMatch = findRuleGuide(mockTasks, 'no-scroll-mousemove-style-mutation');
+      const scrollIntoViewMatch = findRuleGuide(mockTasks, 'no-smooth-scroll-into-view');
+
+      expect(fullMatch?.task.id).toBe('validate_oxlint');
+      expect(fullMatch?.remediation).toContain('ScrollTrigger');
+      expect(shortMatch?.ruleId).toBe('@francogp/domain-type/no-scroll-mousemove-style-mutation');
+      expect(shortMatch?.remediation).toContain('quickTo');
+      expect(scrollIntoViewMatch?.remediation).toContain('ScrollToPlugin');
     });
   });
 });

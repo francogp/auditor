@@ -4,6 +4,10 @@
  * TypeScript types and interfaces for the audit configuration contract.
  */
 
+import type { SupabaseDockerConfig } from '../supabase/supabaseConfigTypes.ts';
+
+export type { SupabaseDockerConfig };
+
 export const AUDITOR_DIR = '.auditor';
 export const AUDIT_CONFIG_FILE = `${AUDITOR_DIR}/audit.config.ts`; // Canonical relative configuration path constant
 export const AUDIT_CONFIG_JSON_FILE = `${AUDITOR_DIR}/audit.config.json`; // Canonical relative configuration path constant
@@ -826,6 +830,7 @@ export interface AuditEngineConfig {
   readonly securityHardening?: AuditSecurityHardeningConfig;
   readonly codeSimplification?: AuditCodeSimplificationConfig;
   readonly scssArchitecture?: AuditScssArchitectureConfig;
+  readonly supabaseDocker?: SupabaseDockerConfig;
   readonly customFamilies?: readonly CustomAuditFamilyConfig[];
   readonly extensions?: readonly string[];
   readonly presets?: Record<string, readonly string[]>;

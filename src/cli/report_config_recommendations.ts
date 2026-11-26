@@ -300,6 +300,13 @@ Options:
     console.log(
       `[Config Advisor] Checked: ${report.totalChecked} | Optimal: ${report.optimalCount} | Hardened: ${report.hardenedCount} | Recommendations: ${report.recommendationsCount}`
     );
+    if (report.hardenedCount > 0) {
+      for (const h of report.hardenedSettings) {
+        console.log(
+          `• [hardened] ${h.path}: current ${formatValuePreview(h.currentValue)}, default ${formatValuePreview(h.defaultValue)}`
+        );
+      }
+    }
     if (report.recommendationsCount > 0) {
       for (const rec of report.recommendations) {
         console.log(

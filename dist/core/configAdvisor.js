@@ -73,6 +73,10 @@ function handleMissingProperty(subsystem, currentPath, expectedVal, recommendati
 		impact: "hygiene"
 	});
 }
+function isOptInStrictBoolean(dotPath) {
+	const leaf = dotPath.split(".").pop() ?? dotPath;
+	return leaf === "typeAware" || /^(enforce|strict|require|check|verify)[A-Z]/.test(leaf) || leaf === "strict";
+}
 function handleBooleanProperty(subsystem, currentPath, values, recommendations, hardenedSettings) {
 	const { expectedVal, localVal } = values;
 	if (expectedVal === true && localVal === false) recommendations.push({
@@ -84,13 +88,24 @@ function handleBooleanProperty(subsystem, currentPath, values, recommendations, 
 		rationale: `Setting '${currentPath}' is disabled. Enabling it satisfies canonical @francogp/auditor active-by-default standards.`,
 		impact: "hardening"
 	});
-	else if (expectedVal === false && localVal === true) hardenedSettings.push({
-		path: currentPath,
-		subsystem,
-		currentValue: true,
-		defaultValue: false,
-		reason: `Setting '${currentPath}' is explicitly enabled by the project. Stricter than default. NEVER relax.`
-	});
+	else if (expectedVal === false && localVal === true) {
+		if (isOptInStrictBoolean(currentPath)) hardenedSettings.push({
+			path: currentPath,
+			subsystem,
+			currentValue: true,
+			defaultValue: false,
+			reason: `Setting '${currentPath}' is explicitly enabled by the project (stricter than default). NEVER relax.`
+		});
+		else recommendations.push({
+			path: currentPath,
+			subsystem,
+			kind: "default_drift",
+			currentValue: true,
+			recommendedValue: false,
+			rationale: `Setting '${currentPath}' is true while canonical recommended default is false. Consider aligning if this is not an intentional override.`,
+			impact: "hygiene"
+		});
+	}
 }
 function handleArrayProperty(subsystem, currentPath, expectedVal, localVal, recommendations, hardenedSettings) {
 	const isPluginArray = currentPath.endsWith("plugins");
@@ -109,16 +124,18 @@ function handleArrayProperty(subsystem, currentPath, expectedVal, localVal, reco
 			impact: "hardening"
 		});
 	}
-	const extraItems = localVal.filter((item) => !expectedVal.map(itemKey).includes(itemKey(item)));
-	if (extraItems.length > 0) {
-		const formattedSummary = extraItems.length <= 3 && extraItems.every((i) => typeof i !== "object" || i === null) ? `[${extraItems.map(itemKey).join(", ")}]` : `[+${extraItems.length} custom item(s)]`;
-		hardenedSettings.push({
-			path: currentPath,
-			subsystem,
-			currentValue: localVal,
-			defaultValue: expectedVal,
-			reason: `Project configured ${extraItems.length} additional custom item(s): ${formattedSummary}. Stricter than default baseline.`
-		});
+	if (isPluginArray) {
+		const extraItems = localVal.filter((item) => !expectedVal.map(itemKey).includes(itemKey(item)));
+		if (extraItems.length > 0) {
+			const formattedSummary = extraItems.length <= 3 && extraItems.every((i) => typeof i !== "object" || i === null) ? `[${extraItems.map(itemKey).join(", ")}]` : `[+${extraItems.length} custom item(s)]`;
+			hardenedSettings.push({
+				path: currentPath,
+				subsystem,
+				currentValue: localVal,
+				defaultValue: expectedVal,
+				reason: `Project configured ${extraItems.length} additional custom item(s): ${formattedSummary}. Stricter than default baseline.`
+			});
+		}
 	}
 }
 function handleNumericProperty(subsystem, currentPath, expectedVal, localVal, recommendations, hardenedSettings) {
@@ -162,30 +179,73 @@ function handleNumericProperty(subsystem, currentPath, expectedVal, localVal, re
 		});
 	}
 }
-function handleSeverityProperty(subsystem, currentPath, expectedVal, localVal, recommendations, hardenedSettings) {
-	const severityRank = {
+const ORDERED_ENUM_SCALES = [
+	{
 		error: 3,
 		warning: 2,
 		suggestion: 1
-	};
-	const expRank = severityRank[expectedVal];
-	const locRank = severityRank[localVal];
-	if (expRank === void 0 || locRank === void 0) return;
-	if (locRank < expRank) recommendations.push({
+	},
+	{
+		error: 3,
+		warn: 2,
+		off: 1
+	},
+	{
+		low: 4,
+		medium: 3,
+		high: 2,
+		critical: 1
+	}
+];
+const FREEFORM_STRING_EXACT_KEYS = /* @__PURE__ */ new Set([
+	"name",
+	"language",
+	"engine",
+	"packageManager",
+	"runtime",
+	"outputPath",
+	"version",
+	"preset"
+]);
+function isFreeformProjectString(dotPath) {
+	const leaf = dotPath.split(".").pop() ?? dotPath;
+	if (FREEFORM_STRING_EXACT_KEYS.has(leaf)) return true;
+	if (dotPath.startsWith("paths.")) return true;
+	return /(Path|File|Dir|Root|Roots|Url|Glob|Globs|Pattern|Patterns|Command|Commands|Cmd)$/.test(leaf);
+}
+function handleStringProperty(subsystem, currentPath, expectedVal, localVal, recommendations, hardenedSettings) {
+	if (localVal === expectedVal) return;
+	for (const rankMap of ORDERED_ENUM_SCALES) {
+		const expRank = rankMap[expectedVal];
+		const locRank = rankMap[localVal];
+		if (expRank === void 0 || locRank === void 0) continue;
+		if (locRank < expRank) recommendations.push({
+			path: currentPath,
+			subsystem,
+			kind: "relaxed_severity",
+			currentValue: localVal,
+			recommendedValue: expectedVal,
+			rationale: `Severity level '${currentPath}' ('${localVal}') is more permissive than canonical default ('${expectedVal}'). Raising to '${expectedVal}' prevents defect accumulation.`,
+			impact: "hardening"
+		});
+		else if (locRank > expRank) hardenedSettings.push({
+			path: currentPath,
+			subsystem,
+			currentValue: localVal,
+			defaultValue: expectedVal,
+			reason: `Severity level '${currentPath}' ('${localVal}') is stricter than default ('${expectedVal}'). NEVER relax.`
+		});
+		return;
+	}
+	if (isFreeformProjectString(currentPath)) return;
+	recommendations.push({
 		path: currentPath,
 		subsystem,
-		kind: "relaxed_severity",
+		kind: "default_drift",
 		currentValue: localVal,
 		recommendedValue: expectedVal,
-		rationale: `Severity level '${currentPath}' ('${localVal}') is more permissive than canonical default ('${expectedVal}'). Raising to '${expectedVal}' prevents defect accumulation.`,
-		impact: "hardening"
-	});
-	else if (locRank > expRank) hardenedSettings.push({
-		path: currentPath,
-		subsystem,
-		currentValue: localVal,
-		defaultValue: expectedVal,
-		reason: `Severity level '${currentPath}' ('${localVal}') is stricter than default ('${expectedVal}'). NEVER relax.`
+		rationale: `Setting '${currentPath}' is '${localVal}' while canonical recommended default is '${expectedVal}'. Consider aligning if this is not an intentional override.`,
+		impact: "hygiene"
 	});
 }
 /**
@@ -213,7 +273,7 @@ function evaluateAgnosticPropertyTree(subsystem, currentPath, expectedVal, local
 		return;
 	}
 	if (typeof expectedVal === "string" && typeof localVal === "string") {
-		handleSeverityProperty(subsystem, currentPath, expectedVal, localVal, recommendations, hardenedSettings);
+		handleStringProperty(subsystem, currentPath, expectedVal, localVal, recommendations, hardenedSettings);
 		return;
 	}
 	if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal) && typeof localVal === "object" && localVal !== null && !Array.isArray(localVal)) {

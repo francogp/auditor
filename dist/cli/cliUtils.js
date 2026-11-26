@@ -23,8 +23,14 @@ function isMainModule(metaUrl, binaryAliases) {
 		const targetPath = path.resolve(fileURLToPath(metaUrl));
 		const realScript = tryOrDefault(() => path.resolve(fs.realpathSync(scriptArg)), path.resolve(scriptArg));
 		if (process.platform === "win32" ? realScript.toLowerCase() === targetPath.toLowerCase() : realScript === targetPath) return true;
+		const nmSegment = `${path.sep}node_modules${path.sep}`;
+		const nmBinSegment = `${path.sep}node_modules${path.sep}.bin${path.sep}`;
 		const targetBase = path.basename(targetPath, path.extname(targetPath));
 		const scriptBase = path.basename(realScript, path.extname(realScript));
+		if (targetPath.includes(nmSegment) !== realScript.includes(nmSegment)) {
+			if (realScript.includes(nmBinSegment) && binaryAliases?.some((alias) => scriptBase.toLowerCase() === alias.toLowerCase())) return true;
+			return false;
+		}
 		if (targetBase.toLowerCase() === scriptBase.toLowerCase()) return true;
 		if (binaryAliases && binaryAliases.some((alias) => scriptBase.toLowerCase() === alias.toLowerCase())) return true;
 		return false;

@@ -1,7 +1,7 @@
 import { buildUnifiedExpectedConfigTree } from "../suites/architecture/validate_audit_config.js";
 import { AuditConfigAstViolation } from "./auditConfigAstValidator.js";
 import { AuditTaskDefinition } from "./auditContract.js";
-export type RecommendationKind = 'missing_section' | 'missing_property' | 'missing_elements' | 'missing_plugin' | 'relaxed_ceiling' | 'relaxed_floor' | 'relaxed_boolean' | 'relaxed_severity';
+export type RecommendationKind = 'missing_section' | 'missing_property' | 'missing_elements' | 'missing_plugin' | 'relaxed_ceiling' | 'relaxed_floor' | 'relaxed_boolean' | 'relaxed_severity' | 'default_drift';
 export interface ConfigRecommendation {
   readonly path: string;
   readonly subsystem: string;

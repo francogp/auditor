@@ -286,4 +286,98 @@ describe('configAdvisor - Unidirectional Configuration Hardening Engine', () => 
     expect(report.projectRoot).toBe(process.cwd());
     expect(report.totalChecked).toBeGreaterThan(0);
   });
+
+  it('recommends aligning enum/string and true-to-false boolean defaults via default_drift without treating freeform strings or strict opt-ins as drift', () => {
+    const rawConfigOverride: Record<string, unknown> = {
+      paths: {
+        ignoredDirs: ['deploy', 'supabase/docker']
+      },
+      documentation: {
+        enabled: true,
+        language: 'es'
+      },
+      dependencyVulnerabilities: {
+        enabled: true,
+        failOn: 'high'
+      },
+      scssArchitecture: {
+        enabled: true,
+        allowPixelArtSpacing: true
+      },
+      testCoverage: {
+        enabled: true,
+        runCommand: 'npm run test:coverage'
+      },
+      coverage: {
+        enabled: true,
+        exemptGlobs: [{ glob: 'deploy-*.sh', reason: 'Deploy helper' }]
+      },
+      fallow: {
+        enabled: true,
+        typeAware: true,
+        maxTargetPriority: 'critical',
+        duplicates: {
+          enabled: true,
+          nearMiss: true,
+          mode: 'strict'
+        },
+        viz: {
+          enabled: true,
+          outputPath: 'custom/map.html'
+        }
+      }
+    };
+
+    const report = evaluateProjectConfig(process.cwd(), {
+      rawConfigOverride,
+      tasks: []
+    });
+
+    const modeRec = report.recommendations.find((r) => r.path === 'fallow.duplicates.mode');
+    expect(modeRec?.kind).toBe('default_drift');
+    expect(modeRec?.currentValue).toBe('strict');
+    expect(modeRec?.recommendedValue).toBe('mild');
+
+    const nearRec = report.recommendations.find((r) => r.path === 'fallow.duplicates.nearMiss');
+    expect(nearRec?.kind).toBe('default_drift');
+    expect(nearRec?.currentValue).toBe(true);
+    expect(nearRec?.recommendedValue).toBe(false);
+
+    const pixelArtRec = report.recommendations.find(
+      (r) => r.path === 'scssArchitecture.allowPixelArtSpacing'
+    );
+    expect(pixelArtRec?.kind).toBe('default_drift');
+    expect(pixelArtRec?.currentValue).toBe(true);
+    expect(pixelArtRec?.recommendedValue).toBe(false);
+
+    const priorityRec = report.recommendations.find((r) => r.path === 'fallow.maxTargetPriority');
+    expect(priorityRec?.kind).toBe('relaxed_severity');
+    expect(priorityRec?.currentValue).toBe('critical');
+    expect(priorityRec?.recommendedValue).toBe('high');
+
+    const failOnRec = report.recommendations.find(
+      (r) => r.path === 'dependencyVulnerabilities.failOn'
+    );
+    expect(failOnRec).toBeUndefined();
+    const failOnHardened = report.hardenedSettings.find(
+      (h) => h.path === 'dependencyVulnerabilities.failOn'
+    );
+    expect(failOnHardened?.currentValue).toBe('high');
+    expect(failOnHardened?.defaultValue).toBe('critical');
+
+    const typeAwareRec = report.recommendations.find((r) => r.path === 'fallow.typeAware');
+    expect(typeAwareRec).toBeUndefined();
+    const typeAwareHardened = report.hardenedSettings.find((h) => h.path === 'fallow.typeAware');
+    expect(typeAwareHardened?.currentValue).toBe(true);
+
+    const outputPathRec = report.recommendations.find((r) => r.path === 'fallow.viz.outputPath');
+    const langRec = report.recommendations.find((r) => r.path === 'documentation.language');
+    const runCmdRec = report.recommendations.find((r) => r.path === 'testCoverage.runCommand');
+    expect(outputPathRec).toBeUndefined();
+    expect(langRec).toBeUndefined();
+    expect(runCmdRec).toBeUndefined();
+
+    expect(report.hardenedSettings.find((h) => h.path === 'paths.ignoredDirs')).toBeUndefined();
+    expect(report.hardenedSettings.find((h) => h.path === 'coverage.exemptGlobs')).toBeUndefined();
+  });
 });

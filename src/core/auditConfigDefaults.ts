@@ -4,6 +4,7 @@
  * Canonical default configuration schema and subsystem key collectors.
  */
 
+import { DEFAULT_SUPABASE_DOCKER_CONFIG } from '../supabase/supabaseConfigTypes.ts';
 import {
   type AuditEngineConfig,
   type AuditPathsConfig,
@@ -11,12 +12,17 @@ import {
   type DeepPartial,
   DEFAULT_MAX_AUDIT_STALENESS_MINUTES
 } from './auditConfigTypes.ts';
+import { GSAP_DOM_MIGRATION_RULE_IDS, type GsapDomMigrationRuleId } from './gsapMigrationGuides.ts';
 import { AUDITOR_VERSION } from './version.ts';
 
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 export const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
 export const DEFAULT_PRECOMPRESS_THRESHOLD_BYTES = 512;
+export const DEFAULT_FALLOW_DUPLICATES_SETTINGS = {
+  nearMiss: false,
+  mode: 'mild'
+} as const;
 
 const CANONICAL_CORE_DOMAIN_RULES: Readonly<Record<string, 'error'>> = {
   '@francogp/domain-type/no-double-cast-unknown': 'error',
@@ -105,6 +111,14 @@ const CANONICAL_GSAP_RULES: Readonly<Record<string, 'error'>> = {
   '@francogp/domain-type/no-nested-scrolltrigger': 'error',
   '@francogp/domain-type/no-scrolltrigger-markers-production': 'error'
 };
+
+export const CANONICAL_GSAP_DOM_RULES = Object.fromEntries(
+  GSAP_DOM_MIGRATION_RULE_IDS.map((rule) => [rule, 'error'] as const)
+) as Readonly<Record<GsapDomMigrationRuleId, 'error'>>;
+
+export const CANONICAL_DYNAMIC_GSAP_DOM_OFF_RULES = Object.fromEntries(
+  GSAP_DOM_MIGRATION_RULE_IDS.map((rule) => [rule, 'off'] as const)
+) as Readonly<Record<GsapDomMigrationRuleId, 'off'>>;
 
 const CANONICAL_AUDITOR_METADATA_RULES: Readonly<Record<string, 'error'>> = {
   '@francogp/domain-type/no-file-level-suppressions': 'error',
@@ -682,8 +696,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     showCascade: true,
     duplicates: {
       enabled: true,
-      nearMiss: true,
-      mode: 'strict'
+      ...DEFAULT_FALLOW_DUPLICATES_SETTINGS
     },
     viz: {
       enabled: true,
@@ -838,6 +851,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     enforceInAudit: true
   },
   customFamilies: [],
+  supabaseDocker: DEFAULT_SUPABASE_DOCKER_CONFIG,
   extensions: [],
   runner: {
     enabled: true,
@@ -890,6 +904,7 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'securityHardening',
     'codeSimplification',
     'scssArchitecture',
+    'supabaseDocker',
     'vitePlusConfig'
   ] as const;
   for (const k of keys) {

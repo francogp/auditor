@@ -174,5 +174,55 @@ describe('ValidateDockerConfigAuditor', () => {
         }
       }
     });
+
+    it('enforces dockerignore-missing-supabase-pattern when supabaseDocker.profiles.remote is enabled and auto-fixes', async () => {
+      const { defineAuditConfig, setAuditConfig, resetAuditConfig } =
+        await import('../src/core/auditConfig.ts');
+      fs.writeFileSync(path.join(tmpDir, 'Dockerfile'), 'FROM node:26-alpine\n', 'utf8');
+      fs.writeFileSync(path.join(tmpDir, '.dockerignore'), CANONICAL_DOCKERIGNORE_CONTENT, 'utf8');
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Supabase Remote Test',
+          supabaseDocker: {
+            enabled: true,
+            projectSlug: 'demo',
+            upstreamRef: 'self-hosted/v0.8.5',
+            supabaseDir: 'supabase',
+            masterEnvFile: '.env',
+            postgres: { expectedMajor: 17 },
+            profiles: {
+              remote: {
+                enabled: true,
+                includeLogs: false,
+                image: { user: 'u', repo: 'r', tag: 'latest' },
+                volumes: { shared: 's', dbData: 'd', dbConfig: 'c', storage: 'st' },
+                security: { bindLoopback: true }
+              }
+            }
+          }
+        })
+      );
+
+      try {
+        const checkAuditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });
+        const checkResult = await checkAuditor.audit();
+        expect(checkResult.status).toBe('failed');
+        const supaFindings = checkResult.findings.filter(
+          (f) => f.ruleId === 'dockerignore-missing-supabase-pattern'
+        );
+        expect(supaFindings).toHaveLength(3);
+
+        const fixAuditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });
+        const fixResult = await fixAuditor.fix();
+        expect(fixResult.summary.errors).toBe(0);
+        const updated = fs.readFileSync(path.join(tmpDir, '.dockerignore'), 'utf8');
+        expect(updated).toContain('supabase/docker');
+        expect(updated).toContain('supabase/generated');
+        expect(updated).toContain('supabase/.env*');
+      } finally {
+        resetAuditConfig();
+      }
+    });
   });
 });

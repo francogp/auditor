@@ -1,6 +1,6 @@
 import { ensureMandatoryDirectoriesExist } from "../../core/auditBootstrap.js";
 import "../../core/auditConfig.js";
-import { DEFAULT_SIMILAR_CODE_THRESHOLD } from "../../core/auditConfigDefaults.js";
+import { DEFAULT_FALLOW_DUPLICATES_SETTINGS, DEFAULT_SIMILAR_CODE_THRESHOLD } from "../../core/auditConfigDefaults.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { CANONICAL_RULE_SEVERITY_LEVELS } from "../../core/auditConfigTypes.js";
@@ -73,10 +73,7 @@ function createDefaultFallowConfigContent() {
 			"scratch/**",
 			"tests/**"
 		],
-		duplicates: {
-			nearMiss: true,
-			mode: "strict"
-		},
+		duplicates: { ...DEFAULT_FALLOW_DUPLICATES_SETTINGS },
 		health: { maxCrap: 0 }
 	}, null, 2) + "\n";
 }
@@ -503,8 +500,8 @@ function validateFallowWorkspaceDiagnostics(diagnostics, auditor, config) {
 }
 function projectDuplicatesConfig(fallow) {
 	const duplicatesCfg = {
-		nearMiss: fallow?.duplicates?.nearMiss ?? true,
-		mode: fallow?.duplicates?.mode ?? "strict"
+		nearMiss: fallow?.duplicates?.nearMiss ?? DEFAULT_FALLOW_DUPLICATES_SETTINGS.nearMiss,
+		mode: fallow?.duplicates?.mode ?? DEFAULT_FALLOW_DUPLICATES_SETTINGS.mode
 	};
 	if (fallow?.duplicates?.minLines !== void 0) duplicatesCfg["minLines"] = fallow.duplicates.minLines;
 	if (fallow?.duplicates?.minTokens !== void 0) duplicatesCfg["minTokens"] = fallow.duplicates.minTokens;
@@ -895,8 +892,7 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 				showCascade: true,
 				duplicates: {
 					enabled: true,
-					nearMiss: true,
-					mode: "strict"
+					...DEFAULT_FALLOW_DUPLICATES_SETTINGS
 				},
 				similarCode: {
 					enabled: true,

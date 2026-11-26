@@ -96,4 +96,3 @@ export * from './core/satelliteConfigParity.ts';
 export * from './core/domainCollections.ts';
 export * from './modals/index.ts';
 export * from './core/configAdvisor.ts';
-export * from './cli/report_config_recommendations.ts';

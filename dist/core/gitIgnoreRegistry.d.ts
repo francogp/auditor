@@ -1,5 +1,10 @@
+import { AuditEngineConfig } from "./auditConfigTypes.js";
 import { GitIgnoreRequirement } from "./auditContract.js";
 import { BaseEntityRegistry, IBaseEntityRegistry } from "./baseRegistry.js";
+/**
+ * Resolves dynamic `resolvePattern` / `resolveSamplePath` hooks on a `GitIgnoreRequirement`.
+ */
+export declare function resolveGitIgnoreRequirement(requirement: GitIgnoreRequirement, config: AuditEngineConfig): GitIgnoreRequirement;
 export declare const CORE_GITIGNORE_REQUIREMENTS: readonly GitIgnoreRequirement[];
 export type IGitIgnoreRegistry = IBaseEntityRegistry<GitIgnoreRequirement>;
 export declare class GitIgnoreRegistryImpl extends BaseEntityRegistry<GitIgnoreRequirement> implements IGitIgnoreRegistry {

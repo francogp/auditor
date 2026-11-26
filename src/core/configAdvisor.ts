@@ -35,7 +35,8 @@ export type RecommendationKind =
   | 'relaxed_ceiling'
   | 'relaxed_floor'
   | 'relaxed_boolean'
-  | 'relaxed_severity';
+  | 'relaxed_severity'
+  | 'default_drift';
 
 export interface ConfigRecommendation {
   readonly path: string;
@@ -177,6 +178,15 @@ function handleMissingProperty(
   });
 }
 
+function isOptInStrictBoolean(dotPath: string): boolean {
+  const leaf = dotPath.split('.').pop() ?? dotPath;
+  return (
+    leaf === 'typeAware' ||
+    /^(enforce|strict|require|check|verify)[A-Z]/.test(leaf) ||
+    leaf === 'strict'
+  );
+}
+
 function handleBooleanProperty(
   subsystem: string,
   currentPath: string,
@@ -196,13 +206,25 @@ function handleBooleanProperty(
       impact: 'hardening'
     });
   } else if (expectedVal === false && localVal === true) {
-    hardenedSettings.push({
-      path: currentPath,
-      subsystem,
-      currentValue: true,
-      defaultValue: false,
-      reason: `Setting '${currentPath}' is explicitly enabled by the project. Stricter than default. NEVER relax.`
-    });
+    if (isOptInStrictBoolean(currentPath)) {
+      hardenedSettings.push({
+        path: currentPath,
+        subsystem,
+        currentValue: true,
+        defaultValue: false,
+        reason: `Setting '${currentPath}' is explicitly enabled by the project (stricter than default). NEVER relax.`
+      });
+    } else {
+      recommendations.push({
+        path: currentPath,
+        subsystem,
+        kind: 'default_drift',
+        currentValue: true,
+        recommendedValue: false,
+        rationale: `Setting '${currentPath}' is true while canonical recommended default is false. Consider aligning if this is not an intentional override.`,
+        impact: 'hygiene'
+      });
+    }
   }
 }
 
@@ -245,19 +267,21 @@ function handleArrayProperty(
     }
   }
 
-  const extraItems = localVal.filter((item) => !expectedVal.map(itemKey).includes(itemKey(item)));
-  if (extraItems.length > 0) {
-    const formattedSummary =
-      extraItems.length <= 3 && extraItems.every((i) => typeof i !== 'object' || i === null)
-        ? `[${extraItems.map(itemKey).join(', ')}]`
-        : `[+${extraItems.length} custom item(s)]`;
-    hardenedSettings.push({
-      path: currentPath,
-      subsystem,
-      currentValue: localVal,
-      defaultValue: expectedVal,
-      reason: `Project configured ${extraItems.length} additional custom item(s): ${formattedSummary}. Stricter than default baseline.`
-    });
+  if (isPluginArray) {
+    const extraItems = localVal.filter((item) => !expectedVal.map(itemKey).includes(itemKey(item)));
+    if (extraItems.length > 0) {
+      const formattedSummary =
+        extraItems.length <= 3 && extraItems.every((i) => typeof i !== 'object' || i === null)
+          ? `[${extraItems.map(itemKey).join(', ')}]`
+          : `[+${extraItems.length} custom item(s)]`;
+      hardenedSettings.push({
+        path: currentPath,
+        subsystem,
+        currentValue: localVal,
+        defaultValue: expectedVal,
+        reason: `Project configured ${extraItems.length} additional custom item(s): ${formattedSummary}. Stricter than default baseline.`
+      });
+    }
   }
 }
 
@@ -318,7 +342,33 @@ function handleNumericProperty(
   }
 }
 
-function handleSeverityProperty(
+const ORDERED_ENUM_SCALES: readonly Readonly<Record<string, number>>[] = [
+  { error: 3, warning: 2, suggestion: 1 },
+  { error: 3, warn: 2, off: 1 },
+  { low: 4, medium: 3, high: 2, critical: 1 }
+];
+
+const FREEFORM_STRING_EXACT_KEYS: ReadonlySet<string> = new Set([
+  'name',
+  'language',
+  'engine',
+  'packageManager',
+  'runtime',
+  'outputPath',
+  'version',
+  'preset'
+]);
+
+function isFreeformProjectString(dotPath: string): boolean {
+  const leaf = dotPath.split('.').pop() ?? dotPath;
+  if (FREEFORM_STRING_EXACT_KEYS.has(leaf)) return true;
+  if (dotPath.startsWith('paths.')) return true;
+  return /(Path|File|Dir|Root|Roots|Url|Glob|Globs|Pattern|Patterns|Command|Commands|Cmd)$/.test(
+    leaf
+  );
+}
+
+function handleStringProperty(
   subsystem: string,
   currentPath: string,
   expectedVal: string,
@@ -326,30 +376,46 @@ function handleSeverityProperty(
   recommendations: ConfigRecommendation[],
   hardenedSettings: HardenedSetting[]
 ): void {
-  const severityRank: Record<string, number> = { error: 3, warning: 2, suggestion: 1 };
-  const expRank = severityRank[expectedVal];
-  const locRank = severityRank[localVal];
-  if (expRank === undefined || locRank === undefined) return;
+  if (localVal === expectedVal) return;
 
-  if (locRank < expRank) {
-    recommendations.push({
-      path: currentPath,
-      subsystem,
-      kind: 'relaxed_severity',
-      currentValue: localVal,
-      recommendedValue: expectedVal,
-      rationale: `Severity level '${currentPath}' ('${localVal}') is more permissive than canonical default ('${expectedVal}'). Raising to '${expectedVal}' prevents defect accumulation.`,
-      impact: 'hardening'
-    });
-  } else if (locRank > expRank) {
-    hardenedSettings.push({
-      path: currentPath,
-      subsystem,
-      currentValue: localVal,
-      defaultValue: expectedVal,
-      reason: `Severity level '${currentPath}' ('${localVal}') is stricter than default ('${expectedVal}'). NEVER relax.`
-    });
+  for (const rankMap of ORDERED_ENUM_SCALES) {
+    const expRank = rankMap[expectedVal];
+    const locRank = rankMap[localVal];
+    if (expRank === undefined || locRank === undefined) continue;
+
+    if (locRank < expRank) {
+      recommendations.push({
+        path: currentPath,
+        subsystem,
+        kind: 'relaxed_severity',
+        currentValue: localVal,
+        recommendedValue: expectedVal,
+        rationale: `Severity level '${currentPath}' ('${localVal}') is more permissive than canonical default ('${expectedVal}'). Raising to '${expectedVal}' prevents defect accumulation.`,
+        impact: 'hardening'
+      });
+    } else if (locRank > expRank) {
+      hardenedSettings.push({
+        path: currentPath,
+        subsystem,
+        currentValue: localVal,
+        defaultValue: expectedVal,
+        reason: `Severity level '${currentPath}' ('${localVal}') is stricter than default ('${expectedVal}'). NEVER relax.`
+      });
+    }
+    return;
   }
+
+  if (isFreeformProjectString(currentPath)) return;
+
+  recommendations.push({
+    path: currentPath,
+    subsystem,
+    kind: 'default_drift',
+    currentValue: localVal,
+    recommendedValue: expectedVal,
+    rationale: `Setting '${currentPath}' is '${localVal}' while canonical recommended default is '${expectedVal}'. Consider aligning if this is not an intentional override.`,
+    impact: 'hygiene'
+  });
 }
 
 /**
@@ -402,7 +468,7 @@ export function evaluateAgnosticPropertyTree(
     return;
   }
   if (typeof expectedVal === 'string' && typeof localVal === 'string') {
-    handleSeverityProperty(
+    handleStringProperty(
       subsystem,
       currentPath,
       expectedVal,

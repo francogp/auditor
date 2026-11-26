@@ -21,7 +21,7 @@ export interface MissingSectionEntry {
 export declare function computeMissingConfigDiff(expected: unknown, current: unknown, _isRootLevel?: boolean, rootKey?: string): unknown;
 export declare function extractMissingConfigPaths(prefix: string, missingTree: Record<string, unknown>, currentVal?: unknown): string[];
 export declare function collectMissingSections(tasks: readonly AuditTaskDefinition[], rawConfig: unknown, projectRoot?: string): Map<string, MissingSectionEntry>;
-export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field' | 'audit-config-critical-violation' | 'audit-config-unacknowledged-degradation' | 'audit-config-ratchet-relaxation' | 'audit-config-duplicate-key' | 'audit-config-duplicate-entry' | 'audit-config-missing-enabled';
+export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field' | 'audit-config-critical-violation' | 'audit-config-unacknowledged-degradation' | 'audit-config-ratchet-relaxation' | 'audit-config-duplicate-key' | 'audit-config-duplicate-entry' | 'audit-config-missing-enabled' | 'audit-config-untracked-style-root' | 'audit-config-invalid-supabase-docker';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
 export declare const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[];
 export interface ValidateAuditConfigOptions {
@@ -66,6 +66,7 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
   private verifyDomainPaths;
   private verifyStylesPaths;
   private verifyDomainAndStylePaths;
+  private verifyUntrackedStyleRoots;
   private resolveExtensionFiles;
   private reportInvalidExtension;
   private validateConstructorParams;

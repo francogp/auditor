@@ -1,3 +1,4 @@
+import { GSAP_MIGRATION_RULE_GUIDES } from "../core/gsapMigrationGuides.js";
 import { themeStyles } from "../core/unifiedTheme.js";
 import { styleText } from "node:util";
 import boxen from "boxen";
@@ -24,6 +25,17 @@ function findRuleGuide(allTasks, ruleIdOrName) {
 				task
 			};
 		}
+	}
+	const oxlintTask = allTasks.find((t) => t.id === "validate_oxlint");
+	if (oxlintTask) for (const [rId, guide] of Object.entries(GSAP_MIGRATION_RULE_GUIDES)) {
+		const lowerRId = rId.toLowerCase();
+		const shortId = lowerRId.replace(/^@francogp\/domain-type\//, "");
+		if (lowerRId === cleanId || lowerRId === normalizedClean || shortId === cleanId || shortId === normalizedClean) return {
+			ruleId: rId,
+			ruleDescription: guide.description,
+			remediation: guide.remediation,
+			task: oxlintTask
+		};
 	}
 }
 function renderRuleGuideCard(match, isVerbose = false) {

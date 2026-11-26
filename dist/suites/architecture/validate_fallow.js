@@ -1,8 +1,9 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
-import { isCliPath } from "../../core/auditCodeRoots.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { ensureMandatoryDirectoriesExist } from "../../core/auditBootstrap.js";
+import { isCliPath } from "../../core/auditCodeRoots.js";
 import "../../core/auditConfig.js";
+import { DEFAULT_FALLOW_DUPLICATES_SETTINGS } from "../../core/auditConfigDefaults.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
@@ -429,10 +430,7 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 				},
 				typeAware: false,
 				showCascade: true,
-				duplicates: {
-					nearMiss: true,
-					mode: "strict"
-				},
+				duplicates: { ...DEFAULT_FALLOW_DUPLICATES_SETTINGS },
 				viz: {
 					enabled: true,
 					outputPath: "scratch/fallow_map.html"
@@ -545,8 +543,8 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 		};
 		if (this.isRuleActiveForCurrentRun("fallow-duplicate-code")) {
 			const dupesArgs = [...FALLOW_DUPES_CONFIG];
-			if (config.fallow?.duplicates?.nearMiss !== false) dupesArgs.push("--dupes-near");
-			if (config.fallow?.duplicates?.mode) dupesArgs.push("--dupes-mode", config.fallow.duplicates.mode);
+			if (config.fallow?.duplicates?.nearMiss === true) dupesArgs.push("--near");
+			if (config.fallow?.duplicates?.mode) dupesArgs.push("--mode", config.fallow.duplicates.mode);
 			allFindings.push(...this.runFallowSubCommand("dupes", dupesArgs, ["fallow-duplicate-code"]));
 		}
 		if (this.isRuleActiveForCurrentRun("fallow-triplicate-code")) allFindings.push(...this.runFallowSubCommand("triplets", FALLOW_TRIPLETS_CONFIG, ["fallow-triplicate-code"]));

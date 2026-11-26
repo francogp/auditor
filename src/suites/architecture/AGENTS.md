@@ -84,7 +84,7 @@ Architecture & Tooling Engineers.
 - [`audit_rules.ts`](./audit_rules.ts): Declarative rules and violation definitions.
 - [`stylelintSassTrapsPlugin.ts`](./stylelintSassTrapsPlugin.ts): Native Stylelint plugin for Sass collision casing governance and auto-repair.
 - [`validate_agent_plugin.ts`](./validate_agent_plugin.ts): Antigravity agent plugin registration, skill frontmatter/asset syntax, and project-scoped skill ownership (`host-duplicate-auditor-skill`) verification.
-- [`validate_audit_config.ts`](./validate_audit_config.ts): Verification that 100% of paths in `audit.config.ts` exist, required configuration sections are declared, and dynamic `.gitignore` governance.
+- [`validate_audit_config.ts`](./validate_audit_config.ts): Verification that 100% of paths in `audit.config.ts` exist, required configuration sections are declared, `.scss`/`.css` files outside `paths.stylesRoots`/`paths.srcRoots` are explicitly tracked or exempted (`audit-config-untracked-style-root`), and dynamic `.gitignore` governance.
 - [`validate_package_scripts.ts`](./validate_package_scripts.ts): Verification of `package.json` scripts, mandatory 2-part build chaining, warning ratchet references and baseline defects, and automated repair of obsolete scripts.
 - [`validate_audit_coverage.ts`](./validate_audit_coverage.ts): Audit coverage ledger verifier ensuring 100% file coverage, blind-spot detection, and acknowledged policy degradations (evaluating `presentFiles` via `git ls-files --cached --others --exclude-standard` for exemption liveliness on untracked/Day-0 files).
 - [`validate_auditor_tests.ts`](./validate_auditor_tests.ts): Hermetic testing verifier ensuring clean path tests exist.

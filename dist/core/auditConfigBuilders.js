@@ -1,3 +1,4 @@
+import { DEFAULT_SUPABASE_DOCKER_CONFIG } from "../supabase/supabaseConfigTypes.js";
 import { assertCoverageReason, assertNarrowCoverageGlob, filterOutExemptRoots, getExemptRootsForPolicy } from "./auditConfigAntiAbuse.js";
 import { DEFAULT_AUDIT_CONFIG, DEFAULT_SQLITE_MIGRATIONS_DIR, collectDeclaredSubsystems } from "./auditConfigDefaults.js";
 import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES, CANONICAL_RULE_SEVERITY_LEVELS } from "./auditConfigTypes.js";
@@ -721,6 +722,109 @@ function buildRunnerConfig(runner) {
 		maxStalenessMinutes: runner?.maxStalenessMinutes ?? 5
 	};
 }
+function buildSupabaseRemoteProfile(remote) {
+	return {
+		enabled: remote.enabled ?? false,
+		includeLogs: remote.includeLogs ?? false,
+		image: {
+			registry: remote.image?.registry,
+			user: remote.image?.user ?? "",
+			repo: remote.image?.repo ?? "",
+			tag: remote.image?.tag ?? ""
+		},
+		volumes: {
+			shared: remote.volumes?.shared ?? "",
+			dbData: remote.volumes?.dbData ?? "",
+			dbConfig: remote.volumes?.dbConfig ?? "",
+			storage: remote.volumes?.storage ?? ""
+		},
+		security: { bindLoopback: remote.security?.bindLoopback ?? false },
+		...remote.postGenerateCommand !== void 0 ? { postGenerateCommand: remote.postGenerateCommand } : {}
+	};
+}
+function buildSupabaseLocalFullProfile(localFull) {
+	return {
+		enabled: localFull.enabled ?? false,
+		includeLogs: localFull.includeLogs ?? false,
+		realtimeTenantName: localFull.realtimeTenantName ?? "",
+		ports: {
+			api: localFull.ports?.api ?? 0,
+			postgres: localFull.ports?.postgres ?? 0,
+			pooler: localFull.ports?.pooler ?? 0,
+			studio: localFull.ports?.studio ?? 0
+		},
+		autoApplyMigrations: localFull.autoApplyMigrations ?? false
+	};
+}
+function collectStringEntries(source) {
+	const result = /* @__PURE__ */ new Map();
+	if (source instanceof Map) {
+		for (const [k, v] of source.entries()) if (typeof k === "string" && typeof v === "string") result.set(k, v);
+		return result;
+	}
+	if (typeof source === "object" && source !== null) {
+		for (const [k, v] of Object.entries(source)) if (typeof v === "string") result.set(k, v);
+	}
+	return result;
+}
+function buildSupabaseLiteEntry(entry) {
+	const schemas = (Array.isArray(entry.schemas) ? entry.schemas : []).filter((s) => typeof s === "string");
+	return {
+		enabled: entry.enabled ?? false,
+		storage: entry.storage === "tmpfs" ? "tmpfs" : "volume",
+		images: {
+			postgres: entry.images?.postgres ?? "",
+			postgrest: entry.images?.postgrest ?? "",
+			nginx: entry.images?.nginx ?? ""
+		},
+		ports: {
+			postgres: entry.ports?.postgres ?? 0,
+			gateway: entry.ports?.gateway ?? 0
+		},
+		schemas,
+		autoSyncMigrations: entry.autoSyncMigrations ?? false
+	};
+}
+function buildSupabaseLiteProfiles(liteMap) {
+	const result = /* @__PURE__ */ new Map();
+	const entries = liteMap instanceof Map ? [...liteMap.entries()] : typeof liteMap === "object" && liteMap !== null ? Object.entries(liteMap) : [];
+	for (const [key, entry] of entries) {
+		if (typeof key !== "string" || !entry || typeof entry !== "object") continue;
+		result.set(key, buildSupabaseLiteEntry(entry));
+	}
+	return result;
+}
+function buildSupabaseExtensions(ext) {
+	const extraEnvVars = collectStringEntries(ext.extraEnvVars);
+	return {
+		...ext.extraEnvVars ? { extraEnvVars } : {},
+		...ext.customComposeOverlay !== void 0 ? { customComposeOverlay: ext.customComposeOverlay } : {}
+	};
+}
+function buildSupabaseProfiles(profiles) {
+	if (!profiles) return {};
+	return {
+		...profiles.remote ? { remote: buildSupabaseRemoteProfile(profiles.remote) } : {},
+		...profiles.localFull ? { localFull: buildSupabaseLocalFullProfile(profiles.localFull) } : {},
+		...profiles.lite ? { lite: buildSupabaseLiteProfiles(profiles.lite) } : {}
+	};
+}
+function buildSupabaseDockerConfig(raw) {
+	if (!raw) return DEFAULT_SUPABASE_DOCKER_CONFIG;
+	return {
+		enabled: raw.enabled ?? false,
+		projectSlug: raw.projectSlug ?? "",
+		upstreamRef: raw.upstreamRef ?? "",
+		supabaseDir: raw.supabaseDir ?? "",
+		masterEnvFile: raw.masterEnvFile ?? "",
+		postgres: {
+			expectedMajor: raw.postgres?.expectedMajor ?? 0,
+			allowMajorUpgrade: raw.postgres?.allowMajorUpgrade ?? false
+		},
+		...raw.extensions ? { extensions: buildSupabaseExtensions(raw.extensions) } : {},
+		profiles: buildSupabaseProfiles(raw.profiles)
+	};
+}
 function defineAuditConfig(config) {
 	const declared = collectDeclaredSubsystems(config);
 	const agentAndSecurity = buildAgentAndSecurityConfig(config);
@@ -765,6 +869,7 @@ function defineAuditConfig(config) {
 		securityHardening: buildSecurityHardeningConfig(config.securityHardening),
 		codeSimplification: buildCodeSimplificationConfig(config.codeSimplification),
 		scssArchitecture: buildScssArchitectureConfig(config.scssArchitecture),
+		supabaseDocker: buildSupabaseDockerConfig(config.supabaseDocker),
 		types: buildTypesConfig(config.types),
 		encoding: buildEncodingConfig(config.encoding),
 		...agentAndSecurity,

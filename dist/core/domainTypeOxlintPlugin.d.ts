@@ -42,6 +42,9 @@
  * 35. no-insecure-random: Forbids Math.random() for sensitive tokens, IDs or cryptography.
  * 36. no-permissive-cors: Forbids wildcard '*' in Access-Control-Allow-Origin.
  * 37. no-unvalidated-redirect: Forbids open redirects with unvalidated parameters.
+ * 38. no-dom-intersection-reveal: Forbids IntersectionObserver DOM reveal mutations (use GSAP ScrollTrigger).
+ * 39. no-scroll-mousemove-style-mutation: Forbids scroll/pointer style mutations (use GSAP quickTo/ScrollTrigger).
+ * 40. no-smooth-scroll-into-view: Forbids smooth scrollIntoView() (use GSAP ScrollToPlugin).
  *
  * All rules strictly inspect AST nodes without bypass comments (Zero-Ignore Mandate).
  * INVARIANT: Zero hardcoded directory names or folder paths. Rules MUST be pure AST visitors;
@@ -734,6 +737,33 @@ export declare const domainTypeOxlintPlugin: {
       create(context: OxlintRuleContext): OxlintRuleListener;
     };
     'auditor-rule-description-limit': {
+      meta: {
+        type: string;
+        docs: {
+          description: string;
+        };
+      };
+      create(context: OxlintRuleContext): OxlintRuleListener;
+    };
+    'no-dom-intersection-reveal': {
+      meta: {
+        type: string;
+        docs: {
+          description: string;
+        };
+      };
+      create(context: OxlintRuleContext): OxlintRuleListener;
+    };
+    'no-scroll-mousemove-style-mutation': {
+      meta: {
+        type: string;
+        docs: {
+          description: string;
+        };
+      };
+      create(context: OxlintRuleContext): OxlintRuleListener;
+    };
+    'no-smooth-scroll-into-view': {
       meta: {
         type: string;
         docs: {

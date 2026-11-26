@@ -1,8 +1,9 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { MODERN_SCSS_RULES, analyzeModernScss } from "../../analyzers/scssModernAnalyzer.js";
+import { GSAP_SCSS_ANIMATION_RULES, MODERN_SCSS_RULES, SCSS_ANIMATION_RULES, UNIVERSAL_SCSS_ANIMATION_RULES, analyzeModernScss } from "../../analyzers/scssModernAnalyzer.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { hasPackageDependency } from "../../core/packageJson.js";
 import { stripCommentsAndStrings } from "../../core/scannerUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
@@ -16,7 +17,8 @@ const SCSS_ARCHITECTURE_RULES = [
 	"non-standard-spacing-unit",
 	"missing-theme-token-usage",
 	"excessive-scss-nesting",
-	...MODERN_SCSS_RULES
+	...MODERN_SCSS_RULES,
+	...SCSS_ANIMATION_RULES
 ];
 const SCANNABLE_EXTS = /* @__PURE__ */ new Set([
 	".scss",
@@ -24,9 +26,12 @@ const SCANNABLE_EXTS = /* @__PURE__ */ new Set([
 	".css"
 ]);
 var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
+	hasGsap;
+	gsapNotApplicableMarked = false;
 	constructor(options = {}) {
 		const scssRoots = resolveFileScanRoots(options);
 		const scssConfig = getAuditConfig(scssRoots.effectiveRoot);
+		const hasGsap = hasPackageDependency(scssRoots.effectiveRoot, "gsap");
 		super({
 			ruleFixers: {},
 			fixableRuleIds: [...MODERN_SCSS_RULES],
@@ -66,7 +71,15 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 				"typography-unclamped-viewport-font": "Unclamped vw/vh font-size breaks zoom",
 				"scss-flexbox-dead-properties": "Dead justify-self in flex container",
 				"scss-universal-expensive-selectors": "Expensive property on universal * rule",
-				"dark-mode-color-scheme-missing": "Dark mode missing root color-scheme"
+				"dark-mode-color-scheme-missing": "Dark mode missing root color-scheme",
+				"scss-transition-all": "Avoid transition: all",
+				"scss-layout-property-animation": "Avoid animating layout CSS properties",
+				"scss-will-change-in-keyframes": "Avoid will-change inside @keyframes",
+				"scss-gsap-transform-important": "Avoid transform !important with GSAP",
+				"scss-gsap-smooth-scroll": "Avoid root scroll-behavior: smooth",
+				"scss-gsap-stagger-for-loop": "Use GSAP stagger instead of @for delay",
+				"scss-gsap-auto-alpha-candidate": "Use GSAP autoAlpha instead of CSS",
+				"scss-gsap-svg-stroke-animation": "Use DrawSVGPlugin for stroke-dashoffset"
 			},
 			ruleRemediations: {
 				"raw-css-in-sfc": "📖 REMEDIATION GUIDE: raw-css-in-sfc\n1. Root Cause: A `<style>` tag was found in a Vue SFC without the `lang=\"scss\"` attribute. Framework architecture standardizes the SCSS preprocessor across all components.\n2. Diagnosis: Locate the `<style>` tag in the Vue component.\n3. Canonical Solution: Add `lang=\"scss\"` (and `scoped` where appropriate): `<style lang=\"scss\" scoped>`.\n4. Example / Auto-fix command:\n   ❌ Incorrect: `<style scoped>`\n   ✅ Correct:   `<style lang=\"scss\" scoped>`",
@@ -81,13 +94,22 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 				"typography-unclamped-viewport-font": "📖 REMEDIATION GUIDE: typography-unclamped-viewport-font\n1. Root Cause: `font-size` is defined solely in viewport units (`vw`/`vh`) without `clamp()` or `rem`, preventing text from scaling when users zoom to 200% (WCAG 1.4.4).\n2. Diagnosis: Inspect the `font-size` declaration.\n3. Canonical Solution: Wrap fluid typography in `clamp(minRem, calc(rem + vw), maxRem)`. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Zoom-locked: `font-size: 4vw;`\n   ✅ Accessible:  `font-size: clamp(1rem, calc(0.5rem + 4vw), 2.5rem);`",
 				"scss-flexbox-dead-properties": "📖 REMEDIATION GUIDE: scss-flexbox-dead-properties\n1. Root Cause: `justify-self` is declared inside a Flexbox rule (`display: flex`). Per CSS Box Alignment, `justify-self` has no effect in Flexbox.\n2. Diagnosis: Locate `justify-self` in the flex rule block.\n3. Canonical Solution: Use `justify-content` on the flex container or `margin-inline-start: auto` on the flex item. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Dead property: `.row { display: flex; justify-self: center; }`\n   ✅ Effective:     `.row { display: flex; justify-content: center; }`",
 				"scss-universal-expensive-selectors": "📖 REMEDIATION GUIDE: scss-universal-expensive-selectors\n1. Root Cause: An expensive layout or compositor property (`text-wrap: balance/pretty` or `will-change`) is applied to the universal selector `*`, degrading rendering performance.\n2. Diagnosis: Inspect the `*` rule in the stylesheet.\n3. Canonical Solution: Scope `text-wrap: balance` strictly to headings (`h1, h2, h3, h4, h5, h6`) and `will-change` only to active animated elements. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Expensive: `* { text-wrap: balance; }`\n   ✅ Scoped:    `h1, h2, h3, h4, h5, h6 { text-wrap: balance; }`",
-				"dark-mode-color-scheme-missing": "📖 REMEDIATION GUIDE: dark-mode-color-scheme-missing\n1. Root Cause: The stylesheet defines `@media (prefers-color-scheme: dark)` rules but `:root` lacks `color-scheme: light dark`, leaving native scrollbars, form controls, and system UI surfaces in light mode.\n2. Diagnosis: Check the `:root` rule in the main stylesheet.\n3. Canonical Solution: Add `color-scheme: light dark;` to `:root`. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Incomplete: `:root { --bg: #fff; }`\n   ✅ Complete:   `:root { color-scheme: light dark; --bg: #fff; }`"
+				"dark-mode-color-scheme-missing": "📖 REMEDIATION GUIDE: dark-mode-color-scheme-missing\n1. Root Cause: The stylesheet defines `@media (prefers-color-scheme: dark)` rules but `:root` lacks `color-scheme: light dark`, leaving native scrollbars, form controls, and system UI surfaces in light mode.\n2. Diagnosis: Check the `:root` rule in the main stylesheet.\n3. Canonical Solution: Add `color-scheme: light dark;` to `:root`. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Incomplete: `:root { --bg: #fff; }`\n   ✅ Complete:   `:root { color-scheme: light dark; --bg: #fff; }`",
+				"scss-transition-all": "📖 REMEDIATION GUIDE: scss-transition-all\n1. Root Cause: `transition: all` forces the browser to watch and recalculate layout and paint properties across every style change.\n2. Diagnosis: Locate `transition: all` or `transition-property: all` at the reported line.\n3. Canonical Solution: Restrict CSS transitions to explicit compositor/color properties (`opacity`, `transform`, `color`, `background-color`) or orchestrate the animation in GSAP.\n4. Example:\n   ❌ Incorrect: `.card { transition: all 0.3s ease; }`\n   ✅ Correct:   `.card { transition: color 0.2s ease; } // or gsap.to(\".card\", { y: -4, duration: 0.3 })`",
+				"scss-layout-property-animation": "📖 REMEDIATION GUIDE: scss-layout-property-animation\n1. Root Cause: Animating layout properties (`top`, `left`, `width`, `height`, `margin`, `padding`, `gap`) in CSS `transition` or `@keyframes` triggers expensive layout reflows on every frame.\n2. Diagnosis: Inspect the `transition` property list or `@keyframes` declaration at the reported line.\n3. Canonical Solution: Animate compositor transforms (`transform` / GSAP `x`, `y`, `scale`) and `opacity`, or use GSAP `Flip` for layout transitions.\n4. Example:\n   ❌ Incorrect: `@keyframes slide { from { left: 0; } to { left: 100px; } }`\n   ✅ Correct:   `gsap.to(\".panel\", { x: 100, duration: 0.4, ease: \"power2.out\" });`",
+				"scss-will-change-in-keyframes": "📖 REMEDIATION GUIDE: scss-will-change-in-keyframes\n1. Root Cause: Declaring `will-change` inside `@keyframes` forces mid-animation GPU layer promotion and de-promotion, causing visual flicker and memory spikes.\n2. Diagnosis: Locate `will-change` inside the `@keyframes` block at the reported line.\n3. Canonical Solution: Remove `will-change` from `@keyframes`. Let GSAP manage `force3D: \"auto\"` or apply `will-change` sparingly on the active element class.\n4. Example:\n   ❌ Incorrect: `@keyframes pop { 0% { will-change: transform; transform: scale(0.9); } }`\n   ✅ Correct:   `gsap.from(\".pop\", { scale: 0.9, duration: 0.3, clearProps: \"transform\" });`",
+				"scss-gsap-transform-important": "📖 REMEDIATION GUIDE: scss-gsap-transform-important\n1. Root Cause: `transform: ... !important` in CSS overrides GSAP inline `transform` matrices, silently breaking tweens and timelines.\n2. Diagnosis: Locate `transform: ... !important` outside `@media (prefers-reduced-motion: reduce)`.\n3. Canonical Solution: Remove `!important` and manage initial or state transforms with `gsap.set()` / `gsap.to()` inside `gsap.context()`.\n4. Example:\n   ❌ Incorrect: `.drawer.is-open { transform: translateX(0) !important; }`\n   ✅ Correct:   `gsap.to(\".drawer\", { x: 0, duration: 0.35, ease: \"power3.out\" });`",
+				"scss-gsap-smooth-scroll": "📖 REMEDIATION GUIDE: scss-gsap-smooth-scroll\n1. Root Cause: `scroll-behavior: smooth` on `html`, `body`, or `:root` fights GSAP `ScrollTrigger` and `ScrollSmoother` velocity calculations and programmatic scroll jumps.\n2. Diagnosis: Locate `scroll-behavior: smooth` on root scroller selectors.\n3. Canonical Solution: Remove CSS root `scroll-behavior: smooth` and register GSAP `ScrollToPlugin` for animated anchor jumps.\n4. Example:\n   ❌ Incorrect: `html { scroll-behavior: smooth; }`\n   ✅ Correct:   `gsap.registerPlugin(ScrollToPlugin); gsap.to(window, { scrollTo: \"#section\", duration: 0.6 });`",
+				"scss-gsap-stagger-for-loop": "📖 REMEDIATION GUIDE: scss-gsap-stagger-for-loop\n1. Root Cause: `@for` / `@each` loops emitting static `transition-delay` or `animation-delay` values duplicate work better handled by GSAP `stagger` and cannot adapt dynamically to filtered or reordered elements.\n2. Diagnosis: Inspect the `@for` or `@each` block generating `transition-delay` / `animation-delay`.\n3. Canonical Solution: Replace SCSS delay loops with `gsap.from(items, { opacity: 0, y: 16, stagger: 0.06 })`.\n4. Example:\n   ❌ Incorrect: `@for $i from 1 through 6 { .item:nth-child(#{$i}) { transition-delay: #{$i * 50}ms; } }`\n   ✅ Correct:   `gsap.from(\".item\", { autoAlpha: 0, y: 16, duration: 0.4, stagger: 0.05 });`",
+				"scss-gsap-auto-alpha-candidate": "📖 REMEDIATION GUIDE: scss-gsap-auto-alpha-candidate\n1. Root Cause: Combining `opacity: 0`, `visibility: hidden` (or `pointer-events: none`), and a CSS `transition` on `opacity`/`visibility` in a GSAP project duplicates GSAP `autoAlpha` and risks conflicting transitions.\n2. Diagnosis: Locate the rule block combining `opacity: 0` with `visibility: hidden` / `pointer-events: none` and `transition`.\n3. Canonical Solution: Animate visibility reveals with GSAP `autoAlpha` (`gsap.set(el, { autoAlpha: 0 })` and `gsap.to(el, { autoAlpha: 1 })`).\n4. Example:\n   ❌ Incorrect: `.modal { opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }`\n   ✅ Correct:   `gsap.to(\".modal\", { autoAlpha: 1, duration: 0.3, ease: \"power2.out\" });`",
+				"scss-gsap-svg-stroke-animation": "📖 REMEDIATION GUIDE: scss-gsap-svg-stroke-animation\n1. Root Cause: Animating `stroke-dashoffset` in CSS `transition` or `@keyframes` requires brittle hardcoded path lengths and breaks across SVG viewport scaling.\n2. Diagnosis: Inspect the `stroke-dashoffset` animation in `transition` or `@keyframes`.\n3. Canonical Solution: Register GSAP `DrawSVGPlugin` (`gsap.registerPlugin(DrawSVGPlugin)`) and animate `{ drawSVG: \"0% 100%\" }`.\n4. Example:\n   ❌ Incorrect: `@keyframes draw { from { stroke-dashoffset: 320; } to { stroke-dashoffset: 0; } }`\n   ✅ Correct:   `gsap.registerPlugin(DrawSVGPlugin); gsap.from(\".path\", { drawSVG: 0, duration: 0.8 });`"
 			},
 			ruleCapabilities: createRuleCapabilities(SCSS_ARCHITECTURE_RULES, LIGHT_RULE_CAPABILITIES),
 			projectRoot: scssRoots.effectiveRoot,
 			coverage: deriveCoverageFromRoots(scssRoots.targetRoots, SCANNABLE_EXTS, scssRoots.effectiveRoot),
 			exemptPaths: scssConfig.scssArchitecture?.exemptPaths
 		});
+		this.hasGsap = hasGsap;
 	}
 	scanFile(relPath, content) {
 		const isVueSfc = relPath.endsWith(".vue");
@@ -95,6 +117,10 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 		const isCssFile = relPath.endsWith(".css");
 		const isFix = this.isFixActive();
 		const absFile = path.resolve(this.projectRoot, relPath);
+		if (!this.hasGsap && !this.gsapNotApplicableMarked) {
+			this.gsapNotApplicableMarked = true;
+			for (const gsapRuleId of GSAP_SCSS_ANIMATION_RULES) this.markRuleNotApplicable(gsapRuleId, "gsap is not declared in package.json");
+		}
 		this.runSubAuditorSync("raw-css-in-sfc", () => {
 			if (isVueSfc) this.auditRawCssInSfc(relPath, content);
 		});
@@ -128,10 +154,11 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 		this.runSubAuditorSync("excessive-scss-nesting", () => {
 			this.auditExcessiveScssNesting(relPath, styleContent, startLine, isScoped);
 		});
-		const modernRes = analyzeModernScss(styleContent, startLine, isFix);
-		for (const modRuleId of MODERN_SCSS_RULES) this.runSubAuditorSync(modRuleId, () => {
+		const modernRes = analyzeModernScss(styleContent, startLine, isFix, { hasGsap: this.hasGsap });
+		const activeRules = this.hasGsap ? [...MODERN_SCSS_RULES, ...SCSS_ANIMATION_RULES] : [...MODERN_SCSS_RULES, ...UNIVERSAL_SCSS_ANIMATION_RULES];
+		for (const ruleId of activeRules) this.runSubAuditorSync(ruleId, () => {
 			for (const finding of modernRes.findings) {
-				if (finding.ruleId !== modRuleId) continue;
+				if (finding.ruleId !== ruleId) continue;
 				this.addViolation({
 					ruleId: finding.ruleId,
 					severity: "error",

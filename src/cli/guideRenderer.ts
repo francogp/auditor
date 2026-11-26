@@ -11,6 +11,7 @@ import { styleText } from 'node:util';
 import boxen from 'boxen';
 
 import type { AuditTaskDefinition } from '../core/auditContract.ts';
+import { GSAP_MIGRATION_RULE_GUIDES } from '../core/gsapMigrationGuides.ts';
 
 export interface GuideQueryMatch {
   readonly ruleId: string;
@@ -37,6 +38,27 @@ export function findRuleGuide(
           ruleDescription: rDesc,
           remediation: remediations[rId] ?? 'No remediation guide registered.',
           task
+        };
+      }
+    }
+  }
+
+  const oxlintTask = allTasks.find((t) => t.id === 'validate_oxlint');
+  if (oxlintTask) {
+    for (const [rId, guide] of Object.entries(GSAP_MIGRATION_RULE_GUIDES)) {
+      const lowerRId = rId.toLowerCase();
+      const shortId = lowerRId.replace(/^@francogp\/domain-type\//, '');
+      if (
+        lowerRId === cleanId ||
+        lowerRId === normalizedClean ||
+        shortId === cleanId ||
+        shortId === normalizedClean
+      ) {
+        return {
+          ruleId: rId,
+          ruleDescription: guide.description,
+          remediation: guide.remediation,
+          task: oxlintTask
         };
       }
     }

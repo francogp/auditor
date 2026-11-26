@@ -1,4 +1,6 @@
+import { DEFAULT_SUPABASE_DOCKER_CONFIG } from "../supabase/supabaseConfigTypes.js";
 import "./auditConfigTypes.js";
+import { GSAP_DOM_MIGRATION_RULE_IDS } from "./gsapMigrationGuides.js";
 import { AUDITOR_VERSION } from "./version.js";
 // src/core/auditConfigDefaults.ts
 /**
@@ -10,6 +12,10 @@ const DEFAULT_SIMILAR_CODE_THRESHOLD = .95;
 const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
 const DEFAULT_PRECOMPRESS_THRESHOLD_BYTES = 512;
+const DEFAULT_FALLOW_DUPLICATES_SETTINGS = {
+	nearMiss: false,
+	mode: "mild"
+};
 const CANONICAL_CORE_DOMAIN_RULES = {
 	"@francogp/domain-type/no-double-cast-unknown": "error",
 	"@francogp/domain-type/no-boolean-literal-annotation": "error",
@@ -89,6 +95,8 @@ const CANONICAL_GSAP_RULES = {
 	"@francogp/domain-type/no-nested-scrolltrigger": "error",
 	"@francogp/domain-type/no-scrolltrigger-markers-production": "error"
 };
+const CANONICAL_GSAP_DOM_RULES = Object.fromEntries(GSAP_DOM_MIGRATION_RULE_IDS.map((rule) => [rule, "error"]));
+const CANONICAL_DYNAMIC_GSAP_DOM_OFF_RULES = Object.fromEntries(GSAP_DOM_MIGRATION_RULE_IDS.map((rule) => [rule, "off"]));
 const CANONICAL_AUDITOR_METADATA_RULES = {
 	"@francogp/domain-type/no-file-level-suppressions": "error",
 	"@francogp/domain-type/auditor-class-inheritance": "error",
@@ -605,8 +613,7 @@ const DEFAULT_AUDIT_CONFIG = {
 		showCascade: true,
 		duplicates: {
 			enabled: true,
-			nearMiss: true,
-			mode: "strict"
+			...DEFAULT_FALLOW_DUPLICATES_SETTINGS
 		},
 		viz: {
 			enabled: true,
@@ -765,6 +772,7 @@ const DEFAULT_AUDIT_CONFIG = {
 		enforceInAudit: true
 	},
 	customFamilies: [],
+	supabaseDocker: DEFAULT_SUPABASE_DOCKER_CONFIG,
 	extensions: [],
 	runner: {
 		enabled: true,
@@ -816,9 +824,10 @@ function collectDeclaredSubsystems(config) {
 		"securityHardening",
 		"codeSimplification",
 		"scssArchitecture",
+		"supabaseDocker",
 		"vitePlusConfig"
 	]) if (config[k] !== void 0) declared.add(k);
 	for (const k of Object.keys(config)) if (k !== "_declaredSubsystems" && k !== "_rawPaths" && k !== "_rawConfig" && k !== "name" && Reflect.get(config, k) !== void 0) declared.add(k);
 	return declared;
 }
-export { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_AUDIT_PATHS_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_SQLITE_MIGRATIONS_DIR, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, DEFAULT_VITE_PLUS_AUDIT_CONFIG, collectDeclaredSubsystems, isConfigurableSectionEntry };
+export { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_GSAP_DOM_OFF_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, CANONICAL_GSAP_DOM_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_AUDIT_PATHS_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_FALLOW_DUPLICATES_SETTINGS, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_SQLITE_MIGRATIONS_DIR, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, DEFAULT_VITE_PLUS_AUDIT_CONFIG, collectDeclaredSubsystems, isConfigurableSectionEntry };

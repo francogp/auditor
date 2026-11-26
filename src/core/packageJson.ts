@@ -87,3 +87,15 @@ export function writePackageJson(projectRoot: string, data: PackageJsonDTO): voi
   fs.writeFileSync(pkgPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
   packageJsonCache.set(pkgPath, data);
 }
+
+/**
+ * Returns true if packageName is declared in dependencies or devDependencies
+ * of the project's package.json (returns false if package.json is absent).
+ */
+export function hasPackageDependency(
+  projectRoot: string | undefined,
+  packageName: string
+): boolean {
+  const pkg = getPackageJson(projectRoot);
+  return Boolean(pkg?.dependencies?.[packageName] || pkg?.devDependencies?.[packageName]);
+}

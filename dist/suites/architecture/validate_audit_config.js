@@ -2,19 +2,21 @@ import { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES, isSupabaseExc
 import { collectAllGitIgnoreRequirements, discoverAuditors } from "../../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
 import { dtoValueToTsExpression, formatTsNodeTwoSpaceIndent } from "../../core/astContext.js";
-import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { DEFAULT_AUDIT_CONFIG, isConfigurableSectionEntry } from "../../core/auditConfigDefaults.js";
-import { loadAuditConfig, resetAuditConfig } from "../../core/auditConfigLoader.js";
 import { detectUnacknowledgedDegradations } from "../../core/auditConfigDegradations.js";
+import { loadAuditConfig, resetAuditConfig } from "../../core/auditConfigLoader.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { auditConfigRatchet } from "../../core/configRatchet.js";
 import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "../../core/gitignoreMatcher.js";
+import { resolveGitIgnoreRequirement } from "../../core/gitIgnoreRegistry.js";
 import { getPackageJson } from "../../core/packageJson.js";
-import "../../core/safePath.js";
+import { isPathContained, stripGlobSuffix } from "../../core/safePath.js";
 import { tryOrNull } from "../../core/safeUtils.js";
 import { AUDITOR_VERSION } from "../../core/version.js";
+import { validateSupabaseDockerConfig } from "../../supabase/supabaseConfigTypes.js";
 import { appendMissingSectionsToConfigFile, deduplicateArrayElementsInFileAst, injectMissingEnabledAst, migrateLegacyEslintSectionAst, migrateLegacyTypeCheckSectionAst, removeAuditConfigPropertyAst, syncAuditorVersionInTsFile } from "../../core/auditConfigAst.js";
 import { validateAuditConfigAst } from "../../core/auditConfigAstValidator.js";
 import { enableCompileCache } from "node:module";
@@ -269,7 +271,9 @@ const AUDIT_CONFIG_RULES = [
 	"audit-config-ratchet-relaxation",
 	"audit-config-duplicate-key",
 	"audit-config-duplicate-entry",
-	"audit-config-missing-enabled"
+	"audit-config-missing-enabled",
+	"audit-config-untracked-style-root",
+	"audit-config-invalid-supabase-docker"
 ];
 const PATH_ROOT_KEYS = [
 	"srcRoots",
@@ -368,7 +372,9 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 				"audit-config-ratchet-relaxation": "Unauthorized rule relaxation (ratchet)",
 				"audit-config-duplicate-key": "Duplicate property in config",
 				"audit-config-duplicate-entry": "Duplicate entry in array",
-				"audit-config-missing-enabled": "Subsystem missing enabled"
+				"audit-config-missing-enabled": "Subsystem missing enabled",
+				"audit-config-untracked-style-root": "Untracked style root outside config",
+				"audit-config-invalid-supabase-docker": "Invalid supabaseDocker configuration"
 			},
 			ruleRemediations: {
 				"audit-config-missing-path": "📖 REMEDIATION GUIDE: audit-config-missing-path\n1. Root Cause: A directory path declared in `config.paths` does not exist on the project filesystem.\n2. Diagnosis: Compare the paths defined in `.auditor/audit.config.ts` against actual folders in your repository.\n3. Canonical Solution: If the directory was renamed or moved, update `.auditor/audit.config.ts`. If optional or not yet created, create the empty directory or remove it from configuration.\n4. Example / Auto-fix command:\n   Update `.auditor/audit.config.ts` with correct paths.",
@@ -382,7 +388,9 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 				"audit-config-ratchet-relaxation": "📖 REMEDIATION GUIDE: audit-config-ratchet-relaxation\n1. Root Cause: Configuration rules or exemptions were relaxed relative to online origin/main without explicit user authorization.\n2. Diagnosis: Check the generated RELAX-<8hex> code and the list of relaxed rules, added exemptions, lowered floors, or raised ceilings.\n3. Canonical Solution: Hardening rules is permitted with zero friction. To accept a relaxation genuinely requested by the human programmer, confirm the RELAX-<8hex> code directly in Antigravity chat.\n4. Example / Auto-fix command:\n   Revert the relaxed configuration or ask the human user to confirm RELAX-<8hex> in chat.",
 				"audit-config-duplicate-key": "📖 REMEDIATION GUIDE: audit-config-duplicate-key\n1. Root Cause: A configuration property was declared multiple times in the same object literal in `.auditor/audit.config.ts`. In JavaScript, later properties silently overwrite earlier declarations, wiping out configurations.\n2. Diagnosis: Inspect the lines reported in the violation to locate the duplicate key and its original declaration.\n3. Canonical Solution: Merge the options into a single consolidated configuration block and delete the duplicate declaration.\n4. Example / Auto-fix command:\n   Consolidate all properties of the section into a single block.",
 				"audit-config-duplicate-entry": "📖 REMEDIATION GUIDE: audit-config-duplicate-entry\n1. Root Cause: An array property (such as `paths.srcRoots`, `coverage.exemptGlobs`, or `vitePlusConfig.lint.plugins`) contains duplicate entries.\n2. Diagnosis: Inspect the reported array and locate the duplicate element.\n3. Canonical Solution: Remove redundant elements so each entry is unique, or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
-				"audit-config-missing-enabled": "📖 REMEDIATION GUIDE: audit-config-missing-enabled\n1. Root Cause: A declared configuration subsystem in `.auditor/audit.config.ts` omits the mandatory `enabled: boolean` property.\n2. Diagnosis: Check the subsystem on the reported line to see if `enabled: true` or `enabled: false` is missing.\n3. Canonical Solution: Add `enabled: true` (or `enabled: false`) to the subsystem block, or run `npm run auditor:fix` to auto-inject it.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
+				"audit-config-missing-enabled": "📖 REMEDIATION GUIDE: audit-config-missing-enabled\n1. Root Cause: A declared configuration subsystem in `.auditor/audit.config.ts` omits the mandatory `enabled: boolean` property.\n2. Diagnosis: Check the subsystem on the reported line to see if `enabled: true` or `enabled: false` is missing.\n3. Canonical Solution: Add `enabled: true` (or `enabled: false`) to the subsystem block, or run `npm run auditor:fix` to auto-inject it.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"audit-config-untracked-style-root": "📖 REMEDIATION GUIDE: audit-config-untracked-style-root\n1. Root Cause: `.scss` or `.css` files exist on disk outside `paths.stylesRoots` and `paths.srcRoots` without an explicit entry in `paths.ignoreGlobs` or `coverage.exemptGlobs`, causing style/GSAP auditors to silently skip them.\n2. Diagnosis: Inspect the untracked stylesheet directory reported in the violation.\n3. Canonical Solution: Either add the directory to `paths.stylesRoots` (to audit it) or explicitly exclude it in `paths.ignoreGlobs` / `coverage.exemptGlobs`.\n4. Example:\n   `paths: { stylesRoots: [\"src/styles\", \"public/css\"] }` or `paths: { ignoreGlobs: [\"public/css/**\"] }`",
+				"audit-config-invalid-supabase-docker": "📖 REMEDIATION GUIDE: audit-config-invalid-supabase-docker\n1. Root Cause: `supabaseDocker.enabled` is true in `.auditor/audit.config.ts`, but required fields for the active profiles (`projectSlug`, `upstreamRef`, `supabaseDir`, `masterEnvFile`, `postgres.expectedMajor`, or active profile ports/volumes/images) are missing or invalid.\n2. Diagnosis: Review each reported field error.\n3. Canonical Solution: Provide explicit, non-empty values for every active `supabaseDocker` field in `.auditor/audit.config.ts`."
 			},
 			coverage: { include: [path.posix.join(AUDITOR_DIR, "*.{ts,json}"), ".gitignore"] },
 			projectRoot
@@ -450,6 +458,20 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		});
 		this.runSubAuditorSync("audit-config-ratchet-relaxation", () => {
 			this.verifyConfigRatchet(config);
+		});
+		this.runSubAuditorSync("audit-config-untracked-style-root", () => {
+			this.verifyUntrackedStyleRoots(config);
+		});
+		this.runSubAuditorSync("audit-config-invalid-supabase-docker", () => {
+			if (!config.supabaseDocker?.enabled) return;
+			const errors = validateSupabaseDockerConfig(config.supabaseDocker);
+			for (const message of errors) this.addViolation({
+				ruleId: "audit-config-invalid-supabase-docker",
+				severity: "error",
+				file: AUDIT_CONFIG_FILE,
+				line: 1,
+				message
+			});
 		});
 	}
 	cachedAstViolations = null;
@@ -756,7 +778,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 	}
 	async verifyGitIgnore(config) {
 		const gitignorePath = path.resolve(this.projectRoot, ".gitignore");
-		const applicable = (await collectAllGitIgnoreRequirements(this.projectRoot, config)).filter((req) => req.isApplicable ? req.isApplicable(config) : true);
+		const applicable = (await collectAllGitIgnoreRequirements(this.projectRoot, config)).filter((req) => req.isApplicable ? req.isApplicable(config) : true).map((req) => resolveGitIgnoreRequirement(req, config));
 		if (!fs.existsSync(gitignorePath)) {
 			this.handleMissingGitIgnoreFile(gitignorePath, applicable);
 			return;
@@ -847,6 +869,37 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 	verifyDomainAndStylePaths(config) {
 		this.verifyDomainPaths(config);
 		this.verifyStylesPaths(config);
+	}
+	verifyUntrackedStyleRoots(config) {
+		const exemptGlobs = (config.coverage?.exemptGlobs ?? []).map((entry) => typeof entry === "string" ? entry : entry.glob);
+		const styleFiles = collectRepositoryFiles(this.projectRoot, this.projectRoot, exemptGlobs, /* @__PURE__ */ new Set([".scss", ".css"]));
+		if (styleFiles.length === 0) return;
+		const coveredRoots = [
+			...config.paths?.stylesRoots ?? [],
+			...config.paths?.srcRoots ?? [],
+			...config.paths?.testRoots ?? [],
+			...config.paths?.e2eRoots ?? [],
+			...config.paths?.demoRoots ?? []
+		].map((root) => stripGlobSuffix(normalizePosixPath(root))).filter((root) => root.length > 0);
+		const untrackedByDir = /* @__PURE__ */ new Map();
+		for (const absOrRel of styleFiles) {
+			const relPosix = normalizePosixPath(path.isAbsolute(absOrRel) ? path.relative(this.projectRoot, absOrRel) : absOrRel);
+			if (coveredRoots.some((root) => isPathContained(root, relPosix, this.projectRoot))) continue;
+			const dirRoot = path.posix.dirname(relPosix);
+			if (!untrackedByDir.has(dirRoot)) untrackedByDir.set(dirRoot, relPosix);
+		}
+		const sortedRoots = [...untrackedByDir.keys()].sort();
+		for (const dirRoot of sortedRoots) {
+			const sampleFile = untrackedByDir.get(dirRoot);
+			this.addViolation({
+				ruleId: "audit-config-untracked-style-root",
+				severity: "error",
+				file: AUDIT_CONFIG_FILE,
+				line: 1,
+				context: dirRoot,
+				message: `Untracked stylesheet root '${dirRoot}' (e.g. '${sampleFile}') is outside paths.stylesRoots and paths.srcRoots. Add '${dirRoot}' to paths.stylesRoots or exclude it via paths.ignoreGlobs / coverage.exemptGlobs.`
+			});
+		}
 	}
 	resolveExtensionFiles(resolved) {
 		const stat = fs.statSync(resolved);

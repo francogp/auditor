@@ -1,8 +1,15 @@
 import { AuditEngineConfig, AuditPathsConfig, AuditVitePlusConfig, DeepPartial } from "./auditConfigTypes.js";
+import { GsapDomMigrationRuleId } from "./gsapMigrationGuides.js";
 export declare const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export declare const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 export declare const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
 export declare const DEFAULT_PRECOMPRESS_THRESHOLD_BYTES = 512;
+export declare const DEFAULT_FALLOW_DUPLICATES_SETTINGS: {
+  readonly nearMiss: false;
+  readonly mode: "mild";
+};
+export declare const CANONICAL_GSAP_DOM_RULES: Readonly<Record<GsapDomMigrationRuleId, "error">>;
+export declare const CANONICAL_DYNAMIC_GSAP_DOM_OFF_RULES: Readonly<Record<GsapDomMigrationRuleId, "off">>;
 export declare const DEFAULT_CANONICAL_LINT_RULES: Readonly<Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>>;
 export declare const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES: Readonly<Record<string, 'off'>>;
 export declare const CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES: Readonly<Record<string, 'off'>>;

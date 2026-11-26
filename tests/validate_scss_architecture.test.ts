@@ -2,8 +2,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 
+import {
+  GSAP_SCSS_ANIMATION_RULES,
+  analyzeModernScss
+} from '../src/analyzers/scssModernAnalyzer.ts';
 import { resetAuditConfig } from '../src/core/auditConfig.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
@@ -392,6 +396,75 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
         expect(duration).toBeDefined();
         expect(duration!).toBeGreaterThanOrEqual(0);
       }
+    });
+
+    it('marks GSAP-only SCSS rules as not applicable when gsap is absent while preserving universal animation checks', async () => {
+      const auditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      auditor.testScanFile(
+        'src/styles/anim.scss',
+        'html { scroll-behavior: smooth; }\n.box { transition: all 0.2s ease; }\n'
+      );
+      const res = await auditor.finishAudit();
+
+      expect(res.findings.some((f) => f.ruleId === 'scss-transition-all')).toBe(true);
+      expect(res.findings.some((f) => f.ruleId === 'scss-gsap-smooth-scroll')).toBe(false);
+      expect(auditor.getRuleDuration('scss-gsap-smooth-scroll')).toBeGreaterThanOrEqual(0);
+    });
+
+    it('detects all 8 universal and GSAP-conditional SCSS animation rules via AST when gsap is enabled', () => {
+      const gsapScss = [
+        'html { scroll-behavior: smooth; }',
+        '.card { transition: all 0.3s ease; }',
+        '.panel { transition: left 0.3s ease; }',
+        '@keyframes pop { 0% { will-change: transform; width: 10px; } }',
+        '.drawer { transform: translateX(0) !important; }',
+        '@for $i from 1 through 2 { .item-#{$i} { transition-delay: #{$i * 40}ms; } }',
+        '.modal { opacity: 0; visibility: hidden; transition: opacity 0.2s; }',
+        '.line { transition: stroke-dashoffset 0.5s linear; }'
+      ].join('\n');
+
+      const analysis = analyzeModernScss(gsapScss, 1, false, { hasGsap: true });
+      const ruleIds = new Set(analysis.findings.map((f) => f.ruleId));
+
+      expect(ruleIds.has('scss-transition-all')).toBe(true);
+      expect(ruleIds.has('scss-layout-property-animation')).toBe(true);
+      expect(ruleIds.has('scss-will-change-in-keyframes')).toBe(true);
+      expect(ruleIds.has('scss-gsap-transform-important')).toBe(true);
+      expect(ruleIds.has('scss-gsap-smooth-scroll')).toBe(true);
+      expect(ruleIds.has('scss-gsap-stagger-for-loop')).toBe(true);
+      expect(ruleIds.has('scss-gsap-auto-alpha-candidate')).toBe(true);
+      expect(ruleIds.has('scss-gsap-svg-stroke-animation')).toBe(true);
+    });
+
+    it('marks GSAP-only SCSS rules as notApplicable even when non-GSAP Vue SFCs have no <style> block', async () => {
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'no-gsap-styleless-vue', dependencies: { vue: '^3.5.0' } }),
+        'utf-8'
+      );
+      const srcDir = path.join(tempDir, 'src');
+      fs.mkdirSync(srcDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(srcDir, 'EmptyBadge.vue'),
+        '<template><span>Badge</span></template>\n',
+        'utf-8'
+      );
+
+      const auditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      const spy = vi.spyOn(auditor, 'markRuleNotApplicable');
+      const res = await auditor.audit();
+
+      expect(res.status).toBe('passed');
+      for (const gsapRuleId of GSAP_SCSS_ANIMATION_RULES) {
+        expect(spy).toHaveBeenCalledWith(gsapRuleId, 'gsap is not declared in package.json');
+      }
+    });
+
+    it('detects scss-gsap-stagger-for-loop when transition-delay is emitted directly inside @for/@each without an inner child selector', () => {
+      const directLoopScss =
+        '.list { @for $i from 1 through 3 { transition-delay: #{$i * 50}ms; } }';
+      const analysis = analyzeModernScss(directLoopScss, 1, false, { hasGsap: true });
+      expect(analysis.findings.some((f) => f.ruleId === 'scss-gsap-stagger-for-loop')).toBe(true);
     });
   });
 });

@@ -19,6 +19,7 @@ import type { AuditFindingAttribution } from 'fallow/types';
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
 import { ensureMandatoryDirectoriesExist } from '../../core/auditBootstrap.ts';
 import { getAuditConfig, isCliPath } from '../../core/auditConfig.ts';
+import { DEFAULT_FALLOW_DUPLICATES_SETTINGS } from '../../core/auditConfigDefaults.ts';
 import type {
   FallowTargetPriority,
   FallowTargetPriorityNamed
@@ -796,8 +797,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
         typeAware: false,
         showCascade: true,
         duplicates: {
-          nearMiss: true,
-          mode: 'strict'
+          ...DEFAULT_FALLOW_DUPLICATES_SETTINGS
         },
         viz: {
           enabled: true,
@@ -957,11 +957,11 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
 
     if (this.isRuleActiveForCurrentRun('fallow-duplicate-code')) {
       const dupesArgs: string[] = [...FALLOW_DUPES_CONFIG];
-      if (config.fallow?.duplicates?.nearMiss !== false) {
-        dupesArgs.push('--dupes-near');
+      if (config.fallow?.duplicates?.nearMiss === true) {
+        dupesArgs.push('--near');
       }
       if (config.fallow?.duplicates?.mode) {
-        dupesArgs.push('--dupes-mode', config.fallow.duplicates.mode);
+        dupesArgs.push('--mode', config.fallow.duplicates.mode);
       }
       allFindings.push(...this.runFallowSubCommand('dupes', dupesArgs, ['fallow-duplicate-code']));
     }

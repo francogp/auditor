@@ -51,4 +51,12 @@ function writePackageJson(projectRoot, data) {
 	fs.writeFileSync(pkgPath, JSON.stringify(data, null, 2) + "\n", "utf-8");
 	packageJsonCache.set(pkgPath, data);
 }
-export { PACKAGE_JSON_TYPES, clearPackageJsonCache, getPackageJson, writePackageJson };
+/**
+* Returns true if packageName is declared in dependencies or devDependencies
+* of the project's package.json (returns false if package.json is absent).
+*/
+function hasPackageDependency(projectRoot, packageName) {
+	const pkg = getPackageJson(projectRoot);
+	return Boolean(pkg?.dependencies?.[packageName] || pkg?.devDependencies?.[packageName]);
+}
+export { PACKAGE_JSON_TYPES, clearPackageJsonCache, getPackageJson, hasPackageDependency, writePackageJson };

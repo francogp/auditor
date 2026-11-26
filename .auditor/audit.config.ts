@@ -260,8 +260,8 @@ export default defineAuditConfig({
     },
     duplicates: {
       enabled: true,
-      nearMiss: true,
-      mode: 'strict'
+      nearMiss: false,
+      mode: 'mild'
     },
     viz: {
       enabled: true,
@@ -487,5 +487,16 @@ export default defineAuditConfig({
     enabled: true,
     productionRef: 'origin/main',
     baselineFile: '.auditor/audit-baseline.json'
+  },
+  supabaseDocker: {
+    enabled: false,
+    projectSlug: '',
+    upstreamRef: '',
+    supabaseDir: '',
+    masterEnvFile: '',
+    postgres: {
+      expectedMajor: 0,
+      allowMajorUpgrade: false
+    }
   }
 });

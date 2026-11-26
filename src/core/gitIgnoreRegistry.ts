@@ -6,8 +6,32 @@
  * to dynamically register required .gitignore patterns without hardcoded lists.
  */
 
+import type { AuditEngineConfig } from './auditConfigTypes.ts';
 import type { GitIgnoreRequirement } from './auditContract.ts';
 import { BaseEntityRegistry, type IBaseEntityRegistry } from './baseRegistry.ts';
+
+function normalizeSupabaseDir(config: AuditEngineConfig): string {
+  return (config.supabaseDocker?.supabaseDir ?? '')
+    .trim()
+    .replaceAll('\\', '/')
+    .replace(/\/+$/u, '');
+}
+
+/**
+ * Resolves dynamic `resolvePattern` / `resolveSamplePath` hooks on a `GitIgnoreRequirement`.
+ */
+export function resolveGitIgnoreRequirement(
+  requirement: GitIgnoreRequirement,
+  config: AuditEngineConfig
+): GitIgnoreRequirement {
+  const pattern = requirement.resolvePattern
+    ? requirement.resolvePattern(config)
+    : requirement.pattern;
+  const samplePath = requirement.resolveSamplePath
+    ? requirement.resolveSamplePath(config)
+    : requirement.samplePath;
+  return { ...requirement, pattern, samplePath };
+}
 
 export const CORE_GITIGNORE_REQUIREMENTS: readonly GitIgnoreRequirement[] = [
   {
@@ -30,6 +54,24 @@ export const CORE_GITIGNORE_REQUIREMENTS: readonly GitIgnoreRequirement[] = [
     samplePath: 'npm-debug.log',
     reason: 'Execution logs and debug dump files from CLI and Node.js',
     isApplicable: () => true
+  },
+  {
+    id: 'supabase-docker-clone',
+    pattern: '',
+    reason: 'Cloned official Supabase docker template managed by auditor-supabase',
+    isApplicable: (config) =>
+      Boolean(config.supabaseDocker?.enabled && normalizeSupabaseDir(config).length > 0),
+    resolvePattern: (config) => `${normalizeSupabaseDir(config)}/docker/`,
+    resolveSamplePath: (config) => `${normalizeSupabaseDir(config)}/docker/docker-compose.yml`
+  },
+  {
+    id: 'supabase-docker-generated',
+    pattern: '',
+    reason: 'Generated Supabase compose and per-server .env files managed by auditor-supabase',
+    isApplicable: (config) =>
+      Boolean(config.supabaseDocker?.enabled && normalizeSupabaseDir(config).length > 0),
+    resolvePattern: (config) => `${normalizeSupabaseDir(config)}/generated/`,
+    resolveSamplePath: (config) => `${normalizeSupabaseDir(config)}/generated/docker-compose.yml`
   }
 ];
 
@@ -54,7 +96,9 @@ export class GitIgnoreRegistryImpl
    * Registers a single gitignore requirement with validation.
    */
   public override register(requirement: GitIgnoreRequirement): void {
-    if (!requirement || !requirement.id || !requirement.pattern) return;
+    if (!requirement || !requirement.id || (!requirement.pattern && !requirement.resolvePattern)) {
+      return;
+    }
     super.register(requirement);
   }
 }

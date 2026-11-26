@@ -9,6 +9,7 @@ import { collectMissingSections, createDefaultAuditConfigContent, enforceCritica
 import "./auditConfig.js";
 import { appendMissingSectionsToConfigFile } from "./auditConfigAst.js";
 import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "./gitignoreMatcher.js";
+import { resolveGitIgnoreRequirement } from "./gitIgnoreRegistry.js";
 import { ensureNpmrcAllowGit } from "./npmrcAllowGit.js";
 import { getPackageJson } from "./packageJson.js";
 import { tryCatchSync, tryOrNull, tryOrNullAsync, tryOrUndefinedAsync } from "./safeUtils.js";
@@ -142,10 +143,11 @@ async function ensureGitIgnoreSynchronized(projectRoot) {
 		const gitignorePath = path.resolve(projectRoot, ".gitignore");
 		const requirements = await collectAllGitIgnoreRequirements(projectRoot);
 		const activeConfig = await tryOrUndefinedAsync(() => loadAuditConfig(projectRoot));
-		const applicable = requirements.filter((req) => {
+		const rawApplicable = requirements.filter((req) => {
 			if (!req.isApplicable) return true;
 			return activeConfig ? req.isApplicable(activeConfig) : true;
 		});
+		const applicable = activeConfig ? rawApplicable.map((req) => resolveGitIgnoreRequirement(req, activeConfig)) : rawApplicable;
 		if (applicable.length === 0) return false;
 		const missing = findMissingGitIgnoreRequirements(projectRoot, gitignorePath, applicable);
 		if (missing.length === 0) return false;
@@ -197,7 +199,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.13.0-build.20261123-031850")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.14.0-build.20261126-104135")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}

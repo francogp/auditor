@@ -1,8 +1,4 @@
-/**
- * packages/auditor/src/core/auditConfigTypes.ts
- *
- * TypeScript types and interfaces for the audit configuration contract.
- */
+import { SupabaseDockerConfig } from "../supabase/supabaseConfigTypes.js";
 export declare const AUDITOR_DIR = ".auditor";
 export declare const AUDIT_CONFIG_FILE = ".auditor/audit.config.ts";
 export declare const AUDIT_CONFIG_JSON_FILE = ".auditor/audit.config.json";
@@ -654,6 +650,7 @@ export interface AuditEngineConfig {
   readonly securityHardening?: AuditSecurityHardeningConfig;
   readonly codeSimplification?: AuditCodeSimplificationConfig;
   readonly scssArchitecture?: AuditScssArchitectureConfig;
+  readonly supabaseDocker?: SupabaseDockerConfig;
   readonly customFamilies?: readonly CustomAuditFamilyConfig[];
   readonly extensions?: readonly string[];
   readonly presets?: Record<string, readonly string[]>;
@@ -663,3 +660,4 @@ export interface AuditEngineConfig {
   readonly _rawConfig?: Readonly<DeepPartial<AuditEngineConfig>>;
 }
 export type AuditConfig = AuditEngineConfig;
+export type { SupabaseDockerConfig };

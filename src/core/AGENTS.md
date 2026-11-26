@@ -157,7 +157,7 @@ Architecture & Tooling Engineers.
 - [`configAdvisor.ts`](./configAdvisor.ts): Dynamic Unidirectional Configuration Hardening Advisor engine discovering subauditor contracts and evaluating project settings under the Config Ratchet.
 - [`configRatchet.ts`](./configRatchet.ts): Unidirectional online config ratchet against origin/main ensuring rules can only harden automatically, blocking relaxations without verified Antigravity user authorization.
 - [`domainCollections.ts`](./domainCollections.ts): Set and Map helpers enforcing O(1) lookups and ReadonlySet immutability.
-- [`domainTypeOxlintPlugin.ts`](./domainTypeOxlintPlugin.ts): Official Oxlint plugin for `@francogp/domain-type` architectural enforcement.
+- [`domainTypeOxlintPlugin.ts`](./domainTypeOxlintPlugin.ts): Official Oxlint plugin for `@francogp/domain-type` architectural enforcement (including conditional GSAP DOM migration rules).
 - [`durationFormatter.ts`](./durationFormatter.ts): Universal duration formatting utilities with Spanish thousands separators, decimal comma handling, and standard space before milliseconds.
 - [`exemptionPolicies.ts`](./exemptionPolicies.ts): Standardized file classification and complexity exemption policy definitions.
 - [`executiveTheme.ts`](./executiveTheme.ts): ANSI terminal styling and box formatting helpers for executive summaries.
@@ -166,12 +166,13 @@ Architecture & Tooling Engineers.
 - [`gitSafetyHook.ts`](./gitSafetyHook.ts): Canonical generator, inspector, and non-destructive synchronizer for the Antigravity PreToolUse Git Safety Gate lifecycle hook.
 - [`gitignoreMatcher.ts`](./gitignoreMatcher.ts): Gitignore parsing and fast path matching utility.
 - [`globContainment.ts`](./globContainment.ts): Glob pattern containment, path hierarchy evaluation, and container wildcard matching.
+- [`gsapMigrationGuides.ts`](./gsapMigrationGuides.ts): Remediation guide catalog for `@francogp/domain-type/*` GSAP DOM migration Oxlint rules consumed by `auditor:guide`.
 - [`lockedSkills.ts`](./lockedSkills.ts): SSoT cache and path resolver for locked agent skills in `.agents/skills-lock.json`.
 - [`markdownReport.ts`](./markdownReport.ts): Comprehensive Markdown audit report generator.
 - [`markdownVersionValidator.ts`](./markdownVersionValidator.ts): Project SemVer and `@francogp/auditor` release version validator and auto-fixer across Markdown documentation.
 - [`npmCommandUtils.ts`](./npmCommandUtils.ts): Centralized utilities for loading package scripts, detecting built-ins, extracting npm/npx command invocations, and validating commands across documentation and executable scripts.
 - [`npmrcAllowGit.ts`](./npmrcAllowGit.ts): Idempotent `.npmrc` `allow-git=all` writer (npm 12+ blocks git dependencies by default); used by `auditBootstrap.ts` and `auditor-update`.
-- [`packageJson.ts`](./packageJson.ts): Canonical package.json caching, reading, and DTO provider.
+- [`packageJson.ts`](./packageJson.ts): Canonical package.json caching, reading, dependency lookup (`hasPackageDependency`), and DTO provider.
 - [`packageScriptRegistry.ts`](./packageScriptRegistry.ts): Centralized registry for recommended package scripts, collision detection, and command requirements declared across sub-auditors and extensions.
 - [`permissionGuard.ts`](./permissionGuard.ts): Node.js `--permission` flag validation and capability probing.
 - [`remediationPhases.ts`](./remediationPhases.ts): Canonical definition and metadata for the 7 strategic error remediation phases and resolution sequence.

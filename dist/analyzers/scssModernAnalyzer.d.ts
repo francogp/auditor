@@ -9,7 +9,14 @@
  * powered by MagicString.
  */
 export declare const MODERN_SCSS_RULES: readonly ["scss-viewport-overflow-and-dvh", "scss-overflow-clip-margin-trap", "scss-prefer-user-invalid", "scss-focus-outline-removal", "typography-unclamped-viewport-font", "scss-flexbox-dead-properties", "scss-universal-expensive-selectors", "dark-mode-color-scheme-missing"];
-export type ModernScssRuleId = (typeof MODERN_SCSS_RULES)[number];
+export declare const UNIVERSAL_SCSS_ANIMATION_RULES: readonly ["scss-transition-all", "scss-layout-property-animation", "scss-will-change-in-keyframes"];
+export declare const GSAP_SCSS_ANIMATION_RULES: readonly ["scss-gsap-transform-important", "scss-gsap-smooth-scroll", "scss-gsap-stagger-for-loop", "scss-gsap-auto-alpha-candidate", "scss-gsap-svg-stroke-animation"];
+export declare const SCSS_ANIMATION_RULES: readonly ["scss-transition-all", "scss-layout-property-animation", "scss-will-change-in-keyframes", "scss-gsap-transform-important", "scss-gsap-smooth-scroll", "scss-gsap-stagger-for-loop", "scss-gsap-auto-alpha-candidate", "scss-gsap-svg-stroke-animation"];
+export type ScssAnimationRuleId = (typeof SCSS_ANIMATION_RULES)[number];
+export type ModernScssRuleId = (typeof MODERN_SCSS_RULES)[number] | ScssAnimationRuleId;
+export interface AnalyzeModernScssOptions {
+  readonly hasGsap?: boolean;
+}
 export interface ModernScssFinding {
   readonly ruleId: ModernScssRuleId;
   readonly line: number;
@@ -44,4 +51,4 @@ export declare function parseScssBlockNodes(content: string, start: number, end:
   declarations: ScssAstDeclaration[];
   children: ScssAstRuleNode[];
 };
-export declare function analyzeModernScss(styleContent: string, lineOffset: number, enableFix: boolean): ModernScssAnalysisResult;
+export declare function analyzeModernScss(styleContent: string, lineOffset: number, enableFix: boolean, options?: AnalyzeModernScssOptions): ModernScssAnalysisResult;

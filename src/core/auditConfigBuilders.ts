@@ -7,6 +7,12 @@
 import path from 'node:path';
 
 import {
+  DEFAULT_SUPABASE_DOCKER_CONFIG,
+  type SupabaseDockerConfig,
+  type SupabaseDockerExtensionsConfig,
+  type SupabaseLiteProfileConfig
+} from '../supabase/supabaseConfigTypes.ts';
+import {
   assertNarrowCoverageGlob,
   assertCoverageReason,
   getExemptRootsForPolicy,
@@ -1248,6 +1254,147 @@ function buildRunnerConfig(runner: DeepPartial<AuditRunnerConfig> | undefined): 
   };
 }
 
+function buildSupabaseRemoteProfile(
+  remote: DeepPartial<NonNullable<SupabaseDockerConfig['profiles']['remote']>>
+): NonNullable<SupabaseDockerConfig['profiles']['remote']> {
+  return {
+    enabled: remote.enabled ?? false,
+    includeLogs: remote.includeLogs ?? false,
+    image: {
+      registry: remote.image?.registry,
+      user: remote.image?.user ?? '',
+      repo: remote.image?.repo ?? '',
+      tag: remote.image?.tag ?? ''
+    },
+    volumes: {
+      shared: remote.volumes?.shared ?? '',
+      dbData: remote.volumes?.dbData ?? '',
+      dbConfig: remote.volumes?.dbConfig ?? '',
+      storage: remote.volumes?.storage ?? ''
+    },
+    security: {
+      bindLoopback: remote.security?.bindLoopback ?? false
+    },
+    ...(remote.postGenerateCommand !== undefined
+      ? { postGenerateCommand: remote.postGenerateCommand }
+      : {})
+  };
+}
+
+function buildSupabaseLocalFullProfile(
+  localFull: DeepPartial<NonNullable<SupabaseDockerConfig['profiles']['localFull']>>
+): NonNullable<SupabaseDockerConfig['profiles']['localFull']> {
+  return {
+    enabled: localFull.enabled ?? false,
+    includeLogs: localFull.includeLogs ?? false,
+    realtimeTenantName: localFull.realtimeTenantName ?? '',
+    ports: {
+      api: localFull.ports?.api ?? 0,
+      postgres: localFull.ports?.postgres ?? 0,
+      pooler: localFull.ports?.pooler ?? 0,
+      studio: localFull.ports?.studio ?? 0
+    },
+    autoApplyMigrations: localFull.autoApplyMigrations ?? false
+  };
+}
+
+function collectStringEntries(source: unknown): Map<string, string> {
+  const result = new Map<string, string>();
+  if (source instanceof Map) {
+    for (const [k, v] of source.entries()) {
+      if (typeof k === 'string' && typeof v === 'string') result.set(k, v);
+    }
+    return result;
+  }
+  if (typeof source === 'object' && source !== null) {
+    for (const [k, v] of Object.entries(source)) {
+      if (typeof v === 'string') result.set(k, v);
+    }
+  }
+  return result;
+}
+
+function buildSupabaseLiteEntry(
+  entry: DeepPartial<SupabaseLiteProfileConfig>
+): SupabaseLiteProfileConfig {
+  const schemasRaw: readonly unknown[] = Array.isArray(entry.schemas) ? entry.schemas : [];
+  const schemas = schemasRaw.filter((s): s is string => typeof s === 'string');
+  return {
+    enabled: entry.enabled ?? false,
+    storage: entry.storage === 'tmpfs' ? 'tmpfs' : 'volume',
+    images: {
+      postgres: entry.images?.postgres ?? '',
+      postgrest: entry.images?.postgrest ?? '',
+      nginx: entry.images?.nginx ?? ''
+    },
+    ports: {
+      postgres: entry.ports?.postgres ?? 0,
+      gateway: entry.ports?.gateway ?? 0
+    },
+    schemas,
+    autoSyncMigrations: entry.autoSyncMigrations ?? false
+  };
+}
+
+function buildSupabaseLiteProfiles(
+  liteMap: DeepPartial<NonNullable<SupabaseDockerConfig['profiles']['lite']>>
+): ReadonlyMap<string, SupabaseLiteProfileConfig> {
+  const result = new Map<string, SupabaseLiteProfileConfig>();
+  const entries =
+    liteMap instanceof Map
+      ? [...liteMap.entries()]
+      : typeof liteMap === 'object' && liteMap !== null
+        ? Object.entries(liteMap)
+        : [];
+  for (const [key, entry] of entries) {
+    if (typeof key !== 'string' || !entry || typeof entry !== 'object') continue;
+    result.set(key, buildSupabaseLiteEntry(entry as DeepPartial<SupabaseLiteProfileConfig>));
+  }
+  return result;
+}
+
+function buildSupabaseExtensions(
+  ext: DeepPartial<SupabaseDockerExtensionsConfig>
+): SupabaseDockerExtensionsConfig {
+  const extraEnvVars = collectStringEntries(ext.extraEnvVars);
+  return {
+    ...(ext.extraEnvVars ? { extraEnvVars } : {}),
+    ...(ext.customComposeOverlay !== undefined
+      ? { customComposeOverlay: ext.customComposeOverlay }
+      : {})
+  };
+}
+
+function buildSupabaseProfiles(
+  profiles: DeepPartial<SupabaseDockerConfig['profiles']> | undefined
+): SupabaseDockerConfig['profiles'] {
+  if (!profiles) return {};
+  return {
+    ...(profiles.remote ? { remote: buildSupabaseRemoteProfile(profiles.remote) } : {}),
+    ...(profiles.localFull ? { localFull: buildSupabaseLocalFullProfile(profiles.localFull) } : {}),
+    ...(profiles.lite ? { lite: buildSupabaseLiteProfiles(profiles.lite) } : {})
+  };
+}
+
+function buildSupabaseDockerConfig(
+  raw: DeepPartial<SupabaseDockerConfig> | undefined
+): SupabaseDockerConfig {
+  if (!raw) return DEFAULT_SUPABASE_DOCKER_CONFIG;
+  return {
+    enabled: raw.enabled ?? false,
+    projectSlug: raw.projectSlug ?? '',
+    upstreamRef: raw.upstreamRef ?? '',
+    supabaseDir: raw.supabaseDir ?? '',
+    masterEnvFile: raw.masterEnvFile ?? '',
+    postgres: {
+      expectedMajor: raw.postgres?.expectedMajor ?? 0,
+      allowMajorUpgrade: raw.postgres?.allowMajorUpgrade ?? false
+    },
+    ...(raw.extensions ? { extensions: buildSupabaseExtensions(raw.extensions) } : {}),
+    profiles: buildSupabaseProfiles(raw.profiles)
+  };
+}
+
 export function defineAuditConfig(
   config: DeepPartial<AuditEngineConfig> & { name: string }
 ): AuditEngineConfig {
@@ -1297,6 +1444,7 @@ export function defineAuditConfig(
     securityHardening: buildSecurityHardeningConfig(config.securityHardening),
     codeSimplification: buildCodeSimplificationConfig(config.codeSimplification),
     scssArchitecture: buildScssArchitectureConfig(config.scssArchitecture),
+    supabaseDocker: buildSupabaseDockerConfig(config.supabaseDocker),
     types: buildTypesConfig(config.types),
     encoding: buildEncodingConfig(config.encoding),
     ...agentAndSecurity,

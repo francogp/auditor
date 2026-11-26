@@ -1,9 +1,4 @@
 // src/core/auditConfigTypes.ts
-/**
-* packages/auditor/src/core/auditConfigTypes.ts
-*
-* TypeScript types and interfaces for the audit configuration contract.
-*/
 const AUDITOR_DIR = ".auditor";
 const AUDIT_CONFIG_FILE = `${AUDITOR_DIR}/audit.config.ts`;
 const AUDIT_CONFIG_JSON_FILE = `${AUDITOR_DIR}/audit.config.json`;

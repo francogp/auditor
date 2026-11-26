@@ -41,6 +41,7 @@ import {
 import { appendMissingSectionsToConfigFile } from './auditConfigAst.ts';
 import type { AuditTaskDefinition } from './auditContract.ts';
 import { findMissingGitIgnoreRequirements, appendGitIgnoreEntries } from './gitignoreMatcher.ts';
+import { resolveGitIgnoreRequirement } from './gitIgnoreRegistry.ts';
 import { ensureNpmrcAllowGit } from './npmrcAllowGit.ts';
 import { getPackageJson } from './packageJson.ts';
 import { tryOrNull, tryCatchSync, tryOrNullAsync, tryOrUndefinedAsync } from './safeUtils.ts';
@@ -216,10 +217,13 @@ async function ensureGitIgnoreSynchronized(projectRoot: string): Promise<boolean
     const requirements = await collectAllGitIgnoreRequirements(projectRoot);
     const activeConfig = await tryOrUndefinedAsync(() => loadAuditConfig(projectRoot));
 
-    const applicable = requirements.filter((req) => {
+    const rawApplicable = requirements.filter((req) => {
       if (!req.isApplicable) return true;
       return activeConfig ? req.isApplicable(activeConfig) : true;
     });
+    const applicable = activeConfig
+      ? rawApplicable.map((req) => resolveGitIgnoreRequirement(req, activeConfig))
+      : rawApplicable;
 
     if (applicable.length === 0) return false;
 

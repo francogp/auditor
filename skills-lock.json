@@ -12,8 +12,8 @@
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/ci-cd-and-automation/SKILL.md",
-      "computedHash": "7be96fc2a6cc3d8d769d5769b9024d41a4b40f502372b34bf4438b7056e5b2b9",
-      "commit": "8c99fa36d90068c82d547f7c12a9d67a3e95f4ee"
+      "computedHash": "307f1eeee27c29693dd6b229b1706f6a867eef5a7f381d4d6f06736a4c230576",
+      "commit": "e997ac5b9a74eab332d5e9793bb38a38c8cfdd74"
     },
     "code-review": {
       "source": "mattpocock/skills",
@@ -68,15 +68,15 @@
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/domain-modeling/SKILL.md",
-      "computedHash": "b78689833404148c769077355e12dbe5ad996a158a1e21e58ddf169e439d9d8c",
-      "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
+      "computedHash": "7d4453f798d7785c945972abe0871493caf884fa3ee82725cc71e783de6176ea",
+      "commit": "6f7f7831a625f040a8e06a0e7954826b87ce775a"
     },
     "fallow": {
       "source": "fallow-rs/fallow-skills",
       "sourceType": "github",
       "skillPath": "fallow/skills/fallow/SKILL.md",
-      "computedHash": "ec7f2dc1d1019b1b6d25e68b83443be88f26ed5224f0895cb0cb581722a194e4",
-      "commit": "be529e6f12cfe586b5524481d81487705e64f936"
+      "computedHash": "b1623bc799129824fa92acdf71e045da7350451615fcfce6bc69303841670b9a",
+      "commit": "1740c01b6a8476f86c3c7a17a3b0173aa027c506"
     },
     "fallow-review": {
       "source": "fallow-rs/fallow-skills",
@@ -173,8 +173,8 @@
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/incremental-implementation/SKILL.md",
-      "computedHash": "62ef93c6389f110af49ed4fad1fe2c27d3d9dd2d8fe0d0f6db089489c3d4aac3",
-      "commit": "39b723ceebf81474d0557c1fecd01eddab585563"
+      "computedHash": "0d61dbaaa3a1222ea1cd7b497f65694c793b256b7f82d227b856cde25057ebfa",
+      "commit": "e997ac5b9a74eab332d5e9793bb38a38c8cfdd74"
     },
     "mcp-builder": {
       "source": "anthropics/skills",
@@ -187,8 +187,8 @@
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/performance-optimization/SKILL.md",
-      "computedHash": "cfa0c39804554198a33e3beb2b0f920a1b468bb2e066822e1d08f4abeda3db33",
-      "commit": "39b723ceebf81474d0557c1fecd01eddab585563"
+      "computedHash": "5408f84feeed8c4e5abf5ee6b557e6d4e22a838c95e9d98bf64f49f4d1d16c7e",
+      "commit": "e997ac5b9a74eab332d5e9793bb38a38c8cfdd74"
     },
     "playwright-cli": {
       "source": "microsoft/playwright-cli",
@@ -243,8 +243,8 @@
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/security-and-hardening/SKILL.md",
-      "computedHash": "9bfc78e1ee2e23f3d226f610d8ed8e0cf6fb4f7e90a44db0a41b636735a24767",
-      "commit": "39b723ceebf81474d0557c1fecd01eddab585563"
+      "computedHash": "208e6266166f4a97792a391487f8df528c6a02ad70a0a86ada699836b2a70730",
+      "commit": "e997ac5b9a74eab332d5e9793bb38a38c8cfdd74"
     },
     "security-review": {
       "source": "getsentry/skills",
@@ -334,8 +334,8 @@
       "source": "vueuse/skills",
       "sourceType": "github",
       "skillPath": "skills/vueuse-functions/SKILL.md",
-      "computedHash": "898b0286e6c5eefab0d5cf010925d3911b2e127ea776adbf17027e2eca059888",
-      "commit": "004812b4aa0815f5745ac30a6a7dc4927aec7b3d"
+      "computedHash": "b7bae7036f6c72cdd2c0ccd6ad569725c76cf15e7e6bf4bccbfe9f6ea09f373a",
+      "commit": "1d68392e1c11b29cfbe95bb116e49889f260eb00"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

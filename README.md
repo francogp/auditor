@@ -93,10 +93,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.13.0`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.14.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.13.0 --allow-git=all
+npm install -D github:francogp/auditor#v10.14.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -106,7 +106,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.13.0"
+    "@francogp/auditor": "github:francogp/auditor#v10.14.0"
   }
 }
 ```
@@ -160,9 +160,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update v10.13.0
+npm run auditor:update v10.14.0
 # or directly:
-auditor-update v10.13.0
+auditor-update v10.14.0
 ```
 
 `auditor-update` snapshots `package.json`, `package-lock.json`, and `.npmrc` (rolling them back cleanly on failure), pre-elevates declared dependency ranges to SSoT minimums while pruning stale `vite-plus`/`vitest`/`@vitest/*` lockfile clusters to prevent `ERESOLVE` peer conflicts, installs the pinned `@francogp/auditor` tag, synchronizes agent skills registration and environment scripts (`setup-windows.ps1`, `setup-linux.sh`), runs `auditor fix`, and automatically upgrades any declared production or development dependencies below the newly installed auditor's `peerDependencies` floors.
@@ -249,7 +249,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MyProject',
   // Automatically synchronized by the auditor pre-flight bootstrap (SemVer + Build ID):
-  auditorVersion: '10.13.0-build.20261123-031850',
+  auditorVersion: '10.14.0-build.20261126-104135',
   paths: {
     enabled: true,
     srcRoots: ['src'],
@@ -312,7 +312,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.13.0"`), or install via `npm install -D github:francogp/auditor#v10.13.0 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.14.0"`), or install via `npm install -D github:francogp/auditor#v10.14.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -1137,6 +1137,7 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-motion`                | `src/cli/refactor_motion.ts`               | Interactive UI animation and GSAP governance refactoring CLI (`auditor-motion`, `npm run auditor:motion`).                                                                                                                                                                  |
 | `auditor-o1`                    | `src/cli/refactor_o1.ts`                   | Interactive O(1) data structures and linear search refactoring CLI (`auditor-o1`, `npm run auditor:o1`).                                                                                                                                                                    |
 | `auditor-types`                 | `src/cli/refactor_types.ts`                | Type assertions (`as any`), double casts, and return contracts zero-token refactoring CLI (`auditor-types`, `npm run auditor:types`).                                                                                                                                       |
+| `auditor-supabase`              | `src/cli/supabase_manage.ts`               | Unified Upstream-First Supabase Docker stack orchestrator (`remote`, `localFull`, `lite`, `upgrade-pg`) (`auditor-supabase`, `npm run auditor:supabase`).                                                                                                                 |
 | `auditor-domain`                | `src/cli/refactor_domain.ts`               | Raw string parameters, mutable catalogs, and unbranded entity IDs refactoring CLI (`auditor-domain`, `npm run auditor:domain`).                                                                                                                                             |
 | `auditor-hygiene`               | `src/cli/refactor_hygiene.ts`              | Member accessibility, globalThis, and void expressions zero-token refactoring CLI (`auditor-hygiene`, `npm run auditor:hygiene`).                                                                                                                                           |
 | `auditor-similar`               | `src/cli/report_similar_code.ts`           | Semantic clone and function similarity analysis via Fallow vector embeddings.                                                                                                                                                                                               |
@@ -1207,6 +1208,7 @@ flowchart TD
 | Import Subpath                         | Environment Compatibility         | Primary Exports & Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | :------------------------------------- | :-------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@francogp/auditor/modals`             | Browser, SSR, Web Worker, Node    | Framework-agnostic $O(1)$ LIFO modal stack (`createModalStack`, `ModalStackManager`), customizable Z-layer scales (`resolveModalZLayers`, `CANONICAL_Z_LAYERS`), customizable motion presets & drivers (`DEFAULT_MODAL_MOTION_PRESETS`, `ModalAnimationController`, `createWaapiModalDriver`, `createGsapModalDriver`), structural CSS var helpers (`resolveModalCssVars`, `resolveModalStructuralStyles`, `resolveModalDomIds`), `ModalDomController`, `createBackdropPointerGuard`, and `ModalSequenceQueue`. |
+| `@francogp/auditor/supabase`           | Node.js 26+ (CLI & Tooling)       | Upstream-First Supabase Docker AST transformer, 3-container `lite` stack generator, multi-server `.env` key orchestrator, SQL migration runner, and `upgrade-pg` wrapper.                                                                                                                                                                                                                                                                                                                                          |
 | `@francogp/auditor/domain`             | Browser, SSR, Web Worker, Node    | `createDomainSet` (with compile-time narrowing `has(value: unknown): value is T`) and `createDomainMap` for strict `/domain-type-first` collections.                                                                                                                                                                                                                                                                                                                                                            |
 | `@francogp/auditor/version`            | Browser, SSR, Node                | `AUDITOR_VERSION`, `AUDITOR_BUILD_ID`, and `AUDITOR_BUILD_DATE` constants.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `@francogp/auditor/domain-type-plugin` | Vite+ / Oxlint                    | Native Oxlint AST plugin enforcing domain types, security, and query rules.                                                                                                                                                                                                                                                                                                                                                                                                                                     |

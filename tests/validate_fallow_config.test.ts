@@ -266,8 +266,8 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(createdContent.entry).toContain('src/index.ts');
       expect(createdContent.ignorePatterns).toContain('dist/**');
       expect(createdContent.typeAware).toBeUndefined();
-      expect(createdContent.duplicates?.nearMiss).toBe(true);
-      expect(createdContent.duplicates?.mode).toBe('strict');
+      expect(createdContent.duplicates?.nearMiss).toBe(false);
+      expect(createdContent.duplicates?.mode).toBe('mild');
     });
 
     it('auto-prunes redundant entry, ignoreDependencies, and ignorePatterns diagnostics when fix: true is active', async () => {
@@ -329,8 +329,8 @@ describe('ValidateFallowConfigAuditor', () => {
       const config = {
         entry: ['.auditor/audit.config.ts'],
         duplicates: {
-          nearMiss: true,
-          mode: 'strict',
+          nearMiss: false,
+          mode: 'mild',
           minLines: 20,
           minTokens: 120
         },
@@ -362,7 +362,7 @@ describe('ValidateFallowConfigAuditor', () => {
       } = {
         $schema: 'https://fallow.tools/schema/config.json',
         duplicates: {
-          nearMiss: true,
+          nearMiss: false,
           mode: 'lenient',
           minLines: 20
         },
@@ -373,8 +373,8 @@ describe('ValidateFallowConfigAuditor', () => {
 
       const modified = validateUndeclaredFallowEntries(config, auditor);
       expect(modified).toBe(true);
-      // Canonical defaults in auditor: nearMiss: true, mode: 'strict', maxCrap: 0, minLines removed
-      expect(config.duplicates.mode).toBe('strict');
+      // Canonical defaults in auditor: nearMiss: false, mode: 'mild', maxCrap: 0, minLines removed
+      expect(config.duplicates.mode).toBe('mild');
       expect(config.duplicates.minLines).toBeUndefined();
       expect(config.health.maxCrap).toBe(0);
     });
@@ -455,7 +455,7 @@ describe('ValidateFallowConfigAuditor', () => {
         fallow: {
           enabled: true,
           minimumVersion: '3.42.0',
-          duplicates: { nearMiss: true, mode: 'strict' },
+          duplicates: { nearMiss: false, mode: 'mild' },
           health: { maxCrap: 0 },
           architecture: {
             enabled: true,

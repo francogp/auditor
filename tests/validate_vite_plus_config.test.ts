@@ -5,6 +5,7 @@ import path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import { getAuditConfig, defineAuditConfig, setAuditConfig } from '../src/core/auditConfig.ts';
+import { clearPackageJsonCache } from '../src/core/packageJson.ts';
 import { resolveVitestRoots, synchronizeViteConfigAst } from '../src/core/viteConfigAst.ts';
 import {
   buildCanonicalVitePlusConfig,
@@ -2365,6 +2366,47 @@ export default defineConfig({
       expect(generated).not.toContain('src/suites/**/*.ts');
       expect(generated).not.toContain('src/cli/*.ts');
       expect(generated).toContain("'lib/index.ts'");
+    });
+
+    it('conditionally includes CANONICAL_GSAP_DOM_RULES only when gsap is declared in package.json', () => {
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'gsap-host', dependencies: { gsap: '^3.13.0' } }),
+        'utf-8'
+      );
+      clearPackageJsonCache();
+
+      const cfg = defineAuditConfig({
+        name: 'gsap-host',
+        paths: { srcRoots: ['src'], testRoots: ['tests'], demoRoots: ['demos'] }
+      });
+      const withGsap = buildCanonicalVitePlusConfig(cfg, tempDir);
+      expect(withGsap).toContain('@francogp/domain-type/no-dom-intersection-reveal');
+      expect(withGsap).toContain('@francogp/domain-type/no-scroll-mousemove-style-mutation');
+      expect(withGsap).toContain('@francogp/domain-type/no-smooth-scroll-into-view');
+      expect(withGsap).toContain("'@francogp/domain-type/no-dom-intersection-reveal': 'off'");
+
+      const withGsapFindings = auditVitePlusConfigContent(withGsap, 'vite.config.ts', cfg, tempDir);
+      expect(
+        withGsapFindings.filter((f) => f.ruleId === 'vite-plus-undeclared-config-entry')
+      ).toHaveLength(0);
+
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'no-gsap-host', dependencies: {} }),
+        'utf-8'
+      );
+      clearPackageJsonCache();
+      const withoutGsap = buildCanonicalVitePlusConfig(cfg, tempDir);
+      expect(withoutGsap).not.toContain('@francogp/domain-type/no-dom-intersection-reveal');
+
+      const purged = synchronizeViteConfigAst(withGsap, cfg, [], [], null, tempDir);
+      expect(purged.modified).toBe(true);
+      expect(purged.content).not.toContain('@francogp/domain-type/no-dom-intersection-reveal');
+      expect(purged.content).not.toContain(
+        '@francogp/domain-type/no-scroll-mousemove-style-mutation'
+      );
+      expect(purged.content).not.toContain('@francogp/domain-type/no-smooth-scroll-into-view');
     });
   });
 });

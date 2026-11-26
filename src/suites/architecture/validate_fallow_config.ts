@@ -17,7 +17,10 @@ import path from 'node:path';
 
 import { ensureMandatoryDirectoriesExist } from '../../core/auditBootstrap.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_SIMILAR_CODE_THRESHOLD } from '../../core/auditConfigDefaults.ts';
+import {
+  DEFAULT_FALLOW_DUPLICATES_SETTINGS,
+  DEFAULT_SIMILAR_CODE_THRESHOLD
+} from '../../core/auditConfigDefaults.ts';
 import {
   type CanonicalRuleSeverityLevel,
   type FallowTypeAwareRequirePolicy,
@@ -185,8 +188,7 @@ export function createDefaultFallowConfigContent(): string {
         entry: ['src/index.ts'],
         ignorePatterns: ['dist/**', 'scratch/**', 'tests/**'],
         duplicates: {
-          nearMiss: true,
-          mode: 'strict'
+          ...DEFAULT_FALLOW_DUPLICATES_SETTINGS
         },
         health: {
           maxCrap: 0
@@ -808,8 +810,8 @@ function projectDuplicatesConfig(
   fallow?: NonNullable<ReturnType<typeof getAuditConfig>['fallow']>
 ): Record<string, unknown> {
   const duplicatesCfg: Record<string, unknown> = {
-    nearMiss: fallow?.duplicates?.nearMiss ?? true,
-    mode: fallow?.duplicates?.mode ?? 'strict'
+    nearMiss: fallow?.duplicates?.nearMiss ?? DEFAULT_FALLOW_DUPLICATES_SETTINGS.nearMiss,
+    mode: fallow?.duplicates?.mode ?? DEFAULT_FALLOW_DUPLICATES_SETTINGS.mode
   };
   if (fallow?.duplicates?.minLines !== undefined) {
     duplicatesCfg['minLines'] = fallow.duplicates.minLines;
@@ -1392,8 +1394,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         showCascade: true,
         duplicates: {
           enabled: true,
-          nearMiss: true,
-          mode: 'strict'
+          ...DEFAULT_FALLOW_DUPLICATES_SETTINGS
         },
         similarCode: {
           enabled: true,

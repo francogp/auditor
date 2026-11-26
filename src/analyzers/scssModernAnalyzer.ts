@@ -26,7 +26,31 @@ export const MODERN_SCSS_RULES = [
   'dark-mode-color-scheme-missing'
 ] as const;
 
-export type ModernScssRuleId = (typeof MODERN_SCSS_RULES)[number];
+export const UNIVERSAL_SCSS_ANIMATION_RULES = [
+  'scss-transition-all',
+  'scss-layout-property-animation',
+  'scss-will-change-in-keyframes'
+] as const;
+
+export const GSAP_SCSS_ANIMATION_RULES = [
+  'scss-gsap-transform-important',
+  'scss-gsap-smooth-scroll',
+  'scss-gsap-stagger-for-loop',
+  'scss-gsap-auto-alpha-candidate',
+  'scss-gsap-svg-stroke-animation'
+] as const;
+
+export const SCSS_ANIMATION_RULES = [
+  ...UNIVERSAL_SCSS_ANIMATION_RULES,
+  ...GSAP_SCSS_ANIMATION_RULES
+] as const;
+
+export type ScssAnimationRuleId = (typeof SCSS_ANIMATION_RULES)[number];
+export type ModernScssRuleId = (typeof MODERN_SCSS_RULES)[number] | ScssAnimationRuleId;
+
+export interface AnalyzeModernScssOptions {
+  readonly hasGsap?: boolean;
+}
 
 export interface ModernScssFinding {
   readonly ruleId: ModernScssRuleId;
@@ -204,12 +228,17 @@ export function parseScssBlockNodes(
 
 function walkScssRules(
   nodes: readonly ScssAstRuleNode[],
-  visitor: (rule: ScssAstRuleNode, siblings: readonly ScssAstRuleNode[]) => void
+  visitor: (
+    rule: ScssAstRuleNode,
+    siblings: readonly ScssAstRuleNode[],
+    ancestors: readonly ScssAstRuleNode[]
+  ) => void,
+  ancestors: readonly ScssAstRuleNode[] = []
 ): void {
   for (const node of nodes) {
-    visitor(node, nodes);
+    visitor(node, nodes, ancestors);
     if (node.children.length > 0) {
-      walkScssRules(node.children, visitor);
+      walkScssRules(node.children, visitor, [...ancestors, node]);
     }
   }
 }
@@ -571,18 +600,283 @@ function checkDarkModeColorScheme(
   return false;
 }
 
+const LAYOUT_ANIMATION_PROPERTIES: ReadonlySet<string> = new Set([
+  'top',
+  'left',
+  'right',
+  'bottom',
+  'width',
+  'height',
+  'min-width',
+  'max-width',
+  'min-height',
+  'max-height',
+  'margin',
+  'margin-top',
+  'margin-right',
+  'margin-bottom',
+  'margin-left',
+  'margin-inline',
+  'margin-inline-start',
+  'margin-inline-end',
+  'margin-block',
+  'margin-block-start',
+  'margin-block-end',
+  'padding',
+  'padding-top',
+  'padding-right',
+  'padding-bottom',
+  'padding-left',
+  'padding-inline',
+  'padding-inline-start',
+  'padding-inline-end',
+  'padding-block',
+  'padding-block-start',
+  'padding-block-end',
+  'gap',
+  'row-gap',
+  'column-gap'
+]);
+
+const ROOT_SCROLLER_SELECTORS: ReadonlySet<string> = new Set(['html', 'body', ':root']);
+const ZERO_TIME_VALUES: ReadonlySet<string> = new Set(['0', '0s', '0ms']);
+
+function isInsideKeyframes(ancestors: readonly ScssAstRuleNode[]): boolean {
+  return ancestors.some((a) => {
+    if (!a.isAtRule) return false;
+    const sel = a.selector.trim().toLowerCase();
+    return sel.startsWith('@keyframes') || sel.startsWith('@-webkit-keyframes');
+  });
+}
+
+function isInsideReducedMotionMedia(ancestors: readonly ScssAstRuleNode[]): boolean {
+  return ancestors.some((a) => {
+    if (!a.isAtRule) return false;
+    const sel = a.selector.toLowerCase();
+    return (
+      sel.startsWith('@media') && sel.includes('prefers-reduced-motion') && sel.includes('reduce')
+    );
+  });
+}
+
+function isScssLoopNode(node: ScssAstRuleNode): boolean {
+  if (!node.isAtRule) return false;
+  const sel = node.selector.trim().toLowerCase();
+  return /^@(for|each)\b/.test(sel);
+}
+
+function isInsideScssLoop(rule: ScssAstRuleNode, ancestors: readonly ScssAstRuleNode[]): boolean {
+  return isScssLoopNode(rule) || ancestors.some(isScssLoopNode);
+}
+
+function isRootScrollerSelector(selector: string): boolean {
+  return selector
+    .split(',')
+    .map((part) => part.trim().toLowerCase())
+    .some((part) => ROOT_SCROLLER_SELECTORS.has(part));
+}
+
+function extractTransitionTargetProps(rawValue: string): string[] {
+  const parsed = valueParser(rawValue.trim());
+  const props: string[] = [];
+
+  for (const node of parsed.nodes) {
+    if (node.type === 'word') {
+      const word = node.value.toLowerCase();
+      if (word !== '!important') {
+        props.push(word);
+      }
+    }
+  }
+  return props;
+}
+
+function hasImportantToken(rawValue: string): boolean {
+  const parsed = valueParser(rawValue.trim());
+  return parsed.nodes.some(
+    (node) => node.type === 'word' && node.value.toLowerCase() === '!important'
+  );
+}
+
+function isZeroOpacityValue(rawValue: string): boolean {
+  const word = isSingleWordValue(rawValue);
+  return word === '0' || word === '0.0' || word === '.0';
+}
+
+function checkUniversalScssAnimationRules(
+  rule: ScssAstRuleNode,
+  ancestors: readonly ScssAstRuleNode[],
+  lineOffset: number,
+  findings: ModernScssFinding[]
+): void {
+  const inKeyframes = isInsideKeyframes(ancestors);
+
+  for (const decl of rule.declarations) {
+    const line = lineOffset + decl.line - 1;
+    if (decl.prop === 'transition' || decl.prop === 'transition-property') {
+      const targetProps = extractTransitionTargetProps(decl.value);
+      if (targetProps.includes('all')) {
+        findings.push({
+          ruleId: 'scss-transition-all',
+          line,
+          message:
+            '`transition: all` forces layout/paint recalculation on every property. List explicit compositor properties or animate with GSAP.',
+          fixable: false
+        });
+      }
+      const layoutProp = targetProps.find((p) => LAYOUT_ANIMATION_PROPERTIES.has(p));
+      if (layoutProp) {
+        findings.push({
+          ruleId: 'scss-layout-property-animation',
+          line,
+          message: `Transitioning layout property '${layoutProp}' triggers reflow. Animate transform/opacity or orchestrate with GSAP.`,
+          fixable: false
+        });
+      }
+    }
+
+    if (inKeyframes && LAYOUT_ANIMATION_PROPERTIES.has(decl.prop)) {
+      findings.push({
+        ruleId: 'scss-layout-property-animation',
+        line,
+        message: `Animating layout property '${decl.prop}' inside @keyframes triggers reflow. Use compositor transforms or GSAP.`,
+        fixable: false
+      });
+    }
+
+    if (inKeyframes && decl.prop === 'will-change') {
+      findings.push({
+        ruleId: 'scss-will-change-in-keyframes',
+        line,
+        message:
+          '`will-change` inside @keyframes thrashes GPU layer promotion. Let GSAP manage layer promotion or apply on the element when animating.',
+        fixable: false
+      });
+    }
+  }
+}
+
+function checkGsapScssAnimationRules(
+  rule: ScssAstRuleNode,
+  ancestors: readonly ScssAstRuleNode[],
+  lineOffset: number,
+  findings: ModernScssFinding[]
+): void {
+  const inKeyframes = isInsideKeyframes(ancestors);
+  const inReducedMotion = isInsideReducedMotionMedia(ancestors);
+  const inScssLoop = isInsideScssLoop(rule, ancestors);
+
+  for (const decl of rule.declarations) {
+    const line = lineOffset + decl.line - 1;
+
+    if (decl.prop === 'transform' && !inReducedMotion && hasImportantToken(decl.value)) {
+      findings.push({
+        ruleId: 'scss-gsap-transform-important',
+        line,
+        message:
+          '`transform: ... !important` overrides GSAP inline transform matrices. Move the transform state into `gsap.set()` / `gsap.to()`.',
+        fixable: false
+      });
+    }
+
+    if (
+      !rule.isAtRule &&
+      decl.prop === 'scroll-behavior' &&
+      isSingleWordValue(decl.value) === 'smooth' &&
+      isRootScrollerSelector(rule.selector)
+    ) {
+      findings.push({
+        ruleId: 'scss-gsap-smooth-scroll',
+        line,
+        message:
+          'Root `scroll-behavior: smooth` conflicts with GSAP ScrollTrigger/ScrollSmoother. Remove it and use GSAP ScrollToPlugin.',
+        fixable: false
+      });
+    }
+
+    if (
+      inScssLoop &&
+      !inReducedMotion &&
+      (decl.prop === 'transition-delay' || decl.prop === 'animation-delay') &&
+      !ZERO_TIME_VALUES.has(isSingleWordValue(decl.value))
+    ) {
+      findings.push({
+        ruleId: 'scss-gsap-stagger-for-loop',
+        line,
+        message: `Static SCSS loop \`${decl.prop}\` should be replaced with GSAP \`stagger\` so timing stays dynamic and cancellable.`,
+        fixable: false
+      });
+    }
+
+    if (
+      ((decl.prop === 'transition' || decl.prop === 'transition-property') &&
+        extractTransitionTargetProps(decl.value).includes('stroke-dashoffset')) ||
+      (inKeyframes && decl.prop === 'stroke-dashoffset')
+    ) {
+      findings.push({
+        ruleId: 'scss-gsap-svg-stroke-animation',
+        line,
+        message:
+          'Animated CSS `stroke-dashoffset` should use GSAP `DrawSVGPlugin` (`drawSVG`) for cross-browser SVG path accuracy.',
+        fixable: false
+      });
+    }
+  }
+
+  checkAutoAlphaCandidate(rule, lineOffset, findings);
+}
+
+function checkAutoAlphaCandidate(
+  rule: ScssAstRuleNode,
+  lineOffset: number,
+  findings: ModernScssFinding[]
+): void {
+  if (rule.isAtRule) return;
+  const selLower = rule.selector.toLowerCase();
+  if (selLower.includes('.sr-only') || selLower.includes('[hidden]')) return;
+
+  const opacityDecl = rule.declarations.find(
+    (d) => d.prop === 'opacity' && isZeroOpacityValue(d.value)
+  );
+  if (!opacityDecl) return;
+
+  const hasVisibilityOrPointer = rule.declarations.some(
+    (d) =>
+      (d.prop === 'visibility' && isSingleWordValue(d.value) === 'hidden') ||
+      (d.prop === 'pointer-events' && isSingleWordValue(d.value) === 'none')
+  );
+  if (!hasVisibilityOrPointer) return;
+
+  const hasOpacityOrVisibilityTransition = rule.declarations.some((d) => {
+    if (d.prop !== 'transition' && d.prop !== 'transition-property') return false;
+    const props = extractTransitionTargetProps(d.value);
+    return props.includes('opacity') || props.includes('visibility') || props.includes('all');
+  });
+  if (!hasOpacityOrVisibilityTransition) return;
+
+  findings.push({
+    ruleId: 'scss-gsap-auto-alpha-candidate',
+    line: lineOffset + opacityDecl.line - 1,
+    message:
+      'CSS `opacity: 0` + `visibility: hidden`/`pointer-events: none` transition should use GSAP `autoAlpha` (`gsap.to`/`from`).',
+    fixable: false
+  });
+}
+
 export function analyzeModernScss(
   styleContent: string,
   lineOffset: number,
-  enableFix: boolean
+  enableFix: boolean,
+  options?: AnalyzeModernScssOptions
 ): ModernScssAnalysisResult {
   const lineOffsets = computeRawLineOffsets(styleContent);
   const parsed = parseScssBlockNodes(styleContent, 0, styleContent.length, lineOffsets);
   const ms = enableFix ? new MagicString(styleContent) : null;
   const findings: ModernScssFinding[] = [];
+  const hasGsap = options?.hasGsap === true;
   let mutated = false;
 
-  walkScssRules(parsed.children, (rule, siblings) => {
+  walkScssRules(parsed.children, (rule, siblings, ancestors) => {
     if (checkViewportUnitsOnRule(rule, lineOffset, ms, findings)) mutated = true;
     if (checkOverflowClipMarginOnRule(rule, lineOffset, ms, findings)) mutated = true;
     if (checkPreferUserInvalidOnRule(rule, lineOffset, ms, findings)) mutated = true;
@@ -590,6 +884,11 @@ export function analyzeModernScss(
     if (checkUnclampedViewportFontOnRule(rule, lineOffset, ms, findings)) mutated = true;
     if (checkFlexboxDeadPropertiesOnRule(rule, lineOffset, ms, findings)) mutated = true;
     if (checkUniversalExpensiveSelectorsOnRule(rule, lineOffset, ms, findings)) mutated = true;
+
+    checkUniversalScssAnimationRules(rule, ancestors, lineOffset, findings);
+    if (hasGsap) {
+      checkGsapScssAnimationRules(rule, ancestors, lineOffset, findings);
+    }
   });
 
   if (checkDarkModeColorScheme(parsed.children, lineOffset, ms, findings)) {

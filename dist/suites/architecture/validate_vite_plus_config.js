@@ -1,12 +1,13 @@
 import "../../core/auditConfig.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import { CANONICAL_GSAP_DOM_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
-import { isPathContained, stripGlobSuffix, toPosixRelative } from "../../core/safePath.js";
+import { hasPackageDependency } from "../../core/packageJson.js";
 import { isPatternContainedInGlobs } from "../../core/globContainment.js";
+import { isPathContained, stripGlobSuffix, toPosixRelative } from "../../core/safePath.js";
 import "../../core/satelliteGlobMatcher.js";
-import { areStringArraysEqual, buildAllowedCoverageExcludes, buildExpectedCoverageIncludeGlobs, detectInlineVitePlugins, extractParsedConfigSummary, findConfigRootObject, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseTsSourceFile, resolveEffectiveLintOverrides, resolveVitestRoots, toCanonicalLintRuleName } from "../../core/viteConfigAst.js";
+import { areStringArraysEqual, buildAllowedCoverageExcludes, buildExpectedCoverageIncludeGlobs, detectInlineVitePlugins, extractParsedConfigSummary, findConfigRootObject, getPropertyKeyName, hasVitePluginsImportDeclaration, isRuleValueCompliant, parseTsSourceFile, resolveCanonicalLintRules, resolveEffectiveLintOverrides, resolveVitestRoots, toCanonicalLintRuleName } from "../../core/viteConfigAst.js";
 import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, findHomebrewCompressionFiles, isVueProject, migrateHomebrewCompressionInViteConfig, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -1113,8 +1114,9 @@ function validateLintOptionsAndPlugins(summary, fileName, auditConfig) {
 	});
 	return findings;
 }
-function validateCustomLintRulesParity(summary, fileName, auditConfig) {
+function validateCustomLintRulesParity(summary, fileName, auditConfig, hasGsap = false) {
 	const findings = [];
+	const canonicalLintRules = resolveCanonicalLintRules(hasGsap);
 	const authorizedCustomRules = /* @__PURE__ */ new Set();
 	for (const rawKey of Object.keys(auditConfig.vitePlusConfig?.extraLintRules ?? {})) {
 		authorizedCustomRules.add(rawKey);
@@ -1124,7 +1126,7 @@ function validateCustomLintRulesParity(summary, fileName, auditConfig) {
 		authorizedCustomRules.add(rawKey);
 		authorizedCustomRules.add(toCanonicalLintRuleName(rawKey));
 	}
-	for (const [ruleName] of summary.lintRules.entries()) if (!(ruleName in DEFAULT_CANONICAL_LINT_RULES) && !authorizedCustomRules.has(ruleName)) findings.push({
+	for (const [ruleName] of summary.lintRules.entries()) if (!(ruleName in canonicalLintRules) && !authorizedCustomRules.has(ruleName)) findings.push({
 		suiteId: "validate_vite_plus_config",
 		suiteName: "Vite+ Unified Configuration Validator",
 		ruleId: "vite-plus-undeclared-config-entry",
@@ -1136,6 +1138,58 @@ function validateCustomLintRulesParity(summary, fileName, auditConfig) {
 		context: ruleName,
 		message: `Undeclared linter rule '${ruleName}' in vite.config.ts. To legitimize this rule, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.rules', or remove it from vite.config.ts.`
 	});
+	return findings;
+}
+function validateGsapDomLintRulesParity(summary, fileName, hasGsap) {
+	if (!hasGsap) return [];
+	const findings = [];
+	for (const ruleName of Object.keys(CANONICAL_GSAP_DOM_RULES)) if (summary.lintRules.get(ruleName) !== "error") findings.push({
+		suiteId: "validate_vite_plus_config",
+		suiteName: "Vite+ Unified Configuration Validator",
+		ruleId: "vite-plus-config-lint",
+		ruleDescription: "Strict linter and Oxlint standards",
+		severity: "error",
+		file: fileName,
+		line: 1,
+		col: 1,
+		context: ruleName,
+		message: `The GSAP DOM migration rule '${ruleName}' must be configured as 'error' in vite.config.ts because 'gsap' is declared in package.json. Run 'npm run auditor:fix' to synchronize.`
+	});
+	return findings;
+}
+function validateTestCoverageSyncParity(summary, fileName, auditConfig, projectRoot) {
+	const findings = [];
+	if (summary.hasTestCoverageInclude) {
+		const expectedInclude = buildExpectedCoverageIncludeGlobs(auditConfig);
+		if (!areStringArraysEqual(summary.testCoverageInclude, expectedInclude)) findings.push({
+			suiteId: "validate_vite_plus_config",
+			suiteName: "Vite+ Unified Configuration Validator",
+			ruleId: "vite-plus-config-ts",
+			ruleDescription: "Vite+: TypeScript and test synchronization",
+			severity: "error",
+			file: fileName,
+			line: 1,
+			col: 1,
+			context: "test.coverage.include",
+			message: `test.coverage.include (${summary.testCoverageInclude.join(", ")}) does not match SSoT testCoverage configuration (${expectedInclude.join(", ")}). Run 'npm run auditor:fix' to synchronize vite.config.ts from .auditor/audit.config.ts.`
+		});
+	}
+	if (summary.testCoverageExclude && summary.testCoverageExclude.length > 0) {
+		const effectiveGlobs = getEffectiveIgnoreGlobs(projectRoot ?? process.cwd());
+		const allowedCoverageExcludes = buildAllowedCoverageExcludes(auditConfig, projectRoot);
+		for (const pattern of summary.testCoverageExclude) if (!isPatternContainedInGlobs(pattern, allowedCoverageExcludes, effectiveGlobs)) findings.push({
+			suiteId: "validate_vite_plus_config",
+			suiteName: "Vite+ Unified Configuration Validator",
+			ruleId: "vite-plus-undeclared-config-entry",
+			ruleDescription: "Vite+: Undeclared entry in config",
+			severity: "error",
+			file: fileName,
+			line: 1,
+			col: 1,
+			context: "test.coverage.exclude",
+			message: `Unsynchronized exclusion pattern '${pattern}' detected in test.coverage.exclude of vite.config.ts. .auditor/audit.config.ts is the Single Source of Truth (SSoT). To legitimize this exclusion, declare it in .auditor/audit.config.ts under 'testCoverage.exclude' or 'paths.ignoreGlobs', or remove it from vite.config.ts.`
+		});
+	}
 	return findings;
 }
 function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectRoot) {
@@ -1194,7 +1248,9 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 		context: "lint.ignorePatterns",
 		message: `Unsynchronized exclusion patterns detected in lint of vite.config.ts: [${extraLint.join(", ")}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). To legitimize these exclusions, declare them in .auditor/audit.config.ts under 'paths.ignoreGlobs' or 'oxlint.ignoreGlobs', or remove them from vite.config.ts.`
 	});
-	findings.push(...validateCustomLintRulesParity(summary, fileName, auditConfig));
+	const hasGsap = projectRoot ? hasPackageDependency(projectRoot, "gsap") : false;
+	findings.push(...validateCustomLintRulesParity(summary, fileName, auditConfig, hasGsap));
+	findings.push(...validateGsapDomLintRulesParity(summary, fileName, hasGsap));
 	const authorizedPlugins = new Set(auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_VITE_PLUS_AUDIT_CONFIG.lint?.plugins ?? []);
 	for (const plugin of summary.lintPlugins) if (!authorizedPlugins.has(plugin)) findings.push({
 		suiteId: "validate_vite_plus_config",
@@ -1208,43 +1264,13 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 		context: `lint.plugins.${plugin}`,
 		message: `Undeclared linter plugin '${plugin}' in vite.config.ts. To legitimize this plugin, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.plugins', or remove it from vite.config.ts.`
 	});
-	if (summary.hasTestCoverageInclude) {
-		const expectedInclude = buildExpectedCoverageIncludeGlobs(auditConfig);
-		if (!areStringArraysEqual(summary.testCoverageInclude, expectedInclude)) findings.push({
-			suiteId: "validate_vite_plus_config",
-			suiteName: "Vite+ Unified Configuration Validator",
-			ruleId: "vite-plus-config-ts",
-			ruleDescription: "Vite+: TypeScript and test synchronization",
-			severity: "error",
-			file: fileName,
-			line: 1,
-			col: 1,
-			context: "test.coverage.include",
-			message: `test.coverage.include (${summary.testCoverageInclude.join(", ")}) does not match SSoT testCoverage configuration (${expectedInclude.join(", ")}). Run 'npm run auditor:fix' to synchronize vite.config.ts from .auditor/audit.config.ts.`
-		});
-	}
-	if (summary.testCoverageExclude && summary.testCoverageExclude.length > 0) {
-		const effectiveGlobs = getEffectiveIgnoreGlobs(projectRoot ?? process.cwd());
-		const allowedCoverageExcludes = buildAllowedCoverageExcludes(auditConfig, projectRoot);
-		for (const pattern of summary.testCoverageExclude) if (!isPatternContainedInGlobs(pattern, allowedCoverageExcludes, effectiveGlobs)) findings.push({
-			suiteId: "validate_vite_plus_config",
-			suiteName: "Vite+ Unified Configuration Validator",
-			ruleId: "vite-plus-undeclared-config-entry",
-			ruleDescription: "Vite+: Undeclared entry in config",
-			severity: "error",
-			file: fileName,
-			line: 1,
-			col: 1,
-			context: "test.coverage.exclude",
-			message: `Unsynchronized exclusion pattern '${pattern}' detected in test.coverage.exclude of vite.config.ts. .auditor/audit.config.ts is the Single Source of Truth (SSoT). To legitimize this exclusion, declare it in .auditor/audit.config.ts under 'testCoverage.exclude' or 'paths.ignoreGlobs', or remove it from vite.config.ts.`
-		});
-	}
-	findings.push(...validateLintOverridesParity(summary, fileName, auditConfig));
+	findings.push(...validateTestCoverageSyncParity(summary, fileName, auditConfig, projectRoot));
+	findings.push(...validateLintOverridesParity(summary, fileName, auditConfig, hasGsap));
 	return findings;
 }
-function validateLintOverridesParity(summary, fileName, auditConfig) {
+function validateLintOverridesParity(summary, fileName, auditConfig, hasGsap = false) {
 	const findings = [];
-	const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig);
+	const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig, hasGsap);
 	if (effectiveOverrides.length > 0) {
 		if (!summary.lintOverrides || summary.lintOverrides.length === 0) findings.push({
 			suiteId: "validate_vite_plus_config",

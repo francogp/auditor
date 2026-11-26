@@ -39,6 +39,7 @@ import type {
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import {
   BaseAuditor,
+  collectRepositoryFiles,
   createUniformRemediationPhases,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -47,10 +48,12 @@ import {
   findMissingGitIgnoreRequirements,
   appendGitIgnoreEntries
 } from '../../core/gitignoreMatcher.ts';
+import { resolveGitIgnoreRequirement } from '../../core/gitIgnoreRegistry.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
+import { isPathContained, normalizePosixPath, stripGlobSuffix } from '../../core/safePath.ts';
 import { tryOrNull } from '../../core/safeUtils.ts';
 import { AUDITOR_VERSION } from '../../core/version.ts';
+import { validateSupabaseDockerConfig } from '../../supabase/supabaseConfigTypes.ts';
 
 enableCompileCache();
 
@@ -570,7 +573,9 @@ export type AuditConfigRuleId =
   | 'audit-config-ratchet-relaxation'
   | 'audit-config-duplicate-key'
   | 'audit-config-duplicate-entry'
-  | 'audit-config-missing-enabled';
+  | 'audit-config-missing-enabled'
+  | 'audit-config-untracked-style-root'
+  | 'audit-config-invalid-supabase-docker';
 
 export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-missing-path',
@@ -584,7 +589,9 @@ export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-ratchet-relaxation',
   'audit-config-duplicate-key',
   'audit-config-duplicate-entry',
-  'audit-config-missing-enabled'
+  'audit-config-missing-enabled',
+  'audit-config-untracked-style-root',
+  'audit-config-invalid-supabase-docker'
 ] as const;
 
 export const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[] = [
@@ -708,7 +715,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-ratchet-relaxation': 'Unauthorized rule relaxation (ratchet)',
         'audit-config-duplicate-key': 'Duplicate property in config',
         'audit-config-duplicate-entry': 'Duplicate entry in array',
-        'audit-config-missing-enabled': 'Subsystem missing enabled'
+        'audit-config-missing-enabled': 'Subsystem missing enabled',
+        'audit-config-untracked-style-root': 'Untracked style root outside config',
+        'audit-config-invalid-supabase-docker': 'Invalid supabaseDocker configuration'
       },
       ruleRemediations: {
         'audit-config-missing-path':
@@ -794,7 +803,19 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
           '2. Diagnosis: Check the subsystem on the reported line to see if `enabled: true` or `enabled: false` is missing.\n' +
           '3. Canonical Solution: Add `enabled: true` (or `enabled: false`) to the subsystem block, or run `npm run auditor:fix` to auto-inject it.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   `npm run auditor:fix`'
+          '   `npm run auditor:fix`',
+        'audit-config-untracked-style-root':
+          '📖 REMEDIATION GUIDE: audit-config-untracked-style-root\n' +
+          '1. Root Cause: `.scss` or `.css` files exist on disk outside `paths.stylesRoots` and `paths.srcRoots` without an explicit entry in `paths.ignoreGlobs` or `coverage.exemptGlobs`, causing style/GSAP auditors to silently skip them.\n' +
+          '2. Diagnosis: Inspect the untracked stylesheet directory reported in the violation.\n' +
+          '3. Canonical Solution: Either add the directory to `paths.stylesRoots` (to audit it) or explicitly exclude it in `paths.ignoreGlobs` / `coverage.exemptGlobs`.\n' +
+          '4. Example:\n' +
+          '   `paths: { stylesRoots: ["src/styles", "public/css"] }` or `paths: { ignoreGlobs: ["public/css/**"] }`',
+        'audit-config-invalid-supabase-docker':
+          '📖 REMEDIATION GUIDE: audit-config-invalid-supabase-docker\n' +
+          '1. Root Cause: `supabaseDocker.enabled` is true in `.auditor/audit.config.ts`, but required fields for the active profiles (`projectSlug`, `upstreamRef`, `supabaseDir`, `masterEnvFile`, `postgres.expectedMajor`, or active profile ports/volumes/images) are missing or invalid.\n' +
+          '2. Diagnosis: Review each reported field error.\n' +
+          '3. Canonical Solution: Provide explicit, non-empty values for every active `supabaseDocker` field in `.auditor/audit.config.ts`.'
       },
       coverage: {
         include: [path.posix.join(AUDITOR_DIR, '*.{ts,json}'), '.gitignore']
@@ -892,6 +913,24 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
 
     this.runSubAuditorSync('audit-config-ratchet-relaxation', () => {
       this.verifyConfigRatchet(config);
+    });
+
+    this.runSubAuditorSync('audit-config-untracked-style-root', () => {
+      this.verifyUntrackedStyleRoots(config);
+    });
+
+    this.runSubAuditorSync('audit-config-invalid-supabase-docker', () => {
+      if (!config.supabaseDocker?.enabled) return;
+      const errors = validateSupabaseDockerConfig(config.supabaseDocker);
+      for (const message of errors) {
+        this.addViolation({
+          ruleId: 'audit-config-invalid-supabase-docker',
+          severity: 'error',
+          file: AUDIT_CONFIG_FILE,
+          line: 1,
+          message
+        });
+      }
     });
   }
 
@@ -1443,9 +1482,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
   private async verifyGitIgnore(config: AuditEngineConfig): Promise<void> {
     const gitignorePath = path.resolve(this.projectRoot, '.gitignore');
     const allRequirements = await collectAllGitIgnoreRequirements(this.projectRoot, config);
-    const applicable = allRequirements.filter((req) =>
-      req.isApplicable ? req.isApplicable(config) : true
-    );
+    const applicable = allRequirements
+      .filter((req) => (req.isApplicable ? req.isApplicable(config) : true))
+      .map((req) => resolveGitIgnoreRequirement(req, config));
 
     if (!fs.existsSync(gitignorePath)) {
       this.handleMissingGitIgnoreFile(gitignorePath, applicable);
@@ -1647,6 +1686,58 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
   private verifyDomainAndStylePaths(config: AuditEngineConfig): void {
     this.verifyDomainPaths(config);
     this.verifyStylesPaths(config);
+  }
+
+  private verifyUntrackedStyleRoots(config: AuditEngineConfig): void {
+    const exemptGlobs = (config.coverage?.exemptGlobs ?? []).map((entry) =>
+      typeof entry === 'string' ? entry : entry.glob
+    );
+    const styleFiles = collectRepositoryFiles(
+      this.projectRoot,
+      this.projectRoot,
+      exemptGlobs,
+      new Set(['.scss', '.css'])
+    );
+    if (styleFiles.length === 0) return;
+
+    const coveredRoots = [
+      ...(config.paths?.stylesRoots ?? []),
+      ...(config.paths?.srcRoots ?? []),
+      ...(config.paths?.testRoots ?? []),
+      ...(config.paths?.e2eRoots ?? []),
+      ...(config.paths?.demoRoots ?? [])
+    ]
+      .map((root) => stripGlobSuffix(normalizePosixPath(root)))
+      .filter((root) => root.length > 0);
+
+    const untrackedByDir = new Map<string, string>();
+    for (const absOrRel of styleFiles) {
+      const relPosix = normalizePosixPath(
+        path.isAbsolute(absOrRel) ? path.relative(this.projectRoot, absOrRel) : absOrRel
+      );
+      const isCovered = coveredRoots.some((root) =>
+        isPathContained(root, relPosix, this.projectRoot)
+      );
+      if (isCovered) continue;
+
+      const dirRoot = path.posix.dirname(relPosix);
+      if (!untrackedByDir.has(dirRoot)) {
+        untrackedByDir.set(dirRoot, relPosix);
+      }
+    }
+
+    const sortedRoots = [...untrackedByDir.keys()].sort();
+    for (const dirRoot of sortedRoots) {
+      const sampleFile = untrackedByDir.get(dirRoot)!;
+      this.addViolation({
+        ruleId: 'audit-config-untracked-style-root',
+        severity: 'error',
+        file: AUDIT_CONFIG_FILE,
+        line: 1,
+        context: dirRoot,
+        message: `Untracked stylesheet root '${dirRoot}' (e.g. '${sampleFile}') is outside paths.stylesRoots and paths.srcRoots. Add '${dirRoot}' to paths.stylesRoots or exclude it via paths.ignoreGlobs / coverage.exemptGlobs.`
+      });
+    }
   }
 
   private resolveExtensionFiles(resolved: string): string[] {
