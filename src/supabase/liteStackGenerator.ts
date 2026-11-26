@@ -103,7 +103,7 @@ export async function resolveLiteRuntimeEnv(
     url: `http://127.0.0.1:${profile.ports.gateway}`,
     anonKey,
     serviceRoleKey,
-    postgresUrl: `postgresql://postgres:${creds.postgresPassword}@127.0.0.1:${profile.ports.postgres}/postgres`,
+    postgresUrl: `postgresql://postgres:${encodeURIComponent(creds.postgresPassword)}@127.0.0.1:${profile.ports.postgres}/postgres`,
     postgresPassword: creds.postgresPassword,
     jwtSecret: creds.jwtSecret,
     envFilePath: creds.envFilePath
@@ -161,6 +161,9 @@ export function generateLiteBootstrapSql(jwtSecret: string, postgresPassword: st
     `    CREATE ROLE authenticator NOINHERIT LOGIN PASSWORD '${escapedPassword}';`,
     '  ELSE',
     `    ALTER ROLE authenticator WITH LOGIN PASSWORD '${escapedPassword}';`,
+    '  END IF;',
+    "  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgres') THEN",
+    `    ALTER ROLE postgres WITH LOGIN PASSWORD '${escapedPassword}';`,
     '  END IF;',
     '  GRANT anon TO authenticator;',
     '  GRANT authenticated TO authenticator;',
@@ -234,10 +237,11 @@ export function generateLiteComposeYaml(
         restart: profile.storage === 'tmpfs' ? 'no' : 'unless-stopped',
         depends_on: { [dbName]: { condition: 'service_healthy' } },
         environment: {
-          PGRST_DB_URI: `postgres://authenticator:${creds.postgresPassword}@${dbName}:5432/postgres`,
+          PGRST_DB_URI: `postgres://authenticator:${encodeURIComponent(creds.postgresPassword)}@${dbName}:5432/postgres`,
           PGRST_DB_SCHEMAS: profile.schemas.join(','),
           PGRST_DB_ANON_ROLE: 'anon',
           PGRST_JWT_SECRET: creds.jwtSecret,
+          PGRST_ADMIN_SERVER_PORT: 3001,
           PGRST_DB_USE_LEGACY_GUCS: 'false',
           PGRST_APP_SETTINGS_JWT_SECRET: creds.jwtSecret,
           PGRST_APP_SETTINGS_JWT_EXP: 3600
@@ -255,7 +259,7 @@ export function generateLiteComposeYaml(
         restart: profile.storage === 'tmpfs' ? 'no' : 'unless-stopped',
         ports: [`${profile.ports.gateway}:80`],
         volumes: ['./nginx.conf:/etc/nginx/conf.d/default.conf:ro'],
-        depends_on: [restName]
+        depends_on: { [restName]: { condition: 'service_healthy' } }
       }
     }
   };

@@ -29,6 +29,7 @@ describe('liteStackGenerator', () => {
     const sql = generateLiteBootstrapSql('super-secret', 'pgpass123');
     expect(sql).toContain('supabase_migrations.schema_migrations');
     expect(sql).toContain('CREATE ROLE authenticator');
+    expect(sql).toContain('ALTER ROLE postgres WITH LOGIN PASSWORD');
 
     const compose = generateLiteComposeYaml(
       {
@@ -47,11 +48,16 @@ describe('liteStackGenerator', () => {
           autoSyncMigrations: true
         }
       },
-      { postgresPassword: 'pgpass123', jwtSecret: 'jwtsecret123' }
+      { postgresPassword: 'pg@pass#123', jwtSecret: 'jwtsecret123' }
     );
     expect(compose).toContain('/var/lib/postgresql/data');
     expect(compose).toContain('5433:5432');
     expect(compose).toContain('8001:80');
+    expect(compose).toContain('PGRST_ADMIN_SERVER_PORT: 3001');
+    expect(compose).toContain(
+      'postgres://authenticator:pg%40pass%23123@demo-test-db:5432/postgres'
+    );
+    expect(compose).toContain('condition: service_healthy');
   });
 
   it('resolves credentials from masterEnvFile first, then creates and reuses profile-local .env', async () => {
