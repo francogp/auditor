@@ -73,7 +73,8 @@ export interface FallowWorkspaceDiagnosticItem {
   readonly pattern?: string;
   readonly message?: string;
 }
-export declare const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS: readonly ["entry-pattern-redundant", "ignore-dependencies-entry-redundant", "ignore-patterns-entry-redundant"];
+export declare function pruneRedundantFallowConfigDiagnostic(diag: FallowWorkspaceDiagnosticItem, config: FallowConfigSchema | undefined): boolean;
+export declare const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS: readonly ["entry-pattern-redundant", "ignore-dependencies-entry-redundant", "ignore-patterns-entry-redundant", "ignore-exports-name-unmatched", "ignore-exports-file-unmatched", "ignore-exports-entry-redundant"];
 export type FallowRedundantConfigDiagnosticKind = (typeof FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS)[number];
 export interface FallowDoctorCheck {
   readonly id?: string;

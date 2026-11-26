@@ -233,7 +233,7 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   },
   {
     name: 'auditor:similar',
-    command: 'auditor-similar',
+    command: 'auditor-similarity',
     description: 'Semantic duplicate code detection via Candle CPU vectors',
     category: 'reporting',
     isApplicable: (config) => config.fallow?.similarCode?.enabled !== false

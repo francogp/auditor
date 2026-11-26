@@ -40,10 +40,19 @@ export interface SupabaseLocalFullProfileConfig {
     readonly studio: number;
   };
   readonly autoApplyMigrations: boolean;
+  readonly postGenerateCommand?: string;
+}
+export interface SupabaseLiteNginxConfig {
+  readonly clientMaxBodySize?: string;
+  readonly proxyRoot?: boolean;
+  readonly extraDirectives?: string;
 }
 export interface SupabaseLiteProfileConfig {
   readonly enabled: boolean;
   readonly storage: SupabaseLiteStorageMode;
+  readonly volumeName?: string;
+  readonly externalVolume?: boolean;
+  readonly nginx?: SupabaseLiteNginxConfig;
   readonly images: {
     readonly postgres: string;
     readonly postgrest: string;
@@ -55,11 +64,14 @@ export interface SupabaseLiteProfileConfig {
   };
   readonly schemas: readonly string[];
   readonly autoSyncMigrations: boolean;
+  readonly postGenerateCommand?: string;
 }
 export declare const MIN_POSTGRES_MAJOR: 12;
 export interface SupabaseDockerExtensionsConfig {
   readonly extraEnvVars?: ReadonlyMap<string, string>;
   readonly customComposeOverlay?: string;
+  readonly postMigrateSql?: string;
+  readonly initDir?: string;
 }
 export interface SupabaseDockerConfig {
   readonly enabled: boolean;
@@ -100,6 +112,15 @@ export interface SupabaseLiteComposeTarget {
 export interface SupabaseLiteCredentials {
   readonly postgresPassword: string;
   readonly jwtSecret: string;
+}
+export interface SupabaseLiteRuntimeEnv {
+  readonly url: string;
+  readonly anonKey: string;
+  readonly serviceRoleKey: string;
+  readonly postgresUrl: string;
+  readonly postgresPassword: string;
+  readonly jwtSecret: string;
+  readonly envFilePath: string;
 }
 export interface SupabaseUpgradeManifestInput {
   readonly fromVolume: string;

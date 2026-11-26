@@ -21,7 +21,9 @@ import { loadAuditConfig, resetAuditConfig } from '../src/core/auditConfig.ts';
 import {
   ValidateFallowConfigAuditor,
   FALLOW_CONFIG_RULES,
+  FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS,
   isSymbolExportedInContent,
+  pruneRedundantFallowConfigDiagnostic,
   validateFallowWorkspaceDiagnostics,
   validateUndeclaredFallowEntries,
   projectFallowConfigFromAuditConfig
@@ -632,6 +634,61 @@ describe('ValidateFallowConfigAuditor', () => {
         (f) => !f.message.includes('existing-dep') && !f.message.includes('existing/**')
       );
       expect(remainingMissing).toHaveLength(0);
+    });
+
+    it('auto-prunes ignore-exports-name-unmatched and ignore-exports-file-unmatched diagnostics during fix', () => {
+      const satelliteConfig: Record<string, unknown> = {
+        ignoreExports: [
+          {
+            file: 'src/components/battle/MoveTooltipTactical.vue',
+            exports: ['default', 'MoveTooltipProps']
+          },
+          {
+            file: 'src/obsolete/Gone.ts',
+            exports: ['oldFn']
+          }
+        ]
+      };
+
+      const fixAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      Reflect.set(fixAuditor, 'currentFixActive', true);
+
+      const modified = validateFallowWorkspaceDiagnostics(
+        [
+          {
+            kind: 'ignore-exports-name-unmatched',
+            message:
+              "ignoreExports entry 'default in src/components/battle/MoveTooltipTactical.vue' names no export of a file that the glob matches in this run, so it has no effect."
+          },
+          {
+            kind: 'ignore-exports-file-unmatched',
+            pattern: 'src/obsolete/Gone.ts',
+            message: "ignoreExports entry 'src/obsolete/Gone.ts' matches no file."
+          }
+        ],
+        fixAuditor,
+        satelliteConfig
+      );
+
+      expect(modified).toBe(true);
+      expect(satelliteConfig.ignoreExports).toEqual([
+        {
+          file: 'src/components/battle/MoveTooltipTactical.vue',
+          exports: ['MoveTooltipProps']
+        }
+      ]);
+
+      // Removing the last export removes the entry and deletes ignoreExports when empty
+      const cleared = pruneRedundantFallowConfigDiagnostic(
+        {
+          kind: 'ignore-exports-name-unmatched',
+          pattern: 'MoveTooltipProps in src/components/battle/MoveTooltipTactical.vue'
+        },
+        satelliteConfig
+      );
+      expect(cleared).toBe(true);
+      expect(satelliteConfig.ignoreExports).toBeUndefined();
+      expect(FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS).toContain('ignore-exports-name-unmatched');
     });
   });
 });

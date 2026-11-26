@@ -574,11 +574,68 @@ export interface FallowWorkspaceDiagnosticItem {
   readonly message?: string;
 }
 
-function pruneRedundantFallowConfigDiagnostic(
+const UNMATCHED_EXPORT_IN_FILE_REGEX = /['"]?([^'"]+?)\s+in\s+([^'"]+)['"]?/u;
+
+function extractUnmatchedExportPair(
+  diag: FallowWorkspaceDiagnosticItem
+): { readonly exportName: string; readonly fileGlob: string } | null {
+  for (const source of [diag.pattern, diag.message]) {
+    if (!source) continue;
+    const match = UNMATCHED_EXPORT_IN_FILE_REGEX.exec(source);
+    if (match?.[1] && match?.[2]) {
+      return { exportName: match[1].trim(), fileGlob: match[2].trim() };
+    }
+  }
+  return null;
+}
+
+function pruneIgnoreExportsDiagnostic(
+  diag: FallowWorkspaceDiagnosticItem,
+  config: FallowConfigSchema
+): boolean {
+  if (!Array.isArray(config.ignoreExports) || config.ignoreExports.length === 0) return false;
+  if (diag.kind === 'ignore-exports-name-unmatched') {
+    const pair = extractUnmatchedExportPair(diag);
+    if (!pair) return false;
+    let mutated = false;
+    const nextEntries: FallowIgnoreExportEntry[] = [];
+    for (const entry of config.ignoreExports) {
+      if (normalizePosixPath(entry.file) !== normalizePosixPath(pair.fileGlob)) {
+        nextEntries.push(entry);
+        continue;
+      }
+      const nextExports = entry.exports.filter((exp) => exp !== pair.exportName);
+      if (nextExports.length !== entry.exports.length) mutated = true;
+      if (nextExports.length > 0) nextEntries.push({ ...entry, exports: nextExports });
+    }
+    if (!mutated) return false;
+    if (nextEntries.length === 0) delete config.ignoreExports;
+    else config.ignoreExports = nextEntries;
+    return true;
+  }
+
+  const targetFile = diag.pattern
+    ? normalizePosixPath(diag.pattern)
+    : /'([^']+)'/u.exec(diag.message ?? '')?.[1];
+  if (!targetFile) return false;
+  const normalizedTarget = normalizePosixPath(targetFile);
+  const before = config.ignoreExports.length;
+  config.ignoreExports = config.ignoreExports.filter(
+    (entry) => normalizePosixPath(entry.file) !== normalizedTarget
+  );
+  if (config.ignoreExports.length === 0) delete config.ignoreExports;
+  return (config.ignoreExports?.length ?? 0) !== before;
+}
+
+export function pruneRedundantFallowConfigDiagnostic(
   diag: FallowWorkspaceDiagnosticItem,
   config: FallowConfigSchema | undefined
 ): boolean {
-  if (!config || !diag.pattern) return false;
+  if (!config) return false;
+  if (IGNORE_EXPORTS_DIAGNOSTIC_SET.has(diag.kind ?? '')) {
+    return pruneIgnoreExportsDiagnostic(diag, config);
+  }
+  if (!diag.pattern) return false;
   if (diag.kind === 'entry-pattern-redundant' && Array.isArray(config.entry)) {
     const before = config.entry.length;
     config.entry = config.entry.filter((p) => p !== diag.pattern);
@@ -603,10 +660,20 @@ function pruneRedundantFallowConfigDiagnostic(
   return false;
 }
 
+const FALLOW_IGNORE_EXPORTS_DIAGNOSTIC_KINDS = [
+  'ignore-exports-name-unmatched',
+  'ignore-exports-file-unmatched',
+  'ignore-exports-entry-redundant'
+] as const;
+const IGNORE_EXPORTS_DIAGNOSTIC_SET: ReadonlySet<string> = new Set<string>(
+  FALLOW_IGNORE_EXPORTS_DIAGNOSTIC_KINDS
+);
+
 export const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS = [
   'entry-pattern-redundant',
   'ignore-dependencies-entry-redundant',
-  'ignore-patterns-entry-redundant'
+  'ignore-patterns-entry-redundant',
+  ...FALLOW_IGNORE_EXPORTS_DIAGNOSTIC_KINDS
 ] as const;
 export type FallowRedundantConfigDiagnosticKind =
   (typeof FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS)[number];
@@ -800,7 +867,9 @@ export function validateFallowWorkspaceDiagnostics(
       line: 1,
       message: `Workspace diagnostic (Fallow): [${d.kind || 'diagnostic'}] ${d.message || ''}`,
       context: d.kind || 'workspace_diagnostic',
-      fixable: isRedundantConfigEntry && Boolean(d.pattern)
+      fixable:
+        isRedundantConfigEntry &&
+        (Boolean(d.pattern) || IGNORE_EXPORTS_DIAGNOSTIC_SET.has(d.kind ?? ''))
     });
   }
   return modified;
@@ -998,7 +1067,7 @@ function validateUndeclaredTypeAware(
       file: '.fallowrc.json',
       line: 1,
       message:
-        'Prohibited typeAware configuration in .fallowrc.json. TypeScript type-checking is unified exclusively in Vite+/Oxlint. Remove typeAware from .fallowrc.json.',
+        'Prohibited typeAware in .fallowrc.json. Fallow semantic graph type-aware analysis is governed exclusively by .auditor/audit.config.ts (fallow.typeAware, applied only in speed=full to keep daily audits fast). Remove typeAware from .fallowrc.json.',
       context: 'typeAware',
       fixable: true
     });
@@ -1485,7 +1554,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
           '📖 REMEDIATION GUIDE: fallow-config-workspace-diagnostic\n' +
           '1. Root Cause: The Fallow engine emitted a workspace-level diagnostic, redundant config entry warning, or boundary configuration warning.\n' +
           '2. Diagnosis: Inspect the diagnostic message emitted by the Fallow engine in the report.\n' +
-          '3. Canonical Solution: Run npm run auditor:fix to automatically prune redundant config entries (entry-pattern-redundant, ignore-dependencies-entry-redundant, ignore-patterns-entry-redundant), or adjust package/boundary settings in .fallowrc.json.\n' +
+          '3. Canonical Solution: Run npm run auditor:fix to automatically prune redundant config entries (entry-pattern-redundant, ignore-dependencies-entry-redundant, ignore-patterns-entry-redundant, ignore-exports-name-unmatched), or adjust package/boundary settings in .fallowrc.json.\n' +
           '4. Example / Auto-fix command:\n' +
           '   npm run auditor:fix',
         'fallow-undeclared-config-entry':

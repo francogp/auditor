@@ -16,7 +16,10 @@ import { randomAlphanumeric } from './supabaseCryptoUtils.ts';
 
 const PASSWORD_BYTES_LENGTH = 32 as const;
 const JWT_TTL_FIVE_YEARS_SECONDS = 60 * 60 * 24 * 365 * 5;
-const SERVER_HEADER_REGEX = /^#\s*===\s*\[\s*SERVIDOR:\s*([a-zA-Z0-9_-]+)\s*\]\s*===/gmu;
+const SERVER_HEADER_REGEX =
+  /^#\s*(?:===|---)\s*\[\s*SERVIDOR(?:\s+\d+)?:\s*([a-zA-Z0-9_-]+)\s*\]\s*(?:===|---)/gmu;
+const KNOWN_SERVER_KEY_SUFFIX_REGEX =
+  /^SERVER_([a-zA-Z0-9_-]+?)_(?:ID|NAME|REGION|TENANT_ID|DEPLOY_MODE|IS_CLOUD|IS_DEFAULT|PREFER_FOR|POSTGRES_PASSWORD|JWT_SECRET|ANON_KEY|SERVICE_ROLE_KEY|API_EXTERNAL_URL|SUPABASE_PUBLIC_URL|SITE_URL|DASHBOARD_USERNAME|DASHBOARD_PASSWORD|API_GW_HTTP_PORT|POOLER_TENANT_ID|STORAGE_TENANT_ID)$/u;
 const ALPHANUMERIC_PASSWORD_REGEX = /^[A-Za-z0-9]+$/u;
 const INSECURE_PLACEHOLDERS = [
   'your-super-secret',
@@ -24,6 +27,7 @@ const INSECURE_PLACEHOLDERS = [
   'change-me',
   'example'
 ] as const;
+const MANAGED_CLOUD_MODE_VALUES = ['cloud', 'managed'] as const;
 
 interface SupabaseJwtPayload {
   readonly role: string;
@@ -56,6 +60,31 @@ function signHs256Jwt(payload: SupabaseJwtPayload, secret: string): string {
   return `${data}.${sig}`;
 }
 
+export interface SignedSupabaseJwtPair {
+  readonly anonKey: string;
+  readonly serviceRoleKey: string;
+  readonly iat: number;
+  readonly exp: number;
+}
+
+function nowEpochSeconds(): number {
+  return Math.floor(Temporal.Now.instant().epochMilliseconds / 1000);
+}
+
+/**
+ * Signs a 5-year HS256 `anon` and `service_role` JWT pair using `jwtSecret`.
+ */
+export function signSupabaseJwtPair(jwtSecret: string): SignedSupabaseJwtPair {
+  const iat = nowEpochSeconds();
+  const exp = iat + JWT_TTL_FIVE_YEARS_SECONDS;
+  const anonKey = signHs256Jwt({ role: 'anon', iss: 'supabase', iat, exp }, jwtSecret);
+  const serviceRoleKey = signHs256Jwt(
+    { role: 'service_role', iss: 'supabase', iat, exp },
+    jwtSecret
+  );
+  return { anonKey, serviceRoleKey, iat, exp };
+}
+
 /**
  * Parses `.env` text into a key-value Map (preserving last occurrence and stripping quotes).
  */
@@ -77,14 +106,39 @@ export function parseEnvContent(content: string): Map<string, string> {
 }
 
 /**
- * Lists all server names registered via `# === [ SERVIDOR: <name> ] ===` headers in master `.env`.
+ * Lists all server names registered via `# === [ SERVIDOR: <name> ] ===`,
+ * `# --- [ SERVIDOR ...: <name> ] ---`, or `SERVER_<name>_*` variables in master `.env`.
  */
 export function listMasterServers(envContent: string): readonly string[] {
   const servers: string[] = [];
+  const seen = new Set<string>();
+  const register = (name: string): void => {
+    if (!seen.has(name)) {
+      seen.add(name);
+      servers.push(name);
+    }
+  };
   for (const match of envContent.matchAll(SERVER_HEADER_REGEX)) {
-    if (match[1]) servers.push(match[1]);
+    if (match[1]) register(match[1]);
+  }
+  for (const key of parseEnvContent(envContent).keys()) {
+    const prefixMatch = KNOWN_SERVER_KEY_SUFFIX_REGEX.exec(key);
+    if (prefixMatch?.[1]) register(prefixMatch[1]);
   }
   return servers;
+}
+
+/**
+ * Returns true if a server block represents a managed Supabase Cloud instance (not self-hosted Docker).
+ */
+export function isManagedCloudServer(serverVars: ReadonlyMap<string, string>): boolean {
+  const rawMode = serverVars.get('DEPLOY_MODE');
+  if (rawMode) {
+    const normalizedMode = rawMode.trim().toLowerCase();
+    if (MANAGED_CLOUD_MODE_VALUES.some((m) => m === normalizedMode)) return true;
+  }
+  const rawIsCloud = serverVars.get('IS_CLOUD');
+  return rawIsCloud ? rawIsCloud.trim().toLowerCase() === 'true' : false;
 }
 
 /**
@@ -112,12 +166,23 @@ export function upsertServerBlock(
 ): string {
   const header = `# === [ SERVIDOR: ${serverName} ] ===`;
   const prefix = `SERVER_${serverName}_`;
+  const serverHeaderPattern = new RegExp(
+    `^#\\s*(?:===|---)\\s*\\[\\s*SERVIDOR(?:\\s+\\d+)?:\\s*${RegExp.escape(serverName)}\\s*\\]\\s*(?:===|---)`,
+    'u'
+  );
   const lines = envContent.split(/\r?\n/u);
   const nextLines = [...lines];
 
-  if (!envContent.includes(header)) {
+  const headerIdx = nextLines.findIndex((l) => serverHeaderPattern.test(l.trim()));
+  const lastKeyIdx = nextLines.findLastIndex((l) => l.trim().startsWith(prefix));
+  let insertAnchor: number;
+
+  if (headerIdx < 0 && lastKeyIdx < 0) {
     if (nextLines.length > 0 && nextLines.at(-1) !== '') nextLines.push('');
     nextLines.push(header);
+    insertAnchor = nextLines.length - 1;
+  } else {
+    insertAnchor = lastKeyIdx >= 0 ? lastKeyIdx : headerIdx;
   }
 
   for (const [k, v] of vars.entries()) {
@@ -126,8 +191,8 @@ export function upsertServerBlock(
     if (existingIdx >= 0) {
       nextLines[existingIdx] = `${fullKey}=${v}`;
     } else {
-      const headerIdx = nextLines.findIndex((l) => l.trim() === header);
-      nextLines.splice(headerIdx + 1, 0, `${fullKey}=${v}`);
+      nextLines.splice(insertAnchor + 1, 0, `${fullKey}=${v}`);
+      insertAnchor += 1;
     }
   }
 
@@ -155,13 +220,15 @@ export function validateEnvSecrets(
     }
   }
 
-  for (const passKey of ['POSTGRES_PASSWORD', 'DASHBOARD_PASSWORD']) {
-    const val = envVars.get(passKey);
-    if (val && !ALPHANUMERIC_PASSWORD_REGEX.test(val)) {
-      errors.push(
-        `'${passKey}' must contain only ASCII letters and digits (upstream interpolates it unencoded in URIs).`
-      );
-    }
+  const pgPass = envVars.get('POSTGRES_PASSWORD');
+  if (pgPass && !ALPHANUMERIC_PASSWORD_REGEX.test(pgPass)) {
+    errors.push(
+      "'POSTGRES_PASSWORD' must contain only ASCII letters and digits (upstream interpolates it unencoded in URIs)."
+    );
+  }
+  const dashPass = envVars.get('DASHBOARD_PASSWORD');
+  if (dashPass && isInsecurePlaceholder(dashPass)) {
+    errors.push("Secret 'DASHBOARD_PASSWORD' still contains an insecure upstream placeholder.");
   }
 
   for (const reqKey of requiredPlaceholders) {
@@ -274,10 +341,7 @@ export function generateSupabaseKeys(
   }
 
   const jwtSecret = crypto.randomBytes(PASSWORD_BYTES_LENGTH).toString('hex');
-  const iat = Math.floor(Temporal.Now.instant().epochMilliseconds / 1000);
-  const exp = iat + JWT_TTL_FIVE_YEARS_SECONDS;
-  const anonKey = signHs256Jwt({ role: 'anon', iss: 'supabase', iat, exp }, jwtSecret);
-  const serviceKey = signHs256Jwt({ role: 'service_role', iss: 'supabase', iat, exp }, jwtSecret);
+  const { anonKey, serviceRoleKey: serviceKey, iat, exp } = signSupabaseJwtPair(jwtSecret);
   const postgresPassword = randomAlphanumeric(PASSWORD_BYTES_LENGTH);
 
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
@@ -310,21 +374,154 @@ export function generateSupabaseKeys(
   ]);
 }
 
+/**
+ * Verifies an HS256 JWT against `secret` and asserts it is not expired.
+ */
+export function isValidHs256Jwt(
+  token: string,
+  secret: string,
+  nowEpochSec = nowEpochSeconds()
+): boolean {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  const [headerB64, bodyB64, sigB64] = parts;
+  if (!headerB64 || !bodyB64 || !sigB64) return false;
+  const expectedSig = base64UrlEncode(
+    crypto.createHmac('sha256', secret).update(`${headerB64}.${bodyB64}`).digest()
+  );
+  const sigBuf = Buffer.from(sigB64);
+  const expectedBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+    return false;
+  }
+  const payload = tryCatchSync(() =>
+    JSON.parse(Buffer.from(bodyB64, 'base64url').toString('utf8'))
+  );
+  if (payload.status !== 'success' || typeof payload.value !== 'object' || payload.value === null) {
+    return false;
+  }
+  return (
+    'exp' in payload.value &&
+    typeof payload.value.exp === 'number' &&
+    payload.value.exp > nowEpochSec
+  );
+}
+
+const REQUIRED_CRYPTO_KEYS = [
+  'POSTGRES_PASSWORD',
+  'JWT_SECRET',
+  'SECRET_KEY_BASE',
+  'VAULT_ENC_KEY',
+  'PG_META_CRYPTO_KEY',
+  'REALTIME_DB_ENC_KEY'
+] as const;
+
+/**
+ * Ensures all required server secrets exist and `ANON_KEY` / `SERVICE_ROLE_KEY` are valid and unexpired.
+ * Preserves existing valid secrets without overwriting them.
+ */
+export function ensureServerKeys(
+  projectRoot: string,
+  config: SupabaseDockerConfig,
+  existingVars: ReadonlyMap<string, string>
+): { readonly vars: Map<string, string>; readonly mutated: boolean } {
+  const next = new Map<string, string>(existingVars);
+  let mutated = false;
+  let generated: Map<string, string> | null = null;
+  const getGenerated = (): Map<string, string> => {
+    generated ??= generateSupabaseKeys(projectRoot, config);
+    return generated;
+  };
+
+  for (const key of REQUIRED_CRYPTO_KEYS) {
+    const val = next.get(key) ?? '';
+    if (!val || isInsecurePlaceholder(val)) {
+      const freshVal = getGenerated().get(key);
+      if (freshVal) {
+        next.set(key, freshVal);
+        mutated = true;
+      }
+    }
+  }
+
+  const jwtSecret = next.get('JWT_SECRET') ?? '';
+  const iat = nowEpochSeconds();
+  const exp = iat + JWT_TTL_FIVE_YEARS_SECONDS;
+
+  for (const [key, role] of [
+    ['ANON_KEY', 'anon'],
+    ['SERVICE_ROLE_KEY', 'service_role']
+  ] as const) {
+    const current = next.get(key) ?? '';
+    if (!current || isInsecurePlaceholder(current) || !isValidHs256Jwt(current, jwtSecret, iat)) {
+      next.set(key, signHs256Jwt({ role, iss: 'supabase', iat, exp }, jwtSecret));
+      mutated = true;
+    }
+  }
+
+  return { vars: next, mutated };
+}
+
 export interface GeneratedServerEnvFile {
   readonly server: string;
   readonly filePath: string;
   readonly vars: ReadonlyMap<string, string>;
 }
 
+function formatEnvLines(serverName: string, vars: ReadonlyMap<string, string>): string {
+  const lines = [`# Generated for server: ${serverName}`, '# DO NOT EDIT MANUALLY', ''];
+  for (const [k, v] of [...vars.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    lines.push(`${k}=${v}`);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+interface BuildMergedServerEnvVarsInput {
+  readonly baseVars: ReadonlyMap<string, string>;
+  readonly masterVars: ReadonlyMap<string, string>;
+  readonly serverVars: ReadonlyMap<string, string>;
+  readonly config: SupabaseDockerConfig;
+}
+
+interface GenerateServerEnvFilesOptions {
+  readonly ensureKeys?: boolean;
+}
+
+function buildMergedServerEnvVars(input: BuildMergedServerEnvVarsInput): Map<string, string> {
+  const merged = new Map<string, string>(input.baseVars);
+  if (input.config.extensions?.extraEnvVars) {
+    for (const [k, v] of input.config.extensions.extraEnvVars.entries()) {
+      merged.set(k, v);
+    }
+  }
+  for (const [k, v] of input.serverVars.entries()) {
+    merged.set(k, v);
+  }
+  const tenantId = input.serverVars.get('TENANT_ID')?.trim();
+  if (tenantId) {
+    for (const tenantKey of ['POOLER_TENANT_ID', 'STORAGE_TENANT_ID'] as const) {
+      const cur = merged.get(tenantKey)?.trim();
+      if (!cur || cur === 'your-tenant-id') merged.set(tenantKey, tenantId);
+    }
+  }
+  for (const gKey of ['DOCKER_USER', 'DOCKER_REPO_DB', 'DOCKER_TAG_DB']) {
+    const val = input.masterVars.get(gKey);
+    if (val) merged.set(gKey, val);
+  }
+  return merged;
+}
+
 /**
- * Emits `<supabaseDir>/generated/<server>.env` for every server registered in master `.env`.
+ * Emits `<supabaseDir>/generated/<server>.env` (and `local.env` for default local profile)
+ * for every server registered in master `.env`.
  */
 export async function generateServerEnvFiles(
   projectRoot: string,
-  config: SupabaseDockerConfig
+  config: SupabaseDockerConfig,
+  options: GenerateServerEnvFilesOptions = {}
 ): Promise<readonly GeneratedServerEnvFile[]> {
   const masterPath = safeResolve(projectRoot, config.masterEnvFile);
-  const masterContent = await safeReadFile(masterPath);
+  let masterContent = await safeReadFile(masterPath);
   const masterVars = parseEnvContent(masterContent);
   const servers = listMasterServers(masterContent);
 
@@ -334,28 +531,37 @@ export async function generateServerEnvFiles(
     : new Map<string, string>();
 
   const emitted: GeneratedServerEnvFile[] = [];
+  let masterMutated = false;
+
   for (const serverName of servers) {
-    const serverVars = extractServerVars(masterContent, serverName);
-    const merged = new Map<string, string>(baseVars);
-    if (config.extensions?.extraEnvVars) {
-      for (const [k, v] of config.extensions.extraEnvVars.entries()) {
-        merged.set(k, v);
+    let serverVars = extractServerVars(masterContent, serverName);
+    if (options.ensureKeys && !isManagedCloudServer(serverVars)) {
+      const ensured = ensureServerKeys(projectRoot, config, serverVars);
+      if (ensured.mutated) {
+        serverVars = ensured.vars;
+        masterContent = upsertServerBlock(masterContent, serverName, serverVars);
+        masterMutated = true;
       }
     }
-    for (const [k, v] of serverVars.entries()) {
-      merged.set(k, v);
-    }
-    for (const gKey of ['DOCKER_USER', 'DOCKER_REPO_DB', 'DOCKER_TAG_DB']) {
-      const val = masterVars.get(gKey);
-      if (val) merged.set(gKey, val);
-    }
+
+    const merged = buildMergedServerEnvVars({ baseVars, masterVars, serverVars, config });
     const outPath = safeResolve(projectRoot, config.supabaseDir, 'generated', `${serverName}.env`);
-    const lines = [`# Generated for server: ${serverName}`, '# DO NOT EDIT MANUALLY', ''];
-    for (const [k, v] of [...merged.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-      lines.push(`${k}=${v}`);
+    const formatted = formatEnvLines(serverName, merged);
+    await safeWriteFile(outPath, formatted);
+
+    const isDefaultLocal =
+      (serverVars.get('IS_DEFAULT') ?? '').trim().toLowerCase() === 'true' ||
+      (serverVars.get('PREFER_FOR') ?? '').trim().toLowerCase() === 'local';
+    if (isDefaultLocal) {
+      const localAliasPath = safeResolve(projectRoot, config.supabaseDir, 'generated', 'local.env');
+      await safeWriteFile(localAliasPath, formatted);
     }
-    await safeWriteFile(outPath, `${lines.join('\n')}\n`);
+
     emitted.push({ server: serverName, filePath: outPath, vars: merged });
+  }
+
+  if (masterMutated) {
+    await safeWriteFile(masterPath, masterContent);
   }
   return emitted;
 }

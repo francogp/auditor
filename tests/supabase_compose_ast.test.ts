@@ -57,12 +57,33 @@ describe('composeAstEngine', () => {
     expect(result.report.valid).toBe(true);
     expect(result.report.errors).toStrictEqual([]);
     expect(result.yaml).toContain('supabase-config-init');
-    expect(result.yaml).toContain('/supabase-volumes/api/envoy/docker-entrypoint.sh');
+    expect(result.yaml).toContain('cp -rf /supabase-volumes/api/envoy/* /etc/envoy/');
+    expect(result.yaml).toContain('container_name: demo-supabase-db');
     expect(result.yaml).toContain('/supabase-volumes/realtime/docker-entrypoint.sh');
     expect(result.yaml).toMatch(/ENABLED_FEATURES_LOGS_ALL:\s*['"]true['"]/u);
     expect(result.yaml).toContain('deno-cache:');
     expect(result.yaml).toContain('127.0.0.1:');
     expect(result.yaml).not.toContain('./volumes/');
+  });
+
+  it('deep-merges overlay environment maps, avoids duplicate 127.0.0.1 loopback prefix, and leaves realtime untouched when upstream has no realtime volume', () => {
+    const withoutRealtimeVol = ENVOY_FIXTURE.replace(
+      "- '8000:8000/tcp'",
+      "- '127.0.0.1:8000:8000/tcp'"
+    ).replace(/\s*-\s*\.\/volumes\/realtime[^\n]*/gu, '');
+    const result = transformRemoteComposeYaml(withoutRealtimeVol, BASE_CONFIG, {
+      overlayYaml: `
+services:
+  rest:
+    environment:
+      GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: '15'
+`
+    });
+    expect(result.report.valid).toBe(true);
+    expect(result.yaml).toContain('GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL');
+    expect(result.yaml).toContain('PGRST_DB_URI');
+    expect(result.yaml).not.toContain('127.0.0.1:127.0.0.1:');
+    expect(result.yaml).not.toContain('/supabase-volumes/realtime/docker-entrypoint.sh');
   });
 
   it('fails loud on PostgreSQL major version mismatch', () => {

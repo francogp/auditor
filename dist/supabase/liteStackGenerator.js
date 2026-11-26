@@ -1,6 +1,6 @@
 import { safeReadFile, safeResolve, safeWriteFile } from "../core/safePath.js";
 import { tryOrNull } from "../core/safeUtils.js";
-import { isInsecurePlaceholder, parseEnvContent } from "./envOrchestrator.js";
+import { isInsecurePlaceholder, parseEnvContent, signSupabaseJwtPair } from "./envOrchestrator.js";
 import { SCHEMA_MIGRATIONS_BOOTSTRAP_SQL, randomAlphanumeric } from "./supabaseCryptoUtils.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -53,23 +53,49 @@ async function resolveLiteCredentials(projectRoot, config, profileName) {
 	};
 }
 /**
-* Generates Nginx reverse proxy config forwarding `/rest/v1/` to PostgREST.
+* Resolves `POSTGRES_PASSWORD`, `JWT_SECRET`, and signed `ANON_KEY` / `SERVICE_ROLE_KEY`
+* for a `lite` profile so integration tests and local apps can connect immediately.
 */
-function generateLiteNginxConf(restServiceName) {
-	return [
-		"server {",
-		"    listen 80;",
-		"    server_name localhost;",
-		"    client_max_body_size 100m;",
-		"",
-		"    location /rest/v1/ {",
+async function resolveLiteRuntimeEnv(projectRoot, config, profileName) {
+	const profile = config.profiles.lite?.get(profileName);
+	if (!profile?.enabled) throw new Error(`Lite profile '${profileName}' is missing or disabled in supabaseDocker config.`);
+	const creds = await resolveLiteCredentials(projectRoot, config, profileName);
+	const { anonKey, serviceRoleKey } = signSupabaseJwtPair(creds.jwtSecret);
+	return {
+		url: `http://127.0.0.1:${profile.ports.gateway}`,
+		anonKey,
+		serviceRoleKey,
+		postgresUrl: `postgresql://postgres:${creds.postgresPassword}@127.0.0.1:${profile.ports.postgres}/postgres`,
+		postgresPassword: creds.postgresPassword,
+		jwtSecret: creds.jwtSecret,
+		envFilePath: creds.envFilePath
+	};
+}
+/**
+* Generates Nginx reverse proxy config forwarding `/rest/v1/` (and optionally `/`) to PostgREST.
+*/
+function generateLiteNginxConf(restServiceName, nginxOpts) {
+	const maxBodySize = nginxOpts?.clientMaxBodySize?.trim() || "100m";
+	const proxyRoot = nginxOpts?.proxyRoot ?? true;
+	const proxyBlock = [
 		`        proxy_pass http://${restServiceName}:3000/;`,
 		"        proxy_set_header Host $host;",
 		"        proxy_set_header X-Real-IP $remote_addr;",
-		"    }",
-		"}",
+		"        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
+		"        proxy_set_header X-Forwarded-Proto $scheme;"
+	];
+	const lines = [
+		"server {",
+		"    listen 80;",
+		"    server_name localhost;",
+		`    client_max_body_size ${maxBodySize};`,
 		""
-	].join("\n");
+	];
+	if (nginxOpts?.extraDirectives?.trim()) lines.push(`    ${nginxOpts.extraDirectives.trim()}`, "");
+	lines.push("    location /rest/v1/ {", ...proxyBlock, "    }");
+	if (proxyRoot) lines.push("", "    location / {", ...proxyBlock, "    }");
+	lines.push("}", "");
+	return lines.join("\n");
 }
 /**
 * Generates idempotent SQL ensuring Supabase roles (`anon`, `authenticated`, `service_role`,
@@ -108,7 +134,7 @@ function generateLiteComposeYaml(target, creds) {
 	const dbName = `${stackPrefix}-db`;
 	const restName = `${stackPrefix}-rest`;
 	const gwName = `${stackPrefix}-gateway`;
-	const volumeName = `${stackPrefix}-pgdata`;
+	const volumeName = profile.volumeName?.trim() || `${stackPrefix}-pgdata`;
 	const dbService = {
 		image: profile.images.postgres,
 		container_name: dbName,
@@ -187,7 +213,7 @@ function generateLiteComposeYaml(target, creds) {
 			}
 		}
 	};
-	if (profile.storage === "volume") composeObj.volumes = { [volumeName]: {} };
+	if (profile.storage === "volume") composeObj.volumes = { [volumeName]: profile.externalVolume ? { external: true } : {} };
 	return stringify(composeObj);
 }
 /**
@@ -207,7 +233,7 @@ async function writeLiteProfileArtifacts(projectRoot, config, profileName) {
 		profileName,
 		profile
 	}, creds));
-	await safeWriteFile(nginxPath, generateLiteNginxConf(restServiceName));
+	await safeWriteFile(nginxPath, generateLiteNginxConf(restServiceName, profile.nginx));
 	return {
 		composePath,
 		nginxPath,
@@ -215,4 +241,4 @@ async function writeLiteProfileArtifacts(projectRoot, config, profileName) {
 		bootstrapSql: generateLiteBootstrapSql(creds.jwtSecret, creds.postgresPassword)
 	};
 }
-export { generateLiteBootstrapSql, generateLiteComposeYaml, generateLiteNginxConf, resolveLiteCredentials, writeLiteProfileArtifacts };
+export { generateLiteBootstrapSql, generateLiteComposeYaml, generateLiteNginxConf, resolveLiteCredentials, resolveLiteRuntimeEnv, writeLiteProfileArtifacts };

@@ -551,6 +551,52 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       await auditorWithoutTs.runAudit();
       expect(argsWithoutTs['dead-code']).not.toContain('--type-aware');
 
+      // 1b. With fallow.typeAware: true -> applied only in speed=full, not heavy
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            typeAware: true
+          }
+        })
+      );
+      const prevSpeed = process.env.AUDITOR_SPEED;
+      try {
+        process.env.AUDITOR_SPEED = 'heavy';
+        const heavyAuditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
+        const heavyArgs: Record<string, string[]> = {};
+        (
+          heavyAuditor as unknown as {
+            runFallowSubCommand: (cmd: string, args?: string[]) => unknown;
+          }
+        ).runFallowSubCommand = (cmd: string, args?: string[]) => {
+          heavyArgs[cmd] = args || [];
+          return [];
+        };
+        await heavyAuditor.runAudit();
+        expect(heavyArgs['dead-code']).toContain('--no-type-aware');
+
+        process.env.AUDITOR_SPEED = 'full';
+        const fullAuditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
+        const fullArgs: Record<string, string[]> = {};
+        (
+          fullAuditor as unknown as {
+            runFallowSubCommand: (cmd: string, args?: string[]) => unknown;
+          }
+        ).runFallowSubCommand = (cmd: string, args?: string[]) => {
+          fullArgs[cmd] = args || [];
+          return [];
+        };
+        await fullAuditor.runAudit();
+        expect(fullArgs['dead-code']).toContain('--type-aware');
+      } finally {
+        if (prevSpeed !== undefined) {
+          process.env.AUDITOR_SPEED = prevSpeed;
+        } else {
+          delete process.env.AUDITOR_SPEED;
+        }
+      }
+
       // 2. With tsconfig.json but typeAware: false
       await fs.writeFile(path.join(tempDir, 'tsconfig.json'), '{}', 'utf-8');
       setAuditConfig(

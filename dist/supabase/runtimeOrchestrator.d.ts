@@ -4,15 +4,25 @@ export interface SupabaseMigrationFile {
   readonly fileName: string;
   readonly filePath: string;
 }
+export interface SyncDatabaseMigrationsOptions {
+  readonly bootstrapSql?: string;
+  readonly preflightDryRun?: boolean;
+  readonly postMigrateSql?: string;
+}
+export interface ComposeDownOptions {
+  readonly removeVolumes?: boolean;
+  readonly envFilePath?: string;
+}
 /**
  * Lists SQL migration files matching `^(\d{14})_.*\.sql$` in lexicographical order.
  */
 export declare function listOrderedMigrationFiles(migrationsDir: string): readonly SupabaseMigrationFile[];
 /**
  * Applies pending migrations from `migrationsDir` using `supabase_migrations.schema_migrations`
+ * with `-v ON_ERROR_STOP=1`, transactional pre-flight dry-run by default, optional `postMigrateSql`,
  * and reloads PostgREST schema cache.
  */
-export declare function syncDatabaseMigrations(containerName: string, migrationsDir: string, bootstrapSql?: string): SupabaseMigrationSyncResult;
+export declare function syncDatabaseMigrations(containerName: string, migrationsDir: string, options?: SyncDatabaseMigrationsOptions): SupabaseMigrationSyncResult;
 /**
  * Resolves the full Docker image tag from `profiles.remote.image`.
  */
@@ -37,11 +47,11 @@ export declare function composeUp(composePath: string, envFilePath?: string): vo
 /**
  * Stops a Compose stack (`down` or `down -v`).
  */
-export declare function composeDown(composePath: string, removeVolumes?: boolean): void;
+export declare function composeDown(composePath: string, options?: ComposeDownOptions): void;
 /**
  * Restarts a Compose stack.
  */
-export declare function composeRestart(composePath: string): void;
+export declare function composeRestart(composePath: string, envFilePath?: string): void;
 /**
  * Returns formatted `docker ps` status filtered by `projectSlug`.
  */

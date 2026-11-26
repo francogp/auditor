@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vite-plus/test';
 
 import { defineAuditConfig } from '../src/core/auditConfig.ts';
@@ -63,7 +67,23 @@ services:
     const dockerfile = generateCustomDbDockerfile(meta.postgresImage, 'demo-app');
     expect(dockerfile).toContain('FROM supabase/postgres:17.6.1.136');
     expect(dockerfile).toContain('COPY init/ /docker-entrypoint-initdb.d/');
-    expect(dockerfile).toContain('COPY volumes/realtime /supabase-volumes/realtime');
+    expect(dockerfile).not.toContain('COPY volumes/realtime /supabase-volumes/realtime');
+
+    const tmpDockerDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-df-'));
+    try {
+      fs.mkdirSync(path.join(tmpDockerDir, 'volumes', 'api'), { recursive: true });
+      fs.mkdirSync(path.join(tmpDockerDir, 'volumes', 'db'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDockerDir, 'volumes', 'db', 'roles.sql'), '-- roles');
+      const dynamicDf = generateCustomDbDockerfile(meta.postgresImage, 'demo-app', tmpDockerDir);
+      expect(dynamicDf).toContain('COPY volumes/api /supabase-volumes/api');
+      expect(dynamicDf).toContain(
+        'COPY volumes/db/roles.sql /docker-entrypoint-initdb.d/init-scripts/99-roles.sql'
+      );
+      expect(dynamicDf).not.toContain('volumes/logs');
+      expect(dynamicDf).not.toContain('volumes/db/jwt.sql');
+    } finally {
+      fs.rmSync(tmpDockerDir, { recursive: true, force: true });
+    }
   });
 
   it('resolves dynamic .gitignore patterns from supabaseDir and normalizes extraEnvVars', () => {

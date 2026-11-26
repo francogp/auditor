@@ -15,11 +15,24 @@ import type { SupabaseDockerConfig, SupabaseMigrationSyncResult } from './supaba
 import { SCHEMA_MIGRATIONS_BOOTSTRAP_SQL } from './supabaseCryptoUtils.ts';
 
 const MIGRATION_FILE_REGEX = /^(\d{14})_.*\.sql$/u;
+const NON_TRANSACTIONAL_SQL_REGEX =
+  /\b(?:CREATE\s+INDEX\s+CONCURRENTLY|DROP\s+INDEX\s+CONCURRENTLY|VACUUM|CLUSTER)\b/iu;
 
 export interface SupabaseMigrationFile {
   readonly version: string;
   readonly fileName: string;
   readonly filePath: string;
+}
+
+export interface SyncDatabaseMigrationsOptions {
+  readonly bootstrapSql?: string;
+  readonly preflightDryRun?: boolean;
+  readonly postMigrateSql?: string;
+}
+
+export interface ComposeDownOptions {
+  readonly removeVolumes?: boolean;
+  readonly envFilePath?: string;
 }
 
 /**
@@ -47,7 +60,20 @@ export function listOrderedMigrationFiles(migrationsDir: string): readonly Supab
 function execDockerPsql(containerName: string, sql: string): string {
   return execFileSync(
     'docker',
-    ['exec', '-i', containerName, 'psql', '-U', 'postgres', '-d', 'postgres', '-t', '-A'],
+    [
+      'exec',
+      '-i',
+      containerName,
+      'psql',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-U',
+      'postgres',
+      '-d',
+      'postgres',
+      '-t',
+      '-A'
+    ],
     {
       input: sql,
       encoding: 'utf8',
@@ -58,15 +84,18 @@ function execDockerPsql(containerName: string, sql: string): string {
 
 /**
  * Applies pending migrations from `migrationsDir` using `supabase_migrations.schema_migrations`
+ * with `-v ON_ERROR_STOP=1`, transactional pre-flight dry-run by default, optional `postMigrateSql`,
  * and reloads PostgREST schema cache.
  */
 export function syncDatabaseMigrations(
   containerName: string,
   migrationsDir: string,
-  bootstrapSql?: string
+  options: SyncDatabaseMigrationsOptions = {}
 ): SupabaseMigrationSyncResult {
-  if (bootstrapSql) {
-    execDockerPsql(containerName, bootstrapSql);
+  const preflightDryRun = options.preflightDryRun ?? true;
+
+  if (options.bootstrapSql) {
+    execDockerPsql(containerName, options.bootstrapSql);
   } else {
     execDockerPsql(containerName, SCHEMA_MIGRATIONS_BOOTSTRAP_SQL);
   }
@@ -83,14 +112,24 @@ export function syncDatabaseMigrations(
   );
 
   const files = listOrderedMigrationFiles(migrationsDir);
-  const newlyApplied: string[] = [];
-  let skipped = 0;
+  const pendingFiles = files.filter((file) => !appliedSet.has(file.version));
+  const skipped = files.length - pendingFiles.length;
 
-  for (const file of files) {
-    if (appliedSet.has(file.version)) {
-      skipped += 1;
-      continue;
+  if (preflightDryRun) {
+    for (const file of pendingFiles) {
+      const sql = fs.readFileSync(file.filePath, 'utf8');
+      if (NON_TRANSACTIONAL_SQL_REGEX.test(sql)) {
+        process.stderr.write(
+          `[Warning] Skipping transactional pre-flight dry-run for ${file.fileName} (contains non-transactional DDL).\n`
+        );
+        continue;
+      }
+      execDockerPsql(containerName, `BEGIN;\n${sql}\nROLLBACK;\n`);
     }
+  }
+
+  const newlyApplied: string[] = [];
+  for (const file of pendingFiles) {
     const sql = fs.readFileSync(file.filePath, 'utf8');
     execDockerPsql(containerName, sql);
     const escapedVersion = file.version.replaceAll("'", "''");
@@ -99,6 +138,10 @@ export function syncDatabaseMigrations(
       `INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('${escapedVersion}') ON CONFLICT (version) DO NOTHING;`
     );
     newlyApplied.push(file.version);
+  }
+
+  if (options.postMigrateSql?.trim() && newlyApplied.length > 0) {
+    execDockerPsql(containerName, options.postMigrateSql);
   }
 
   execDockerPsql(containerName, "NOTIFY pgrst, 'reload schema';");
@@ -170,33 +213,37 @@ export function detectContainerPostgresMajor(containerName: string): number | nu
   return Math.floor(versionNum / PG_MAJOR_VERSION_DIVISOR);
 }
 
+function execDockerCompose(
+  composePath: string,
+  subcommandArgs: readonly string[],
+  envFilePath?: string
+): void {
+  const args = ['compose', '-f', composePath];
+  if (envFilePath) args.push('--env-file', envFilePath);
+  args.push(...subcommandArgs);
+  execFileSync('docker', args, { cwd: path.dirname(composePath), stdio: 'inherit' });
+}
+
 /**
  * Starts a Compose stack (`up -d --wait`).
  */
 export function composeUp(composePath: string, envFilePath?: string): void {
-  const args = ['compose', '-f', composePath];
-  if (envFilePath) args.push('--env-file', envFilePath);
-  args.push('up', '-d', '--wait');
-  execFileSync('docker', args, { cwd: path.dirname(composePath), stdio: 'inherit' });
+  execDockerCompose(composePath, ['up', '-d', '--wait'], envFilePath);
 }
 
 /**
  * Stops a Compose stack (`down` or `down -v`).
  */
-export function composeDown(composePath: string, removeVolumes = false): void {
-  const args = ['compose', '-f', composePath, 'down'];
-  if (removeVolumes) args.push('-v');
-  execFileSync('docker', args, { cwd: path.dirname(composePath), stdio: 'inherit' });
+export function composeDown(composePath: string, options: ComposeDownOptions = {}): void {
+  const subcommandArgs = options.removeVolumes ? ['down', '-v'] : ['down'];
+  execDockerCompose(composePath, subcommandArgs, options.envFilePath);
 }
 
 /**
  * Restarts a Compose stack.
  */
-export function composeRestart(composePath: string): void {
-  execFileSync('docker', ['compose', '-f', composePath, 'restart'], {
-    cwd: path.dirname(composePath),
-    stdio: 'inherit'
-  });
+export function composeRestart(composePath: string, envFilePath?: string): void {
+  execDockerCompose(composePath, ['restart'], envFilePath);
 }
 
 /**

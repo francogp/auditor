@@ -63,3 +63,12 @@ npm run auditor:lint (speed=light)
   - Running `npm run auditor:lint`, `npm run auditor`, `npm run auditor:md`, `npm run fmt:check`, or `npm run auditor:post-build` **before or after** `npm run auditor:full` or `npm run build` is strictly redundant and prohibited.
   - Running `npm run auditor:full` and immediately running `npm run build` is strictly redundant (unless `dist/` compilation is not needed, in which case run only `auditor:full`).
 - **Inspect without re-running**: When an audit or build fails, inspect `scratch/audits/latest_audit.json` with `npm run auditor:next` / `npm run auditor:findings` / `npm run auditor:errors` instead of re-running the suite. Use `npm run auditor:fix` (which already applies formatting and auto-fixes) and verify targeted fixes with `npm run auditor suite=<id>` or `npm run auditor:lint` during the inner loop; run `npm run build` only once at the end.
+
+---
+
+## Disambiguating `typeAware`: Vite+/Oxlint vs. Fallow
+
+| Setting in `.auditor/audit.config.ts` | Purpose | Runs TypeScript Checker (`tsc`)? | Active Speed Tiers |
+| :--- | :--- | :--- | :--- |
+| `vitePlusConfig.lint.typeAware` + `typeCheck` | TypeScript compiler type-checking and Oxlint type-aware lint rules (`vp check`). | Yes (type-checking + typed lint). | All (`light`, `heavy`, `full`) |
+| `fallow.typeAware` (`default: false`) | Project-wide dead-code & contract graph refinement in Fallow (protects interface/inheritance class members from false positives and detects cross-file private type leaks). | No (never emits `tsc` errors; consumes semantic graph only). | `full` only when `true`; `light`/`heavy` always pass `--no-type-aware` (or run `fallow dead-code --type-aware --symbol-impact` on demand). |

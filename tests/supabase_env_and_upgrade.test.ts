@@ -98,4 +98,98 @@ describe('envOrchestrator & upgradePostgres', () => {
     });
     expect(manifest.sha256).toBe(expectedSha);
   });
+
+  it('discovers flexible server headers, respects managed cloud servers, propagates TENANT_ID, and auto-heals expired JWTs', async () => {
+    const {
+      listMasterServers,
+      isManagedCloudServer,
+      isValidHs256Jwt,
+      ensureServerKeys,
+      generateServerEnvFiles
+    } = await import('../src/supabase/envOrchestrator.ts');
+
+    const envText = [
+      '# --- [ SERVIDOR 1: local ] ---',
+      'SERVER_local_IS_DEFAULT=true',
+      'SERVER_local_TENANT_ID=tenant-abc',
+      'SERVER_local_POSTGRES_PASSWORD=ValidPass1234567890',
+      'SERVER_local_JWT_SECRET=0123456789abcdef0123456789abcdef',
+      'SERVER_local_DASHBOARD_PASSWORD=My@Safe!Pass#2026',
+      '',
+      '# === [ SERVIDOR: cloud ] ===',
+      'SERVER_cloud_DEPLOY_MODE=cloud',
+      'SERVER_cloud_SUPABASE_PUBLIC_URL=https://demo.supabase.co'
+    ].join('\n');
+
+    expect(listMasterServers(envText)).toStrictEqual(['local', 'cloud']);
+
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-env-full-'));
+    tempDirs.push(tmpRoot);
+    process.env.AUDIT_PROJECT_ROOT = tmpRoot;
+    try {
+      fs.writeFileSync(path.join(tmpRoot, '.env'), `${envText}\n`, 'utf8');
+      fs.mkdirSync(path.join(tmpRoot, 'supabase', 'docker'), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpRoot, 'supabase', 'docker', '.env.example'),
+        'POOLER_TENANT_ID=your-tenant-id\nSTORAGE_TENANT_ID=your-tenant-id\n'
+      );
+
+      const cfg: SupabaseDockerConfig = {
+        enabled: true,
+        projectSlug: 'demo',
+        upstreamRef: 'master',
+        supabaseDir: 'supabase',
+        masterEnvFile: '.env',
+        postgres: { expectedMajor: 17 },
+        profiles: {}
+      };
+
+      const emitted = await generateServerEnvFiles(tmpRoot, cfg, { ensureKeys: true });
+      expect(emitted).toHaveLength(2);
+      const localEntry = emitted.find((e) => e.server === 'local')!;
+      const cloudEntry = emitted.find((e) => e.server === 'cloud')!;
+
+      expect(isManagedCloudServer(cloudEntry.vars)).toBe(true);
+      expect(isManagedCloudServer(localEntry.vars)).toBe(false);
+      expect(validateEnvSecrets(localEntry.vars)).toStrictEqual([]);
+      expect(localEntry.vars.get('POOLER_TENANT_ID')).toBe('tenant-abc');
+      expect(localEntry.vars.get('STORAGE_TENANT_ID')).toBe('tenant-abc');
+      expect(
+        isValidHs256Jwt(localEntry.vars.get('ANON_KEY')!, localEntry.vars.get('JWT_SECRET')!)
+      ).toBe(true);
+      expect(fs.existsSync(path.join(tmpRoot, 'supabase', 'generated', 'local.env'))).toBe(true);
+
+      const ensuredAgain = ensureServerKeys(tmpRoot, cfg, localEntry.vars);
+      expect(ensuredAgain.mutated).toBe(false);
+    } finally {
+      delete process.env.AUDIT_PROJECT_ROOT;
+    }
+  });
+
+  it('upsertServerBlock preserves dashed headers and bare SERVER_<name>_* blocks without splitting', () => {
+    const initial = [
+      '# --- [ SERVIDOR 1: local ] ---',
+      'SERVER_local_HOST=127.0.0.1',
+      '',
+      'SERVER_bare_HOST=10.0.0.5',
+      ''
+    ].join('\n');
+
+    const withLocal = upsertServerBlock(
+      initial,
+      'local',
+      new Map([
+        ['HOST', '127.0.0.1'],
+        ['JWT_SECRET', 'super-valid-secret-key']
+      ])
+    );
+    expect(withLocal).not.toContain('# === [ SERVIDOR: local ] ===');
+    expect(withLocal).toContain(
+      '# --- [ SERVIDOR 1: local ] ---\nSERVER_local_HOST=127.0.0.1\nSERVER_local_JWT_SECRET=super-valid-secret-key'
+    );
+
+    const withBare = upsertServerBlock(withLocal, 'bare', new Map([['REGION', 'sa-east-1']]));
+    expect(withBare).not.toContain('# === [ SERVIDOR: bare ] ===');
+    expect(withBare).toContain('SERVER_bare_HOST=10.0.0.5\nSERVER_bare_REGION=sa-east-1');
+  });
 });

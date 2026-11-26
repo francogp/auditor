@@ -520,8 +520,7 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 			profiles: {
 				light: ["--no-type-aware"],
 				full: (() => {
-					const args = [];
-					args.push("--no-type-aware");
+					const args = [config.fallow?.typeAware === true ? "--type-aware" : "--no-type-aware"];
 					if (config.fallow?.showCascade !== false) args.push("--show-cascade");
 					return args;
 				})()

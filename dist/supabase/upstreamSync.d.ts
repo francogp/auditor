@@ -9,9 +9,10 @@ export declare function parsePostgresMajorVersion(imageTag: string): number;
 export declare function inspectUpstreamCompose(composeYaml: string): SupabaseUpstreamMetadata;
 /**
  * Generates the custom PostgreSQL `Dockerfile` packaging project `init/` SQL scripts and upstream assets.
+ * Inspects `dockerDir` when present so `COPY` statements strictly match existing upstream `volumes/` entries.
  */
-export declare function generateCustomDbDockerfile(postgresImage: string, projectSlug: string): string;
+export declare function generateCustomDbDockerfile(postgresImage: string, projectSlug: string, dockerDir?: string): string;
 /**
- * Performs a clean sparse clone of `supabase/supabase` `docker/` at `upstreamRef` and emits `Dockerfile`.
+ * Performs a clean sparse clone of `supabase/supabase` `docker/` at `upstreamRef` inside `scratch/` and emits `Dockerfile`.
  */
 export declare function cloneUpstreamSupabaseDocker(projectRoot: string, config: SupabaseDockerConfig, refOverride?: string): Promise<SupabaseUpstreamMetadata>;

@@ -17,11 +17,11 @@ Architecture & Tooling Engineers.
 
 - `supabaseConfigTypes.ts`: Domain contracts (`SupabaseDockerConfig`, `SupabaseValidationReport`, `SupabaseUpgradeManifest`, named option/result interfaces) and mandatory-field validator.
 - `supabaseCryptoUtils.ts`: Shared `randomAlphanumeric` generator and `SCHEMA_MIGRATIONS_BOOTSTRAP_SQL` constant.
-- `upstreamSync.ts`: Clean sparse clone of the official Supabase repository `docker/` at `upstreamRef` and dynamic `Dockerfile` generator.
-- `composeAstEngine.ts`: YAML AST transformer (`remote` with `supabase-config-init` + Envoy + `realtime`, `localFull` isolation) and `docker compose config -q` validator.
-- `liteStackGenerator.ts`: Deterministic 3-container (`db` + `rest` + `gateway`) stack generator, `nginx.conf`, credential resolver, and `supabase_migrations.schema_migrations` bootstrap SQL.
-- `envOrchestrator.ts`: Master `.env` multi-server manager (`SERVER_<name>_*`), `validateEnvSecrets`, and Upstream-First key generation.
-- `runtimeOrchestrator.ts`: Docker lifecycle (`build`, `publish`, `up`, `down`, `restart`, `status`) and incremental SQL migration sync via `docker exec`.
+- `upstreamSync.ts`: Clean sparse clone of the official Supabase repository `docker/` at `upstreamRef` (branch, tag, or commit SHA) inside `scratch/` and dynamic `Dockerfile` generator introspecting existing `volumes/` entries.
+- `composeAstEngine.ts`: YAML AST transformer (`remote` with `projectSlug`-prefixed `container_name`, `supabase-config-init`, Envoy `/etc/envoy/` copy-and-exec, `localFull` isolation, recursive `YAMLMap` overlay deep-merge) and `docker compose config -q` validator.
+- `liteStackGenerator.ts`: Deterministic 3-container (`db` + `rest` + `gateway`) stack generator, configurable `nginx.conf` (`client_max_body_size 100m`, `/` + `/rest/v1/` proxy), reusable/external volume support, `resolveLiteRuntimeEnv` JWT helper, and `supabase_migrations.schema_migrations` bootstrap SQL.
+- `envOrchestrator.ts`: Master `.env` multi-server manager (`SERVER_<name>_*`), `isManagedCloudServer`, `ensureServerKeys` + `isValidHs256Jwt` auto-healing, `TENANT_ID` propagation, `local.env` alias emission, and `validateEnvSecrets`.
+- `runtimeOrchestrator.ts`: Docker lifecycle (`build`, `publish`, `up`, `down`, `restart`, `status` with `--env-file`) and incremental SQL migration sync (`-v ON_ERROR_STOP=1`, automatic `BEGIN...ROLLBACK` pre-flight dry-run, optional `postMigrateSql`).
 - `upgradePostgres.ts`: Upstream-First `upgrade-pg` wrapper over `utils/upgrade-pg*.sh` with `0700`/`0600` `scratch` manifest and `db-config` preservation.
 - `index.ts`: Public `@francogp/auditor/supabase` barrel.
 

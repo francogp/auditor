@@ -3,7 +3,7 @@ import { loadAuditConfig, resetAuditConfig } from "../core/auditConfigLoader.js"
 import { COMMON_CLI_ARGS, defineCommand, runMain } from "../core/cli/cittyHarness.js";
 import { safeReadFile, safeResolve, safeWriteFile } from "../core/safePath.js";
 import { buildDummyValidationEnv, extractComposeEnvPlaceholders, transformLocalFullComposeYaml, transformRemoteComposeYaml, validateComposeWithDocker } from "../supabase/composeAstEngine.js";
-import { generateServerEnvFiles, generateSupabaseKeys, listMasterServers, upsertServerBlock, validateEnvSecrets } from "../supabase/envOrchestrator.js";
+import { ensureServerKeys, extractServerVars, generateServerEnvFiles, isManagedCloudServer, listMasterServers, upsertServerBlock, validateEnvSecrets } from "../supabase/envOrchestrator.js";
 import { generateLiteBootstrapSql, resolveLiteCredentials, writeLiteProfileArtifacts } from "../supabase/liteStackGenerator.js";
 import { buildCustomDbImage, composeDown, composeRestart, composeUp, detectContainerPostgresMajor, getDetailedStackStatus, publishCustomDbImage, resolveProfileDbContainerName, syncDatabaseMigrations } from "../supabase/runtimeOrchestrator.js";
 import { validateSupabaseDockerConfig } from "../supabase/supabaseConfigTypes.js";
@@ -70,11 +70,14 @@ function resolveProfileComposePath(projectRoot, config, profile) {
 	if (profile === "localFull") return safeResolve(projectRoot, config.supabaseDir, "generated", "local-full", "docker-compose.yml");
 	return safeResolve(projectRoot, config.supabaseDir, "generated", "lite", profile, "docker-compose.yml");
 }
-async function loadProfileComposeContext(projectArg, profileArg, configArg) {
-	const loaded = await loadValidSupabaseConfig(projectArg, configArg);
+async function loadProfileRuntimeContext(args) {
+	const { profile } = args;
+	const loaded = await loadValidSupabaseConfig(args.project, args.config);
 	return {
+		profile,
 		loaded,
-		composePath: resolveProfileComposePath(loaded.projectRoot, loaded.config, profileArg)
+		composePath: resolveProfileComposePath(loaded.projectRoot, loaded.config, profile),
+		envFilePath: await resolveProfileEnvFile(loaded.projectRoot, loaded.config, profile)
 	};
 }
 async function ensureUpstreamCloned(ctx) {
@@ -117,7 +120,27 @@ async function prepareAndTransformCompose(ctx, includeLogs, transformer) {
 	}
 	return transformed;
 }
-async function generateRemoteProfile(ctx) {
+function runPostGenerateCommand(projectRoot, command) {
+	if (!command?.trim()) return;
+	const [cmd, ...args] = [...command.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/gu)].map((m) => m[1] ?? m[2] ?? m[3] ?? "").filter(Boolean);
+	if (cmd) execFileSync(cmd, args, {
+		cwd: projectRoot,
+		stdio: "inherit"
+	});
+}
+function resolveLocalFullEnvFile(projectRoot, config) {
+	const localAlias = safeResolve(projectRoot, config.supabaseDir, "generated", "local.env");
+	if (fs.existsSync(localAlias)) return localAlias;
+	const dockerEnv = safeResolve(projectRoot, config.supabaseDir, "docker", ".env");
+	if (fs.existsSync(dockerEnv)) return dockerEnv;
+	const masterEnv = safeResolve(projectRoot, config.masterEnvFile);
+	return fs.existsSync(masterEnv) ? masterEnv : void 0;
+}
+async function resolveProfileEnvFile(projectRoot, config, profile) {
+	if (profile === "localFull") return resolveLocalFullEnvFile(projectRoot, config);
+	if (config.profiles.lite?.get(profile)) return (await resolveLiteCredentials(projectRoot, config, profile)).envFilePath;
+}
+async function generateRemoteProfile(ctx, strictKeys) {
 	const remote = ctx.config.profiles.remote;
 	if (!remote?.enabled) return;
 	const transformed = await prepareAndTransformCompose(ctx, remote.includeLogs, transformRemoteComposeYaml);
@@ -127,8 +150,9 @@ async function generateRemoteProfile(ctx) {
 	const masterPath = safeResolve(ctx.projectRoot, ctx.config.masterEnvFile);
 	let validationEnvFile;
 	if (fs.existsSync(masterPath)) {
-		const emittedServers = await generateServerEnvFiles(ctx.projectRoot, ctx.config);
+		const emittedServers = await generateServerEnvFiles(ctx.projectRoot, ctx.config, { ensureKeys: !strictKeys });
 		for (const entry of emittedServers) {
+			if (isManagedCloudServer(entry.vars)) continue;
 			const secretErrors = validateEnvSecrets(entry.vars, placeholders);
 			if (secretErrors.length > 0) {
 				process.stderr.write(`Env secret validation failed for server '${entry.server}' (${entry.filePath}):\n- ${secretErrors.join("\n- ")}\n`);
@@ -138,13 +162,7 @@ async function generateRemoteProfile(ctx) {
 		}
 	}
 	await validateGeneratedCompose(ctx.projectRoot, outCompose, transformed.yaml, validationEnvFile);
-	if (remote.postGenerateCommand) {
-		const [cmd, ...args] = [...remote.postGenerateCommand.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/gu)].map((m) => m[1] ?? m[2] ?? m[3] ?? "").filter(Boolean);
-		if (cmd) execFileSync(cmd, args, {
-			cwd: ctx.projectRoot,
-			stdio: "inherit"
-		});
-	}
+	runPostGenerateCommand(ctx.projectRoot, remote.postGenerateCommand);
 	process.stdout.write(`Generated remote compose: ${outCompose}\n`);
 }
 async function generateLocalFullProfile(ctx) {
@@ -153,7 +171,9 @@ async function generateLocalFullProfile(ctx) {
 	const transformed = await prepareAndTransformCompose(ctx, localFull.includeLogs, transformLocalFullComposeYaml);
 	const outCompose = resolveProfileComposePath(ctx.projectRoot, ctx.config, "localFull");
 	await safeWriteFile(outCompose, transformed.yaml);
-	await validateGeneratedCompose(ctx.projectRoot, outCompose, transformed.yaml);
+	const envFile = resolveLocalFullEnvFile(ctx.projectRoot, ctx.config);
+	await validateGeneratedCompose(ctx.projectRoot, outCompose, transformed.yaml, envFile);
+	runPostGenerateCommand(ctx.projectRoot, localFull.postGenerateCommand);
 	process.stdout.write(`Generated localFull compose: ${outCompose}\n`);
 }
 async function generateLiteProfiles(projectRoot, config, profileFilter) {
@@ -167,10 +187,12 @@ async function generateLiteProfiles(projectRoot, config, profileFilter) {
 			process.stderr.write(`docker compose config -q failed for lite.${name}:\n${composeCheck.stderr}\n`);
 			process.exit(1);
 		}
+		runPostGenerateCommand(projectRoot, liteProfile.postGenerateCommand);
 		process.stdout.write(`Generated lite.${name} compose: ${artifacts.composePath}\n`);
 	}
 }
-async function runGenerate(projectRoot, config, profileFilter) {
+async function runGenerate(projectRoot, config, options = {}) {
+	const { profileFilter, strictKeys = false } = options;
 	const ctx = {
 		projectRoot,
 		config,
@@ -178,24 +200,33 @@ async function runGenerate(projectRoot, config, profileFilter) {
 		logsComposePath: safeResolve(projectRoot, config.supabaseDir, "docker", "docker-compose.logs.yml"),
 		overlayYaml: config.extensions?.customComposeOverlay ? await safeReadFile(safeResolve(projectRoot, config.extensions.customComposeOverlay)) : void 0
 	};
-	if (!profileFilter || profileFilter === "remote") await generateRemoteProfile(ctx);
+	if (!profileFilter || profileFilter === "remote") await generateRemoteProfile(ctx, strictKeys);
 	if (!profileFilter || profileFilter === "localFull") await generateLocalFullProfile(ctx);
 	await generateLiteProfiles(projectRoot, config, profileFilter);
 }
-async function syncMigrationsForProfile(loaded, profile, bootstrapSqlOverride) {
+async function syncMigrationsForProfile(loaded, profile, options = {}) {
 	const { projectRoot, config, migrationsDir } = loaded;
 	const containerName = resolveProfileDbContainerName(config.projectSlug, profile);
+	const postMigrateSql = config.extensions?.postMigrateSql;
+	const preflightDryRun = !options.skipPreflight;
 	if (profile === "localFull") {
-		if (config.profiles.localFull?.autoApplyMigrations) syncDatabaseMigrations(containerName, migrationsDir);
+		if (config.profiles.localFull?.autoApplyMigrations) syncDatabaseMigrations(containerName, migrationsDir, {
+			preflightDryRun,
+			postMigrateSql
+		});
 		return;
 	}
 	if (config.profiles.lite?.get(profile)?.autoSyncMigrations) {
-		let bootstrap = bootstrapSqlOverride;
+		let bootstrap = options.bootstrapSqlOverride;
 		if (!bootstrap) {
 			const creds = await resolveLiteCredentials(projectRoot, config, profile);
 			bootstrap = generateLiteBootstrapSql(creds.jwtSecret, creds.postgresPassword);
 		}
-		syncDatabaseMigrations(containerName, migrationsDir, bootstrap);
+		syncDatabaseMigrations(containerName, migrationsDir, {
+			bootstrapSql: bootstrap,
+			preflightDryRun,
+			postMigrateSql
+		});
 	}
 }
 const supabaseManageCommand = defineCommand({
@@ -233,17 +264,25 @@ const supabaseManageCommand = defineCommand({
 				profile: {
 					type: "string",
 					description: "Filter profile name"
+				},
+				"strict-keys": {
+					type: "boolean",
+					default: false,
+					description: "Fail without mutating master .env if secrets or JWTs are missing/expired"
 				}
 			},
 			async run({ args }) {
 				const { projectRoot, config } = await loadValidSupabaseConfig(String(args.project), args.config);
-				await runGenerate(projectRoot, config, args.profile);
+				await runGenerate(projectRoot, config, {
+					profileFilter: args.profile,
+					strictKeys: Boolean(args["strict-keys"])
+				});
 			}
 		}),
 		"add-server": defineCommand({
 			meta: {
 				name: "add-server",
-				description: "Register or update a remote server in master .env"
+				description: "Register or update a remote server in master .env without clobbering valid keys"
 			},
 			args: {
 				...SUPABASE_CLI_ARGS,
@@ -255,39 +294,89 @@ const supabaseManageCommand = defineCommand({
 				"non-interactive": {
 					type: "boolean",
 					default: false,
-					description: "Generate server keys automatically without prompts"
+					description: "Generate missing server keys automatically without prompts"
+				},
+				id: {
+					type: "string",
+					description: "Server ID metadata"
+				},
+				displayName: {
+					type: "string",
+					description: "Server display NAME"
+				},
+				region: {
+					type: "string",
+					description: "Server REGION"
+				},
+				tenantId: {
+					type: "string",
+					description: "Tenant ID propagated to POOLER/STORAGE"
+				},
+				dashboardUsername: {
+					type: "string",
+					description: "Studio DASHBOARD_USERNAME"
+				},
+				dashboardPassword: {
+					type: "string",
+					description: "Studio DASHBOARD_PASSWORD"
+				},
+				apiGwHttpPort: {
+					type: "string",
+					description: "API Gateway HTTP port (API_GW_HTTP_PORT)"
+				},
+				deployMode: {
+					type: "string",
+					description: "Deployment mode (self-hosted or cloud)"
 				}
 			},
 			async run({ args }) {
 				const { projectRoot, config } = await loadValidSupabaseConfig(String(args.project), args.config);
+				const serverName = String(args.name);
 				const masterPath = safeResolve(projectRoot, config.masterEnvFile);
 				const existing = fs.existsSync(masterPath) ? await safeReadFile(masterPath) : "";
-				const keys = generateSupabaseKeys(projectRoot, config);
-				const errs = validateEnvSecrets(keys);
-				if (errs.length > 0) {
-					process.stderr.write(`Generated keys failed validation:\n- ${errs.join("\n- ")}\n`);
-					process.exit(2);
+				const existingServerVars = extractServerVars(existing, serverName);
+				const mergedVars = new Map(existingServerVars);
+				const optionalMetadata = [
+					["ID", args.id],
+					["NAME", args.displayName],
+					["REGION", args.region],
+					["TENANT_ID", args.tenantId],
+					["DASHBOARD_USERNAME", args.dashboardUsername],
+					["DASHBOARD_PASSWORD", args.dashboardPassword],
+					["API_GW_HTTP_PORT", args.apiGwHttpPort],
+					["DEPLOY_MODE", args.deployMode]
+				];
+				for (const [envKey, val] of optionalMetadata) if (val?.trim()) mergedVars.set(envKey, val.trim());
+				const isCloud = isManagedCloudServer(mergedVars);
+				const serverVars = isCloud ? mergedVars : new Map(ensureServerKeys(projectRoot, config, mergedVars).vars);
+				if (!isCloud) {
+					const errs = validateEnvSecrets(serverVars);
+					if (errs.length > 0) {
+						process.stderr.write(`Generated keys failed validation:\n- ${errs.join("\n- ")}\n`);
+						process.exit(2);
+					}
 				}
-				let publicUrl = "http://localhost:8000";
+				let publicUrl = serverVars.get("API_EXTERNAL_URL") || (isCloud ? "" : "http://localhost:8000");
 				if (!args["non-interactive"] && process.stdin.isTTY) {
 					const rl = readline.createInterface({
 						input: process.stdin,
 						output: process.stdout
 					});
 					try {
-						const answer = await rl.question("Public API URL [http://localhost:8000]: ");
+						const answer = await rl.question(`Public API URL [${publicUrl}]: `);
 						if (answer.trim()) publicUrl = answer.trim();
 					} finally {
 						rl.close();
 					}
 				}
-				const serverVars = new Map(keys);
-				serverVars.set("API_EXTERNAL_URL", publicUrl);
-				serverVars.set("SUPABASE_PUBLIC_URL", publicUrl);
-				serverVars.set("SITE_URL", publicUrl);
-				const updated = upsertServerBlock(existing, String(args.name), serverVars);
+				if (publicUrl) {
+					serverVars.set("API_EXTERNAL_URL", publicUrl);
+					serverVars.set("SUPABASE_PUBLIC_URL", publicUrl);
+					serverVars.set("SITE_URL", publicUrl);
+				}
+				const updated = upsertServerBlock(existing, serverName, serverVars);
 				await safeWriteFile(masterPath, updated);
-				process.stdout.write(`Server '${args.name}' updated in ${masterPath}${args["non-interactive"] ? " (non-interactive)" : ""}.\n`);
+				process.stdout.write(`Server '${serverName}' updated in ${masterPath}${args["non-interactive"] ? " (non-interactive)" : ""}.\n`);
 			}
 		}),
 		list: defineCommand({
@@ -378,7 +467,7 @@ const supabaseManageCommand = defineCommand({
 			async run({ args }) {
 				const { projectRoot, config } = await loadValidSupabaseConfig(String(args.project), args.config);
 				await cloneUpstreamSupabaseDocker(projectRoot, config);
-				await runGenerate(projectRoot, config, "remote");
+				await runGenerate(projectRoot, config, { profileFilter: "remote" });
 				buildCustomDbImage(projectRoot, config, args.tag);
 				const image = publishCustomDbImage(config, args.tag);
 				process.stdout.write(`All stages completed for: ${image}\n`);
@@ -401,15 +490,16 @@ const supabaseManageCommand = defineCommand({
 				const loaded = await loadValidSupabaseConfig(String(args.project), args.config);
 				const profile = String(args.profile);
 				if (profile === "localFull") {
-					await runGenerate(loaded.projectRoot, loaded.config, profile);
+					await runGenerate(loaded.projectRoot, loaded.config, { profileFilter: profile });
 					const composePath = resolveProfileComposePath(loaded.projectRoot, loaded.config, "localFull");
-					composeUp(composePath);
+					const envFile = resolveLocalFullEnvFile(loaded.projectRoot, loaded.config);
+					composeUp(composePath, envFile);
 					await syncMigrationsForProfile(loaded, profile);
 					return;
 				}
 				const artifacts = await writeLiteProfileArtifacts(loaded.projectRoot, loaded.config, profile);
 				composeUp(artifacts.composePath, artifacts.envFilePath);
-				await syncMigrationsForProfile(loaded, profile, artifacts.bootstrapSql);
+				await syncMigrationsForProfile(loaded, profile, { bootstrapSqlOverride: artifacts.bootstrapSql });
 			}
 		}),
 		down: defineCommand({
@@ -431,8 +521,11 @@ const supabaseManageCommand = defineCommand({
 				}
 			},
 			async run({ args }) {
-				const { composePath } = await loadProfileComposeContext(String(args.project), String(args.profile), args.config);
-				composeDown(composePath, Boolean(args.volumes));
+				const { composePath, envFilePath } = await loadProfileRuntimeContext(args);
+				composeDown(composePath, {
+					removeVolumes: Boolean(args.volumes),
+					envFilePath
+				});
 			}
 		}),
 		restart: defineCommand({
@@ -449,9 +542,8 @@ const supabaseManageCommand = defineCommand({
 				}
 			},
 			async run({ args }) {
-				const profile = String(args.profile);
-				const { loaded, composePath } = await loadProfileComposeContext(String(args.project), profile, args.config);
-				composeRestart(composePath);
+				const { profile, loaded, composePath, envFilePath } = await loadProfileRuntimeContext(args);
+				composeRestart(composePath, envFilePath);
 				await syncMigrationsForProfile(loaded, profile);
 			}
 		}),
@@ -483,6 +575,11 @@ const supabaseManageCommand = defineCommand({
 					type: "string",
 					required: true,
 					description: "Profile name"
+				},
+				"skip-preflight": {
+					type: "boolean",
+					default: false,
+					description: "Skip transactional BEGIN...ROLLBACK pre-flight dry-run"
 				}
 			},
 			async run({ args }) {
@@ -494,7 +591,11 @@ const supabaseManageCommand = defineCommand({
 					const creds = await resolveLiteCredentials(projectRoot, config, profile);
 					bootstrap = generateLiteBootstrapSql(creds.jwtSecret, creds.postgresPassword);
 				}
-				const result = syncDatabaseMigrations(containerName, migrationsDir, bootstrap);
+				const result = syncDatabaseMigrations(containerName, migrationsDir, {
+					bootstrapSql: bootstrap,
+					preflightDryRun: !args["skip-preflight"],
+					postMigrateSql: config.extensions?.postMigrateSql
+				});
 				process.stdout.write(`Migrations synced: ${result.applied.length} applied, ${result.skipped} skipped.\n`);
 			}
 		}),

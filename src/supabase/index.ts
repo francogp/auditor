@@ -16,7 +16,9 @@ export {
   type SupabaseDockerImageConfig,
   type SupabaseLiteComposeTarget,
   type SupabaseLiteCredentials,
+  type SupabaseLiteNginxConfig,
   type SupabaseLiteProfileConfig,
+  type SupabaseLiteRuntimeEnv,
   type SupabaseLiteStorageMode,
   type SupabaseLocalFullProfileConfig,
   type SupabaseMigrationSyncResult,
@@ -49,14 +51,18 @@ export {
   generateLiteComposeYaml,
   generateLiteNginxConf,
   resolveLiteCredentials,
+  resolveLiteRuntimeEnv,
   writeLiteProfileArtifacts
 } from './liteStackGenerator.ts';
 
 export {
+  ensureServerKeys,
   extractServerVars,
   generateServerEnvFiles,
   generateSupabaseKeys,
   isInsecurePlaceholder,
+  isManagedCloudServer,
+  isValidHs256Jwt,
   listMasterServers,
   parseEnvContent,
   upsertServerBlock,

@@ -399,7 +399,7 @@ Issue #602: `fallow fix` withholds removals when the consumer may be invisible t
 - **Files with an unresolved import.** The file itself imports something fallow could not resolve, so its local usage graph is incomplete.
 - **Findings a file the run never fully analyzed could have distorted.** The dead-code finding carries `reachability_caveats`, meaning some source file was skipped before it was read, could not be read, or did not parse cleanly, so the import that would have credited the export or the package may never have been seen. A file over the per-file size limit is the case that fires at default settings: its first line can import the very module now reported unused. This case also covers `remove-dependency`, the most destructive write `fallow fix` performs: a package is reported unused only when no module imports its specifier, and an unread file hides exactly that import. Resolve the files named in `workspace_diagnostics[]`, then re-run.
 
-JSON output carries `{"type": "skipped", "path": "...", "skipped": true, "skip_reason": "low_confidence_off_graph"}` (or `"low_confidence_unresolved_imports"`, or `"low_confidence_incomplete_analysis"`) plus a top-level counter `skipped_low_confidence_exports: number` (always present), disjoint from `skipped`. A withheld `remove_dependency` entry keeps its own shape (`type`, `package`, `location`, `file`) with `applied: false`, `skipped: true`, the same `skip_reason`, and is counted by the sibling `skipped_low_confidence_dependencies: number`. Those entries also repeat the finding's `reachability_caveats` token array, so gate on that rather than on the reason string. Unlike the drift and encoding skips this is INTENTIONAL and does NOT change the exit code; the finding stays reported by `fallow dead-code` for manual review. High-confidence exports in normal source files are removed unchanged. The AI agent should report kept exports and packages to the user and let them decide whether the finding is truly unused before removing it by hand.
+JSON output carries `{"type": "skipped", "path": "...", "skipped": true, "skip_reason": "low_confidence_off_graph"}` (or `"low_confidence_unresolved_imports"`, or `"low_confidence_incomplete_analysis"`) plus a top-level counter `skipped_low_confidence_exports: number` (always present), disjoint from `skipped`. A withheld `remove_dependency` entry keeps its own shape (`type`, `package`, `location`, `file`) with `applied: false`, `skipped: true`, the same `skip_reason`, and is counted by the sibling `skipped_low_confidence_dependencies: number`. Those entries also repeat the finding's `reachability_caveats` token array, so gate on that rather than on the reason string. For `low_confidence_incomplete_analysis`, the top-level `incomplete_analysis_diagnostics` array names each path that the run did not fully analyze and the `action` that unblocks the fix (for example `!.claude/**` in `ignorePatterns`); it is omitted when no fix is held back for this reason. Unlike the drift and encoding skips this is INTENTIONAL and does NOT change the exit code; the finding stays reported by `fallow dead-code` for manual review. High-confidence exports in normal source files are removed unchanged. The AI agent should report kept exports and packages to the user and let them decide whether the finding is truly unused before removing it by hand.
 
 ### Exports that a kept re-export names
 
@@ -2745,7 +2745,12 @@ Config files are searched in priority order: `.fallowrc.json` > `.fallowrc.jsonc
   },
 
   // Architecture boundaries (preset, custom zones/rules, or auto-discovered feature zones)
-  // Presets: "layered", "hexagonal", "feature-sliced", "bulletproof"
+  // Presets: "layered", "hexagonal", "feature-sliced", "bulletproof", "deep-modules"
+  // "deep-modules" makes each folder of src/modules (else src/features) a zone with its
+  // index file as the public entry, plus an "app" zone (src/**) and a "tests" zone
+  // (test/**, tests/**, e2e/**). It fails with exit 2 when neither folder exists.
+  // "presetPublicFiles": true gives the bulletproof features and the feature-sliced
+  // slices their index files as public entry files (off by default).
   // Rules accept an optional `allowTypeOnly: [zones]` list that admits type-only imports
   // (`import type`, inline `{ type Foo }`, namespace type imports, and `export type` re-exports)
   // to the listed zones even when not present in `allow`. Mixed-specifier imports still fire.

@@ -1,4 +1,4 @@
-import { SupabaseDockerConfig, SupabaseLiteComposeTarget, SupabaseLiteCredentials } from "./supabaseConfigTypes.js";
+import { SupabaseDockerConfig, SupabaseLiteComposeTarget, SupabaseLiteCredentials, SupabaseLiteNginxConfig, SupabaseLiteRuntimeEnv } from "./supabaseConfigTypes.js";
 /**
  * Resolves `POSTGRES_PASSWORD` and `JWT_SECRET` for a `lite` profile:
  * 1. Master `.env` (`LITE_<PROFILE>_*` -> `POSTGRES_PASSWORD`/`JWT_SECRET`) if non-placeholder.
@@ -10,9 +10,14 @@ export declare function resolveLiteCredentials(projectRoot: string, config: Supa
   readonly envFilePath: string;
 }>;
 /**
- * Generates Nginx reverse proxy config forwarding `/rest/v1/` to PostgREST.
+ * Resolves `POSTGRES_PASSWORD`, `JWT_SECRET`, and signed `ANON_KEY` / `SERVICE_ROLE_KEY`
+ * for a `lite` profile so integration tests and local apps can connect immediately.
  */
-export declare function generateLiteNginxConf(restServiceName: string): string;
+export declare function resolveLiteRuntimeEnv(projectRoot: string, config: SupabaseDockerConfig, profileName: string): Promise<SupabaseLiteRuntimeEnv>;
+/**
+ * Generates Nginx reverse proxy config forwarding `/rest/v1/` (and optionally `/`) to PostgREST.
+ */
+export declare function generateLiteNginxConf(restServiceName: string, nginxOpts?: SupabaseLiteNginxConfig): string;
 /**
  * Generates idempotent SQL ensuring Supabase roles (`anon`, `authenticated`, `service_role`,
  * `authenticator`), JWT GUC settings, and `supabase_migrations.schema_migrations`.

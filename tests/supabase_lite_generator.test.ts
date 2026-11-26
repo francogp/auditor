@@ -111,6 +111,37 @@ describe('liteStackGenerator', () => {
       );
       const fallbackFromPlaceholder = await resolveLiteCredentials(tmpRoot, config, 'test');
       expect(fallbackFromPlaceholder.postgresPassword).not.toContain('this_password_is_insecure');
+
+      const { resolveLiteRuntimeEnv, generateLiteComposeYaml, generateLiteNginxConf } =
+        await import('../src/supabase/liteStackGenerator.ts');
+      const runtimeEnv = await resolveLiteRuntimeEnv(tmpRoot, config, 'test');
+      expect(runtimeEnv.url).toBe('http://127.0.0.1:8001');
+      expect(runtimeEnv.anonKey.split('.')).toHaveLength(3);
+      expect(runtimeEnv.serviceRoleKey.split('.')).toHaveLength(3);
+      expect(runtimeEnv.postgresUrl).toContain('127.0.0.1:5433/postgres');
+
+      const customCompose = generateLiteComposeYaml(
+        {
+          projectSlug: 'demo',
+          profileName: 'dev',
+          profile: {
+            ...config.profiles.lite!.get('test')!,
+            storage: 'volume',
+            volumeName: 'custom_pgdata',
+            externalVolume: true
+          }
+        },
+        { postgresPassword: 'p', jwtSecret: 's' }
+      );
+      expect(customCompose).toContain('custom_pgdata:/var/lib/postgresql/data');
+      expect(customCompose).toContain('external: true');
+
+      const nginxConf = generateLiteNginxConf('demo-dev-rest', {
+        clientMaxBodySize: '200m',
+        proxyRoot: true
+      });
+      expect(nginxConf).toContain('client_max_body_size 200m;');
+      expect(nginxConf).toContain('location / {');
     } finally {
       delete process.env.AUDIT_PROJECT_ROOT;
     }

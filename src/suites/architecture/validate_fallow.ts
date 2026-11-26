@@ -917,14 +917,15 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
     const config = getAuditConfig(this.projectRoot);
     const allFindings: FallowFindingItem[] = [];
 
-    // Dead Code execution profile (Type-aware permanently disabled in Fallow; delegated exclusively to Vite+/Oxlint)
+    // Dead Code execution profile (fallow.typeAware is applied exclusively in speed=full to keep daily audits fast)
     const deadCodeProfile: TieredCommandProfile<string[]> = {
       command: 'fallow dead-code',
       profiles: {
         light: ['--no-type-aware'],
         full: ((): string[] => {
-          const args: string[] = [];
-          args.push('--no-type-aware');
+          const args: string[] = [
+            config.fallow?.typeAware === true ? '--type-aware' : '--no-type-aware'
+          ];
           if (config.fallow?.showCascade !== false) {
             args.push('--show-cascade');
           }

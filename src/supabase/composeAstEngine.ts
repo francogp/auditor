@@ -68,6 +68,8 @@ function addDependsOn(
   doc.setIn(['services', serviceName, 'depends_on', dep], { condition });
 }
 
+const EXPLICIT_HOST_PORT_REGEX = /^([^/\s]+):(\d+:\d+(?:\/\w+)?)$/u;
+
 function applyLoopbackPorts(doc: Document, serviceName: string): void {
   const portsNode = doc.getIn(['services', serviceName, 'ports']) as YAMLSeq | undefined;
   if (!portsNode || !Array.isArray(portsNode.items)) return;
@@ -75,18 +77,35 @@ function applyLoopbackPorts(doc: Document, serviceName: string): void {
   const updated = portsNode.items.map((item) => {
     const raw = nodeItemToString(item);
     if (raw.startsWith('127.0.0.1:')) return raw;
+    const hostMatch = EXPLICIT_HOST_PORT_REGEX.exec(raw);
+    if (hostMatch?.[2]) {
+      return `127.0.0.1:${hostMatch[2]}`;
+    }
     return `127.0.0.1:${raw}`;
   });
   doc.setIn(['services', serviceName, 'ports'], updated);
 }
 
-function mergeLogsCompose(doc: Document, logsDoc: Document): void {
-  const logServices = logsDoc.get('services') as YAMLMap | undefined;
-  if (!logServices || !Array.isArray(logServices.items)) return;
-  for (const pair of logServices.items) {
-    const key = pairKeyToString(pair);
-    if (!doc.getIn(['services', key])) {
-      doc.setIn(['services', key], pair.value);
+function isYamlMapNode(node: unknown): node is YAMLMap {
+  return Boolean(
+    node &&
+    typeof node === 'object' &&
+    'items' in node &&
+    Array.isArray(node.items) &&
+    !('min' in node) &&
+    'get' in node
+  );
+}
+
+function deepMergeYamlMap(doc: Document, targetPath: readonly string[], overlayMap: YAMLMap): void {
+  for (const inner of overlayMap.items) {
+    const prop = pairKeyToString(inner);
+    const nextPath = [...targetPath, prop];
+    const existingNode = doc.getIn(nextPath);
+    if (isYamlMapNode(existingNode) && isYamlMapNode(inner.value)) {
+      deepMergeYamlMap(doc, nextPath, inner.value);
+    } else {
+      doc.setIn(nextPath, inner.value);
     }
   }
 }
@@ -99,9 +118,17 @@ function mergeOverlay(doc: Document, overlayYaml: string): void {
     const svc = pairKeyToString(pair);
     const svcMap = pair.value as YAMLMap | undefined;
     if (!svcMap || !Array.isArray(svcMap.items)) continue;
-    for (const inner of svcMap.items) {
-      const prop = pairKeyToString(inner);
-      doc.setIn(['services', svc, prop], inner.value);
+    deepMergeYamlMap(doc, ['services', svc], svcMap);
+  }
+}
+
+function mergeLogsCompose(doc: Document, logsDoc: Document): void {
+  const logServices = logsDoc.get('services') as YAMLMap | undefined;
+  if (!logServices || !Array.isArray(logServices.items)) return;
+  for (const pair of logServices.items) {
+    const key = pairKeyToString(pair);
+    if (!doc.getIn(['services', key])) {
+      doc.setIn(['services', key], pair.value);
     }
   }
 }
@@ -150,25 +177,18 @@ function transformRemoteCoreServices(
     if (entry.includes('./volumes/db/')) return null;
     return entry;
   });
-  const dbVolsRaw = doc.getIn(['services', 'db', 'volumes']);
-  const dbVols = Array.isArray(dbVolsRaw)
-    ? (dbVolsRaw as string[])
-    : (((dbVolsRaw as YAMLSeq | undefined)?.toJSON() as string[] | undefined) ?? []);
-  doc.setIn(
-    ['services', 'db', 'volumes'],
-    doc.createNode([...dbVols, `${shared}:/supabase-volumes:Z`])
-  );
 
   if (doc.getIn(['services', 'api-gw'])) {
     doc.setIn(['services', 'api-gw', 'volumes'], [`${shared}:/supabase-volumes:ro,z`]);
     doc.setIn(
       ['services', 'api-gw', 'entrypoint'],
-      ['/bin/sh', '/supabase-volumes/api/envoy/docker-entrypoint.sh']
+      [
+        '/bin/sh',
+        '-c',
+        'cp -rf /supabase-volumes/api/envoy/* /etc/envoy/ && exec /bin/sh /etc/envoy/docker-entrypoint.sh'
+      ]
     );
-    doc.setIn(
-      ['services', 'api-gw', 'environment', 'ENVOY_CONFIG_DIR'],
-      '/supabase-volumes/api/envoy'
-    );
+    doc.deleteIn(['services', 'api-gw', 'environment', 'ENVOY_CONFIG_DIR']);
     addDependsOn(doc, 'api-gw', {
       dep: 'supabase-config-init',
       condition: 'service_completed_successfully'
@@ -245,7 +265,13 @@ function transformRemoteSupportServices(
     );
   }
 
-  if (doc.getIn(['services', 'realtime'])) {
+  const realtimeVols = doc.getIn(['services', 'realtime', 'volumes']) as YAMLSeq | undefined;
+  const hasUpstreamRealtimeMount = Boolean(
+    realtimeVols &&
+    Array.isArray(realtimeVols.items) &&
+    realtimeVols.items.some((item) => nodeItemToString(item).includes('./volumes/realtime'))
+  );
+  if (doc.getIn(['services', 'realtime']) && hasUpstreamRealtimeMount) {
     doc.setIn(['services', 'realtime', 'volumes'], [`${shared}:/supabase-volumes:ro,z`]);
     doc.setIn(
       ['services', 'realtime', 'entrypoint'],
@@ -358,6 +384,31 @@ function initTransformedComposeDoc(
   return { doc, errors, warnings };
 }
 
+function prefixServiceContainerNames(
+  doc: Document,
+  projectSlug: string,
+  realtimeTenantName?: string
+): void {
+  const services = doc.get('services') as YAMLMap | undefined;
+  if (!services || !Array.isArray(services.items)) return;
+  for (const pair of services.items) {
+    const svc = pairKeyToString(pair);
+    const existingName = doc.getIn(['services', svc, 'container_name']);
+    if (!existingName) continue;
+    const rawName = nodeItemToString(existingName);
+    if (svc === 'realtime' && realtimeTenantName) {
+      doc.setIn(
+        ['services', svc, 'container_name'],
+        `${realtimeTenantName}.${projectSlug}-realtime`
+      );
+      continue;
+    }
+    if (!rawName.startsWith(`${projectSlug}-`)) {
+      doc.setIn(['services', svc, 'container_name'], `${projectSlug}-${rawName}`);
+    }
+  }
+}
+
 /**
  * Transforms an upstream Supabase `docker-compose.yml` into a bind-mount-free `remote` stack.
  */
@@ -380,6 +431,7 @@ export function transformRemoteComposeYaml(
   transformRemoteCoreServices(doc, config, remote);
   transformRemoteSupportServices(doc, remote.volumes);
   transformRemoteLoggingServices(doc, shared);
+  prefixServiceContainerNames(doc, config.projectSlug);
 
   if (remote.security.bindLoopback) {
     applyLoopbackPorts(doc, 'db');
@@ -424,27 +476,7 @@ export function transformLocalFullComposeYaml(
     transformOptions: options
   });
   doc.set('name', `${config.projectSlug}-local-full`);
-
-  const services = doc.get('services') as YAMLMap | undefined;
-  if (services && Array.isArray(services.items)) {
-    for (const pair of services.items) {
-      const svc = pairKeyToString(pair);
-      const existingName = doc.getIn(['services', svc, 'container_name']);
-      if (existingName) {
-        if (svc === 'realtime') {
-          doc.setIn(
-            ['services', svc, 'container_name'],
-            `${localFull.realtimeTenantName}.${config.projectSlug}-realtime`
-          );
-        } else {
-          doc.setIn(
-            ['services', svc, 'container_name'],
-            `${config.projectSlug}-${nodeItemToString(existingName)}`
-          );
-        }
-      }
-    }
-  }
+  prefixServiceContainerNames(doc, config.projectSlug, localFull.realtimeTenantName);
 
   if (doc.getIn(['services', 'api-gw'])) {
     doc.setIn(['services', 'api-gw', 'ports'], [`${localFull.ports.api}:8000/tcp`]);

@@ -54,7 +54,8 @@ export default defineAuditConfig({
         includeLogs: false,
         realtimeTenantName: 'realtime-dev',
         ports: { api: 8010, postgres: 5442, pooler: 6553, studio: 3010 },
-        autoApplyMigrations: true
+        autoApplyMigrations: true,
+        postGenerateCommand: 'npm run servers:configure'
       },
       lite: new Map([
         [
@@ -62,6 +63,7 @@ export default defineAuditConfig({
           {
             enabled: true,
             storage: 'tmpfs',
+            nginx: { clientMaxBodySize: '100m', proxyRoot: true },
             images: {
               postgres: 'supabase/postgres:17.6.1.136',
               postgrest: 'postgrest/postgrest:v14.18',
@@ -77,6 +79,23 @@ export default defineAuditConfig({
   }
 });
 ```
+
+### Configuration Notes & Boundaries
+
+- **`upstreamRef` formats**: Supports branch names (`master`), official release tags, and 7–40 char commit SHAs (`clone` automatically switches to `git fetch --depth 1` + `FETCH_HEAD` for SHAs).
+- **Project-specific Auth/API tuning (`extensions.extraEnvVars`)**: Pass per-project GoTrue/PostgREST tuning variables without modifying the auditor core (e.g. `new Map([['GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL', '15']])`).
+- **`lite` Nginx defaults**: `generateLiteNginxConf` sets `client_max_body_size 100m;` and proxies both `/rest/v1/` and `/` with `Host`, `X-Real-IP`, `X-Forwarded-For`, and `X-Forwarded-Proto` by default. Override via `nginx: { clientMaxBodySize, proxyRoot, extraDirectives }`, and reuse existing volumes via `volumeName` + `externalVolume: true`.
+- **Server discovery & Cloud profiles**: `generate` discovers `# === [ SERVIDOR: <name> ] ===`, `# --- [ SERVIDOR ... ] ---`, and `SERVER_<name>_*` blocks, auto-completes missing secrets or expired JWTs (use `--strict-keys` in CI), propagates `TENANT_ID` to `POOLER_TENANT_ID`/`STORAGE_TENANT_ID`, emits `local.env` when `IS_DEFAULT=true` or `PREFER_FOR=local`, and skips Docker secret validation when `DEPLOY_MODE=cloud`.
+- **`lite` runtime credentials in tests**: Call `resolveLiteRuntimeEnv(projectRoot, config, profileName)` from `@francogp/auditor/supabase` to obtain `{ url, anonKey, serviceRoleKey, postgresUrl, postgresPassword, jwtSecret, envFilePath }`.
+
+### Responsibility Boundary: `auditor-supabase` vs. Host Project Scripts
+
+| Concern | Owned by `@francogp/auditor/supabase` | Owned by Host Project |
+| :--- | :--- | :--- |
+| Upstream `docker/` clone, `Dockerfile`, Envoy/PostgREST/Postgres AST | Yes (`clone`, `generate`, `build`, `publish`) | Optional `customComposeOverlay` / `extraEnvVars` |
+| Stack lifecycle (`up`, `down`, `restart`, `status`, `upgrade-pg`) | Yes | Domain wrappers (`run_dev.ts`, `deploy-*.sh`) |
+| Idempotent SQL migration sync & transactional pre-flight | Yes (`migrate`, `-v ON_ERROR_STOP=1`, `postMigrateSql`) | Ephemeral schema/RLS domain tests (`test:migrations`) |
+| Server `.env` inventory, key generation & `local.env` | Yes (`add-server`, `generate`) | App-specific outputs via `postGenerateCommand` (e.g. `servers:configure`) & `auth:sync` |
 
 ---
 

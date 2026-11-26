@@ -528,5 +528,14 @@ describe('ValidatePackageScriptsAuditor', () => {
         'npm run auditor:full && vp build && npm run auditor:post-build'
       );
     });
+
+    it('declares auditor:similar with canonical auditor-similarity binary', async () => {
+      const { CORE_PACKAGE_SCRIPT_REQUIREMENTS } =
+        await import('../src/core/packageScriptRegistry.ts');
+      const similarScript = CORE_PACKAGE_SCRIPT_REQUIREMENTS.find(
+        (s) => s.name === 'auditor:similar'
+      );
+      expect(similarScript?.command).toBe('auditor-similarity');
+    });
   });
 });
