@@ -212,7 +212,8 @@ async function syncMigrationsForProfile(loaded, profile, options = {}) {
 	if (profile === "localFull") {
 		if (config.profiles.localFull?.autoApplyMigrations) syncDatabaseMigrations(containerName, migrationsDir, {
 			preflightDryRun,
-			postMigrateSql
+			postMigrateSql,
+			adminRole: config.postgres.adminRole
 		});
 		return;
 	}
@@ -225,7 +226,8 @@ async function syncMigrationsForProfile(loaded, profile, options = {}) {
 		syncDatabaseMigrations(containerName, migrationsDir, {
 			bootstrapSql: bootstrap,
 			preflightDryRun,
-			postMigrateSql
+			postMigrateSql,
+			adminRole: config.postgres.adminRole
 		});
 	}
 }
@@ -501,7 +503,7 @@ const supabaseManageCommand = defineCommand({
 				const dbService = resolveProfileDbContainerName(loaded.config.projectSlug, profile);
 				composeUp(artifacts.composePath, artifacts.envFilePath, [dbService]);
 				if (loaded.config.profiles.lite?.get(profile)?.autoSyncMigrations) await syncMigrationsForProfile(loaded, profile, { bootstrapSqlOverride: artifacts.bootstrapSql });
-				else applyBootstrapSql(dbService, artifacts.bootstrapSql);
+				else applyBootstrapSql(dbService, artifacts.bootstrapSql, loaded.config.postgres.adminRole);
 				composeUp(artifacts.composePath, artifacts.envFilePath);
 			}
 		}),
@@ -597,7 +599,8 @@ const supabaseManageCommand = defineCommand({
 				const result = syncDatabaseMigrations(containerName, migrationsDir, {
 					bootstrapSql: bootstrap,
 					preflightDryRun: !args["skip-preflight"],
-					postMigrateSql: config.extensions?.postMigrateSql
+					postMigrateSql: config.extensions?.postMigrateSql,
+					adminRole: config.postgres.adminRole
 				});
 				process.stdout.write(`Migrations synced: ${result.applied.length} applied, ${result.skipped} skipped.\n`);
 			}

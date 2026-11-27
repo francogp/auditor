@@ -131,6 +131,7 @@ describe('runtimeOrchestrator & supabase_manage CLI', () => {
       expect(cmd).toBe('docker');
       expect(args).toContain('-v');
       expect(args).toContain('ON_ERROR_STOP=1');
+      expect(args).toContain('supabase_admin');
     }
 
     const inputs = calls.map((c) => (c[2] as { input?: string } | undefined)?.input ?? '');
@@ -183,9 +184,10 @@ describe('runtimeOrchestrator & supabase_manage CLI', () => {
     expect(inputs.some((sql) => sql.includes('BEGIN;\nCREATE INDEX CONCURRENTLY'))).toBe(false);
   });
 
-  it('syncDatabaseMigrations executes bootstrapSql via supabase_admin and falls back to postgres only when role is missing', () => {
+  it('syncDatabaseMigrations executes via supabase_admin and persists postgres fallback across all queries when role is missing', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-sync-boot-'));
     tempDirs.push(tmpDir);
+    fs.writeFileSync(path.join(tmpDir, '20261101100000_init.sql'), 'CREATE TABLE items (id int);');
 
     execFileSyncMock.mockImplementationOnce(() => {
       const err = new Error('psql failed') as Error & { stderr: string };
@@ -196,11 +198,15 @@ describe('runtimeOrchestrator & supabase_manage CLI', () => {
     execFileSyncMock.mockImplementation(() => '');
 
     syncDatabaseMigrations('demo-db', tmpDir, {
-      bootstrapSql: "ALTER ROLE authenticator WITH LOGIN PASSWORD 'pw';"
+      bootstrapSql: "ALTER ROLE authenticator WITH LOGIN PASSWORD 'pw';",
+      postMigrateSql: 'GRANT SELECT ON items TO anon;'
     });
 
     expect(execFileSyncMock.mock.calls[0]?.[1]).toContain('supabase_admin');
-    expect(execFileSyncMock.mock.calls[1]?.[1]).toContain('postgres');
+    for (const call of execFileSyncMock.mock.calls.slice(1)) {
+      expect(call[1]).toContain('postgres');
+      expect(call[1]).not.toContain('supabase_admin');
+    }
 
     vi.clearAllMocks();
     execFileSyncMock.mockImplementationOnce(() => {
@@ -212,6 +218,23 @@ describe('runtimeOrchestrator & supabase_manage CLI', () => {
     expect(() => syncDatabaseMigrations('demo-db', tmpDir, { bootstrapSql: 'BAD SQL;' })).toThrow(
       'syntax error'
     );
+  });
+
+  it('syncDatabaseMigrations honors explicit adminRole for all psql invocations without falling back', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-sync-role-'));
+    tempDirs.push(tmpDir);
+    fs.writeFileSync(path.join(tmpDir, '20261101100000_init.sql'), 'CREATE TABLE items (id int);');
+
+    execFileSyncMock.mockImplementation(() => '');
+    syncDatabaseMigrations('demo-db', tmpDir, {
+      adminRole: 'custom_superuser',
+      postMigrateSql: 'GRANT SELECT ON items TO anon;'
+    });
+
+    for (const call of execFileSyncMock.mock.calls) {
+      expect(call[1]).toContain('custom_superuser');
+      expect(call[1]).not.toContain('supabase_admin');
+    }
   });
 
   it('syncDatabaseMigrations skips transactional pre-flight when preflightDryRun is false', () => {

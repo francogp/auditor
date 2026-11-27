@@ -1416,7 +1416,8 @@ function buildSupabaseDockerConfig(
     masterEnvFile: raw.masterEnvFile ?? '',
     postgres: {
       expectedMajor: raw.postgres?.expectedMajor ?? 0,
-      allowMajorUpgrade: raw.postgres?.allowMajorUpgrade ?? false
+      allowMajorUpgrade: raw.postgres?.allowMajorUpgrade ?? false,
+      ...(raw.postgres?.adminRole !== undefined ? { adminRole: raw.postgres.adminRole } : {})
     },
     ...(raw.extensions ? { extensions: buildSupabaseExtensions(raw.extensions) } : {}),
     profiles: buildSupabaseProfiles(raw.profiles)

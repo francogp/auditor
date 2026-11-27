@@ -1,6 +1,6 @@
 import { safeResolve } from "../core/safePath.js";
 import { tryCatchSync } from "../core/safeUtils.js";
-import { SCHEMA_MIGRATIONS_BOOTSTRAP_SQL } from "./supabaseCryptoUtils.js";
+import "./supabaseCryptoUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -68,27 +68,38 @@ function extractProcessErrorText(err) {
 	}
 	return parts.join("\n");
 }
-/**
-* Executes bootstrap SQL (roles, `authenticator` password, JWT GUC) via `supabase_admin`
-* with automatic fallback to `postgres` when `supabase_admin` is absent.
-*/
-function applyBootstrapSql(containerName, sql) {
+function resolveAndExecDockerPsql(containerName, sql, configuredAdminRole) {
+	const explicitRole = configuredAdminRole?.trim();
+	if (explicitRole) return {
+		output: execDockerPsql(containerName, sql, explicitRole),
+		role: explicitRole
+	};
 	try {
-		execDockerPsql(containerName, sql, "supabase_admin");
+		return {
+			output: execDockerPsql(containerName, sql, "supabase_admin"),
+			role: "supabase_admin"
+		};
 	} catch (err) {
-		if (MISSING_SUPABASE_ADMIN_ROLE_REGEX.test(extractProcessErrorText(err))) {
-			execDockerPsql(containerName, sql, "postgres");
-			return;
-		}
+		if (MISSING_SUPABASE_ADMIN_ROLE_REGEX.test(extractProcessErrorText(err))) return {
+			output: execDockerPsql(containerName, sql, "postgres"),
+			role: "postgres"
+		};
 		throw err;
 	}
 }
-function preflightSingleEntry(containerName, entry) {
+/**
+* Executes bootstrap SQL (roles, `authenticator` password, JWT GUC) via `adminRole`
+* (or `supabase_admin` with automatic fallback to `postgres` when `supabase_admin` is absent).
+*/
+function applyBootstrapSql(containerName, sql, adminRole) {
+	resolveAndExecDockerPsql(containerName, sql, adminRole);
+}
+function preflightSingleEntry(containerName, entry, role) {
 	if (entry.isNonTransactional) {
 		process.stderr.write(`[Warning] Skipping transactional pre-flight dry-run for ${entry.file.fileName} (contains non-transactional DDL).\n`);
 		return;
 	}
-	execDockerPsql(containerName, `BEGIN;\n${entry.sql}\nROLLBACK;\n`);
+	execDockerPsql(containerName, `BEGIN;\n${entry.sql}\nROLLBACK;\n`, role);
 }
 /**
 * Applies pending migrations from `migrationsDir` using `supabase_migrations.schema_migrations`
@@ -97,9 +108,8 @@ function preflightSingleEntry(containerName, entry) {
 */
 function syncDatabaseMigrations(containerName, migrationsDir, options = {}) {
 	const preflightDryRun = options.preflightDryRun ?? true;
-	if (options.bootstrapSql) applyBootstrapSql(containerName, options.bootstrapSql);
-	else execDockerPsql(containerName, SCHEMA_MIGRATIONS_BOOTSTRAP_SQL);
-	const appliedRaw = execDockerPsql(containerName, "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version ASC;");
+	const { role: activeRole } = resolveAndExecDockerPsql(containerName, options.bootstrapSql ?? "CREATE SCHEMA IF NOT EXISTS supabase_migrations; CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()); GRANT USAGE, CREATE ON SCHEMA supabase_migrations TO postgres; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA supabase_migrations TO postgres;", options.adminRole);
+	const appliedRaw = execDockerPsql(containerName, "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version ASC;", activeRole);
 	const appliedSet = new Set(appliedRaw.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean));
 	const files = listOrderedMigrationFiles(migrationsDir);
 	const pendingFiles = files.filter((file) => !appliedSet.has(file.version));
@@ -113,16 +123,16 @@ function syncDatabaseMigrations(containerName, migrationsDir, options = {}) {
 		};
 	});
 	const hasNonTransactional = pendingEntries.some((entry) => entry.isNonTransactional);
-	if (preflightDryRun && pendingEntries.length > 0 && !hasNonTransactional) execDockerPsql(containerName, `BEGIN;\n${pendingEntries.map((entry) => entry.sql).join("\n")}\nROLLBACK;\n`);
+	if (preflightDryRun && pendingEntries.length > 0 && !hasNonTransactional) execDockerPsql(containerName, `BEGIN;\n${pendingEntries.map((entry) => entry.sql).join("\n")}\nROLLBACK;\n`, activeRole);
 	const newlyApplied = [];
 	for (const entry of pendingEntries) {
-		if (preflightDryRun && hasNonTransactional) preflightSingleEntry(containerName, entry);
-		execDockerPsql(containerName, entry.sql);
-		execDockerPsql(containerName, `INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('${entry.file.version.replaceAll("'", "''")}') ON CONFLICT (version) DO NOTHING;`);
+		if (preflightDryRun && hasNonTransactional) preflightSingleEntry(containerName, entry, activeRole);
+		execDockerPsql(containerName, entry.sql, activeRole);
+		execDockerPsql(containerName, `INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('${entry.file.version.replaceAll("'", "''")}') ON CONFLICT (version) DO NOTHING;`, activeRole);
 		newlyApplied.push(entry.file.version);
 	}
-	if (options.postMigrateSql?.trim() && newlyApplied.length > 0) execDockerPsql(containerName, options.postMigrateSql);
-	execDockerPsql(containerName, "NOTIFY pgrst, 'reload schema';");
+	if (options.postMigrateSql?.trim() && newlyApplied.length > 0) execDockerPsql(containerName, options.postMigrateSql, activeRole);
+	execDockerPsql(containerName, "NOTIFY pgrst, 'reload schema';", activeRole);
 	return {
 		applied: newlyApplied,
 		skipped

@@ -8,6 +8,7 @@ export interface SyncDatabaseMigrationsOptions {
   readonly bootstrapSql?: string;
   readonly preflightDryRun?: boolean;
   readonly postMigrateSql?: string;
+  readonly adminRole?: string;
 }
 export interface ComposeDownOptions {
   readonly removeVolumes?: boolean;
@@ -18,10 +19,10 @@ export interface ComposeDownOptions {
  */
 export declare function listOrderedMigrationFiles(migrationsDir: string): readonly SupabaseMigrationFile[];
 /**
- * Executes bootstrap SQL (roles, `authenticator` password, JWT GUC) via `supabase_admin`
- * with automatic fallback to `postgres` when `supabase_admin` is absent.
+ * Executes bootstrap SQL (roles, `authenticator` password, JWT GUC) via `adminRole`
+ * (or `supabase_admin` with automatic fallback to `postgres` when `supabase_admin` is absent).
  */
-export declare function applyBootstrapSql(containerName: string, sql: string): void;
+export declare function applyBootstrapSql(containerName: string, sql: string, adminRole?: string): void;
 /**
  * Applies pending migrations from `migrationsDir` using `supabase_migrations.schema_migrations`
  * with `-v ON_ERROR_STOP=1`, transactional pre-flight dry-run by default, optional `postMigrateSql`,

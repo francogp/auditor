@@ -85,6 +85,7 @@ export interface SupabaseDockerConfig {
   readonly postgres: {
     readonly expectedMajor: number;
     readonly allowMajorUpgrade?: boolean;
+    readonly adminRole?: string;
   };
   readonly extensions?: SupabaseDockerExtensionsConfig;
   readonly profiles: {
