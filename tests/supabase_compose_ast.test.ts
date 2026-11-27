@@ -105,12 +105,30 @@ services:
     expect(result.report.errors.some((e) => e.includes('./volumes/custom'))).toBe(true);
   });
 
-  it('transforms localFull with prefixed container_name and realtime tenant subdomain', () => {
-    const result = transformLocalFullComposeYaml(ENVOY_FIXTURE, BASE_CONFIG);
+  it('transforms localFull with prefixed container_name, realtime tenant subdomain, and rebased relative bind-mounts', () => {
+    const withLongAndAbsoluteMounts = ENVOY_FIXTURE.replace(
+      '- ./volumes/snippets:/app/snippets:z',
+      [
+        '- ./volumes/snippets:/app/snippets:z',
+        '      - /var/run/docker.sock:/var/run/docker.sock:ro',
+        '      - type: bind',
+        '        source: ./volumes/api/extra.yaml',
+        '        target: /etc/envoy/extra.yaml'
+      ].join('\n')
+    );
+    const result = transformLocalFullComposeYaml(withLongAndAbsoluteMounts, BASE_CONFIG);
     expect(result.report.valid).toBe(true);
     expect(result.yaml).toContain('container_name: demo-supabase-db');
     expect(result.yaml).toContain('container_name: realtime-dev.demo-realtime');
     expect(result.yaml).toContain('8010:8000/tcp');
+    expect(result.yaml).toContain('../../docker/volumes/snippets:/app/snippets:z');
+    expect(result.yaml).toContain(
+      '../../docker/volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z'
+    );
+    expect(result.yaml).toContain('source: ../../docker/volumes/api/extra.yaml');
+    expect(result.yaml).toContain('/var/run/docker.sock:/var/run/docker.sock:ro');
+    expect(result.yaml).toContain('db-config:/etc/postgresql-custom');
+    expect(result.yaml).not.toContain('- ./volumes/');
   });
 
   it('rejects localFull when upstream PostgreSQL major mismatches expectedMajor without allowMajorUpgrade', () => {

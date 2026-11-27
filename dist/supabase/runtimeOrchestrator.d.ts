@@ -4,20 +4,26 @@ export interface SupabaseMigrationFile {
   readonly fileName: string;
   readonly filePath: string;
 }
+export declare const DEFAULT_MIGRATION_EXCLUDE_PATTERNS: readonly string[];
+export interface ListMigrationFilesOptions {
+  readonly excludePatterns?: readonly string[];
+}
 export interface SyncDatabaseMigrationsOptions {
   readonly bootstrapSql?: string;
   readonly preflightDryRun?: boolean;
   readonly postMigrateSql?: string;
   readonly adminRole?: string;
+  readonly excludePatterns?: readonly string[];
 }
 export interface ComposeDownOptions {
   readonly removeVolumes?: boolean;
   readonly envFilePath?: string;
 }
 /**
- * Lists SQL migration files matching `^(\d{14})_.*\.sql$` in lexicographical order.
+ * Lists SQL migration files matching `^(\d{14})_.*\.sql$` in lexicographical order,
+ * skipping any filename matching `excludePatterns` (defaults to `['*.sqlite.sql']`).
  */
-export declare function listOrderedMigrationFiles(migrationsDir: string): readonly SupabaseMigrationFile[];
+export declare function listOrderedMigrationFiles(migrationsDir: string, options?: ListMigrationFilesOptions): readonly SupabaseMigrationFile[];
 /**
  * Executes bootstrap SQL (roles, `authenticator` password, JWT GUC) via `adminRole`
  * (or `supabase_admin` with automatic fallback to `postgres` when `supabase_admin` is absent).

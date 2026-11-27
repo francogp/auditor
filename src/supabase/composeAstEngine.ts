@@ -466,6 +466,44 @@ export function transformRemoteComposeYaml(
   };
 }
 
+function rebaseRelativeMountSource(source: string, relativePrefix: string): string {
+  if (!source.startsWith('./')) return source;
+  const cleanPrefix = relativePrefix.replace(/\/+$/u, '');
+  return `${cleanPrefix}/${source.slice(2)}`;
+}
+
+function rebaseVolumeEntry(entry: unknown, relativePrefix: string): void {
+  if (isScalar(entry) && typeof entry.value === 'string') {
+    const colonIdx = entry.value.indexOf(':');
+    const source = colonIdx === -1 ? entry.value : entry.value.slice(0, colonIdx);
+    const rebased = rebaseRelativeMountSource(source, relativePrefix);
+    if (rebased !== source) {
+      entry.value = colonIdx === -1 ? rebased : `${rebased}${entry.value.slice(colonIdx)}`;
+    }
+    return;
+  }
+  if (!isMap(entry)) return;
+  const srcNode = entry.get('source', true);
+  if (!isScalar(srcNode) || typeof srcNode.value !== 'string') return;
+  const rebased = rebaseRelativeMountSource(srcNode.value, relativePrefix);
+  if (rebased !== srcNode.value) {
+    srcNode.value = rebased;
+  }
+}
+
+function rebaseLocalFullRelativeMounts(doc: Document, relativePrefix = '../../docker'): void {
+  const services = doc.get('services');
+  if (!isMap(services)) return;
+  for (const pair of services.items) {
+    const svc = pairKeyToString(pair);
+    const volumes = doc.getIn(['services', svc, 'volumes']);
+    if (!isSeq(volumes)) continue;
+    for (const item of volumes.items) {
+      rebaseVolumeEntry(item, relativePrefix);
+    }
+  }
+}
+
 /**
  * Transforms an upstream compose file for isolated concurrent `localFull` execution.
  */
@@ -485,6 +523,7 @@ export function transformLocalFullComposeYaml(
   });
   doc.set('name', `${config.projectSlug}-local-full`);
   prefixServiceContainerNames(doc, config.projectSlug, localFull.realtimeTenantName);
+  rebaseLocalFullRelativeMounts(doc);
 
   if (doc.getIn(['services', 'api-gw'])) {
     doc.setIn(['services', 'api-gw', 'ports'], [`${localFull.ports.api}:8000/tcp`]);

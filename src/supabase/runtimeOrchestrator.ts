@@ -24,11 +24,18 @@ export interface SupabaseMigrationFile {
   readonly filePath: string;
 }
 
+export const DEFAULT_MIGRATION_EXCLUDE_PATTERNS: readonly string[] = ['*.sqlite.sql'] as const;
+
+export interface ListMigrationFilesOptions {
+  readonly excludePatterns?: readonly string[];
+}
+
 export interface SyncDatabaseMigrationsOptions {
   readonly bootstrapSql?: string;
   readonly preflightDryRun?: boolean;
   readonly postMigrateSql?: string;
   readonly adminRole?: string;
+  readonly excludePatterns?: readonly string[];
 }
 
 export interface ComposeDownOptions {
@@ -37,16 +44,22 @@ export interface ComposeDownOptions {
 }
 
 /**
- * Lists SQL migration files matching `^(\d{14})_.*\.sql$` in lexicographical order.
+ * Lists SQL migration files matching `^(\d{14})_.*\.sql$` in lexicographical order,
+ * skipping any filename matching `excludePatterns` (defaults to `['*.sqlite.sql']`).
  */
-export function listOrderedMigrationFiles(migrationsDir: string): readonly SupabaseMigrationFile[] {
+export function listOrderedMigrationFiles(
+  migrationsDir: string,
+  options: ListMigrationFilesOptions = {}
+): readonly SupabaseMigrationFile[] {
   if (!fs.existsSync(migrationsDir)) {
     return [];
   }
+  const excludePatterns = options.excludePatterns ?? DEFAULT_MIGRATION_EXCLUDE_PATTERNS;
   const entries = fs.readdirSync(migrationsDir, { withFileTypes: true });
   const files: SupabaseMigrationFile[] = [];
   for (const entry of entries) {
     if (!entry.isFile()) continue;
+    if (excludePatterns.some((pattern) => path.matchesGlob(entry.name, pattern))) continue;
     const match = MIGRATION_FILE_REGEX.exec(entry.name);
     if (!match?.[1]) continue;
     files.push({
@@ -185,7 +198,9 @@ export function syncDatabaseMigrations(
       .filter(Boolean)
   );
 
-  const files = listOrderedMigrationFiles(migrationsDir);
+  const files = listOrderedMigrationFiles(migrationsDir, {
+    excludePatterns: options.excludePatterns
+  });
   const pendingFiles = files.filter((file) => !appliedSet.has(file.version));
   const skipped = files.length - pendingFiles.length;
   const pendingEntries: readonly PendingMigrationEntry[] = pendingFiles.map((file) => {

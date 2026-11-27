@@ -15,11 +15,14 @@ vi.mock('node:child_process', () => ({
 }));
 
 import { supabaseManageCommand } from '../src/cli/supabase_manage.ts';
+import { defineAuditConfig } from '../src/core/auditConfigBuilders.ts';
 import { resetAuditConfig } from '../src/core/auditConfigLoader.ts';
 import {
+  applyBootstrapSql,
   composeDown,
   composeRestart,
   composeUp,
+  DEFAULT_MIGRATION_EXCLUDE_PATTERNS,
   DEFAULT_SUPABASE_DOCKER_CONFIG,
   listOrderedMigrationFiles,
   resolveProfileDbContainerName,
@@ -40,16 +43,71 @@ afterEach(() => {
 });
 
 describe('runtimeOrchestrator & supabase_manage CLI', () => {
-  it('lists timestamped SQL migrations in lexicographical order and ignores non-matching files', () => {
+  it('lists timestamped SQL migrations in lexicographical order, excluding *.sqlite.sql by default and honoring custom excludePatterns', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-mig-'));
     tempDirs.push(tmpDir);
     fs.writeFileSync(path.join(tmpDir, '20261102120000_second.sql'), 'SELECT 2;');
     fs.writeFileSync(path.join(tmpDir, '20261101100000_first.sql'), 'SELECT 1;');
+    fs.writeFileSync(path.join(tmpDir, '20261101150000_local.sqlite.sql'), 'PRAGMA foreign_keys;');
+    fs.writeFileSync(
+      path.join(tmpDir, '20261103100000_demo.seed.sql'),
+      'INSERT INTO t VALUES (1);'
+    );
     fs.writeFileSync(path.join(tmpDir, 'notes.md'), 'ignore');
 
+    expect(DEFAULT_MIGRATION_EXCLUDE_PATTERNS).toStrictEqual(['*.sqlite.sql']);
     const ordered = listOrderedMigrationFiles(tmpDir);
-    expect(ordered.map((m) => m.version)).toStrictEqual(['20261101100000', '20261102120000']);
+    expect(ordered.map((m) => m.version)).toStrictEqual([
+      '20261101100000',
+      '20261102120000',
+      '20261103100000'
+    ]);
+
+    const customExcluded = listOrderedMigrationFiles(tmpDir, {
+      excludePatterns: ['*.sqlite.sql', '*.seed.sql']
+    });
+    expect(customExcluded.map((m) => m.version)).toStrictEqual([
+      '20261101100000',
+      '20261102120000'
+    ]);
+
+    const noneExcluded = listOrderedMigrationFiles(tmpDir, { excludePatterns: [] });
+    expect(noneExcluded.map((m) => m.version)).toStrictEqual([
+      '20261101100000',
+      '20261101150000',
+      '20261102120000',
+      '20261103100000'
+    ]);
+
     expect(listOrderedMigrationFiles(path.join(tmpDir, 'missing'))).toStrictEqual([]);
+  });
+
+  it('exports applyBootstrapSql from @francogp/auditor/supabase and preserves migrationExcludePatterns in defineAuditConfig', () => {
+    execFileSyncMock.mockImplementation(() => '');
+    applyBootstrapSql('demo-db', 'SELECT 1;');
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      'docker',
+      expect.arrayContaining(['-U', 'supabase_admin']),
+      expect.objectContaining({ input: 'SELECT 1;' })
+    );
+
+    const cfg = defineAuditConfig({
+      name: 'demo',
+      supabaseDocker: {
+        enabled: true,
+        projectSlug: 'demo',
+        upstreamRef: 'master',
+        supabaseDir: 'supabase',
+        masterEnvFile: '.env',
+        postgres: { expectedMajor: 17, adminRole: 'custom_admin' },
+        extensions: { migrationExcludePatterns: ['*.sqlite.sql', '*.seed.sql'] }
+      }
+    });
+    expect(cfg.supabaseDocker?.postgres.adminRole).toBe('custom_admin');
+    expect(cfg.supabaseDocker?.extensions?.migrationExcludePatterns).toStrictEqual([
+      '*.sqlite.sql',
+      '*.seed.sql'
+    ]);
   });
 
   it('resolves remote Docker image reference with optional registry and tag override', () => {

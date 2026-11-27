@@ -808,11 +808,13 @@ function buildSupabaseLiteProfiles(liteMap) {
 }
 function buildSupabaseExtensions(ext) {
 	const extraEnvVars = collectStringEntries(ext.extraEnvVars);
+	const migrationExcludePatterns = Array.isArray(ext.migrationExcludePatterns) ? ext.migrationExcludePatterns.filter((p) => typeof p === "string") : void 0;
 	return {
 		...ext.extraEnvVars ? { extraEnvVars } : {},
 		...ext.customComposeOverlay !== void 0 ? { customComposeOverlay: ext.customComposeOverlay } : {},
 		...ext.postMigrateSql !== void 0 ? { postMigrateSql: ext.postMigrateSql } : {},
-		...ext.initDir !== void 0 ? { initDir: ext.initDir } : {}
+		...ext.initDir !== void 0 ? { initDir: ext.initDir } : {},
+		...migrationExcludePatterns !== void 0 ? { migrationExcludePatterns } : {}
 	};
 }
 function buildSupabaseProfiles(profiles) {

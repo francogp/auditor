@@ -73,10 +73,12 @@ export {
 } from './envOrchestrator.ts';
 
 export {
+  applyBootstrapSql,
   buildCustomDbImage,
   composeDown,
   composeRestart,
   composeUp,
+  DEFAULT_MIGRATION_EXCLUDE_PATTERNS,
   detectContainerPostgresMajor,
   getDetailedStackStatus,
   getStackStatus,
@@ -85,7 +87,10 @@ export {
   resolveProfileDbContainerName,
   resolveRemoteImageRef,
   syncDatabaseMigrations,
-  type SupabaseMigrationFile
+  type ComposeDownOptions,
+  type ListMigrationFilesOptions,
+  type SupabaseMigrationFile,
+  type SyncDatabaseMigrationsOptions
 } from './runtimeOrchestrator.ts';
 
 export {

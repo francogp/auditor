@@ -1383,13 +1383,17 @@ function buildSupabaseExtensions(
   ext: DeepPartial<SupabaseDockerExtensionsConfig>
 ): SupabaseDockerExtensionsConfig {
   const extraEnvVars = collectStringEntries(ext.extraEnvVars);
+  const migrationExcludePatterns = Array.isArray(ext.migrationExcludePatterns)
+    ? ext.migrationExcludePatterns.filter((p): p is string => typeof p === 'string')
+    : undefined;
   return {
     ...(ext.extraEnvVars ? { extraEnvVars } : {}),
     ...(ext.customComposeOverlay !== undefined
       ? { customComposeOverlay: ext.customComposeOverlay }
       : {}),
     ...(ext.postMigrateSql !== undefined ? { postMigrateSql: ext.postMigrateSql } : {}),
-    ...(ext.initDir !== undefined ? { initDir: ext.initDir } : {})
+    ...(ext.initDir !== undefined ? { initDir: ext.initDir } : {}),
+    ...(migrationExcludePatterns !== undefined ? { migrationExcludePatterns } : {})
   };
 }
 

@@ -13,15 +13,19 @@ import { execFileSync } from "node:child_process";
 */
 const MIGRATION_FILE_REGEX = /^(\d{14})_.*\.sql$/u;
 const NON_TRANSACTIONAL_SQL_REGEX = /\b(?:CREATE\s+INDEX\s+CONCURRENTLY|DROP\s+INDEX\s+CONCURRENTLY|VACUUM|CLUSTER)\b/iu;
+const DEFAULT_MIGRATION_EXCLUDE_PATTERNS = ["*.sqlite.sql"];
 /**
-* Lists SQL migration files matching `^(\d{14})_.*\.sql$` in lexicographical order.
+* Lists SQL migration files matching `^(\d{14})_.*\.sql$` in lexicographical order,
+* skipping any filename matching `excludePatterns` (defaults to `['*.sqlite.sql']`).
 */
-function listOrderedMigrationFiles(migrationsDir) {
+function listOrderedMigrationFiles(migrationsDir, options = {}) {
 	if (!fs.existsSync(migrationsDir)) return [];
+	const excludePatterns = options.excludePatterns ?? DEFAULT_MIGRATION_EXCLUDE_PATTERNS;
 	const entries = fs.readdirSync(migrationsDir, { withFileTypes: true });
 	const files = [];
 	for (const entry of entries) {
 		if (!entry.isFile()) continue;
+		if (excludePatterns.some((pattern) => path.matchesGlob(entry.name, pattern))) continue;
 		const match = MIGRATION_FILE_REGEX.exec(entry.name);
 		if (!match?.[1]) continue;
 		files.push({
@@ -111,7 +115,7 @@ function syncDatabaseMigrations(containerName, migrationsDir, options = {}) {
 	const { role: activeRole } = resolveAndExecDockerPsql(containerName, options.bootstrapSql ?? "CREATE SCHEMA IF NOT EXISTS supabase_migrations; CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()); GRANT USAGE, CREATE ON SCHEMA supabase_migrations TO postgres; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA supabase_migrations TO postgres;", options.adminRole);
 	const appliedRaw = execDockerPsql(containerName, "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version ASC;", activeRole);
 	const appliedSet = new Set(appliedRaw.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean));
-	const files = listOrderedMigrationFiles(migrationsDir);
+	const files = listOrderedMigrationFiles(migrationsDir, { excludePatterns: options.excludePatterns });
 	const pendingFiles = files.filter((file) => !appliedSet.has(file.version));
 	const skipped = files.length - pendingFiles.length;
 	const pendingEntries = pendingFiles.map((file) => {
@@ -274,4 +278,4 @@ function getDetailedStackStatus(config, profile) {
 	const migRes = tryCatchSync(() => execDockerPsql(dbContainer, "SELECT COUNT(*), COALESCE(MAX(version), 'none') FROM supabase_migrations.schema_migrations;"));
 	return `${psOutput}\nPostgres (${dbContainer}): v${pgMajor} | Migrations: ${migRes.status === "success" ? migRes.value.trim().replace("|", " applied, latest=") : "uninitialized"}`;
 }
-export { applyBootstrapSql, buildCustomDbImage, composeDown, composeRestart, composeUp, detectContainerPostgresMajor, getDetailedStackStatus, getStackStatus, listOrderedMigrationFiles, publishCustomDbImage, resolveProfileDbContainerName, resolveRemoteImageRef, syncDatabaseMigrations };
+export { DEFAULT_MIGRATION_EXCLUDE_PATTERNS, applyBootstrapSql, buildCustomDbImage, composeDown, composeRestart, composeUp, detectContainerPostgresMajor, getDetailedStackStatus, getStackStatus, listOrderedMigrationFiles, publishCustomDbImage, resolveProfileDbContainerName, resolveRemoteImageRef, syncDatabaseMigrations };

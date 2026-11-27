@@ -399,12 +399,15 @@ async function syncMigrationsForProfile(
   const postMigrateSql = config.extensions?.postMigrateSql;
   const preflightDryRun = !options.skipPreflight;
 
+  const excludePatterns = config.extensions?.migrationExcludePatterns;
+
   if (profile === 'localFull') {
     if (config.profiles.localFull?.autoApplyMigrations) {
       syncDatabaseMigrations(containerName, migrationsDir, {
         preflightDryRun,
         postMigrateSql,
-        adminRole: config.postgres.adminRole
+        adminRole: config.postgres.adminRole,
+        excludePatterns
       });
     }
     return;
@@ -419,7 +422,8 @@ async function syncMigrationsForProfile(
       bootstrapSql: bootstrap,
       preflightDryRun,
       postMigrateSql,
-      adminRole: config.postgres.adminRole
+      adminRole: config.postgres.adminRole,
+      excludePatterns
     });
   }
 }
@@ -732,7 +736,8 @@ export const supabaseManageCommand = defineCommand({
           bootstrapSql: bootstrap,
           preflightDryRun: !args['skip-preflight'],
           postMigrateSql: config.extensions?.postMigrateSql,
-          adminRole: config.postgres.adminRole
+          adminRole: config.postgres.adminRole,
+          excludePatterns: config.extensions?.migrationExcludePatterns
         });
         process.stdout.write(
           `Migrations synced: ${result.applied.length} applied, ${result.skipped} skipped.\n`

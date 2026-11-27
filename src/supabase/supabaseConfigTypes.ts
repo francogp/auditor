@@ -85,6 +85,7 @@ export interface SupabaseDockerExtensionsConfig {
   readonly customComposeOverlay?: string;
   readonly postMigrateSql?: string;
   readonly initDir?: string;
+  readonly migrationExcludePatterns?: readonly string[];
 }
 
 export interface SupabaseDockerConfig {
