@@ -5,6 +5,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
 
 import {
+  SUPABASE_DOCKER_SCHEMA_VERSION,
   generateLiteBootstrapSql,
   generateLiteComposeYaml,
   generateLiteNginxConf,
@@ -53,6 +54,10 @@ describe('liteStackGenerator', () => {
       { postgresPassword: 'pg@pass#123', jwtSecret: 'jwtsecret123' },
       'services:\n  demo-test-rest:\n    environment:\n      PGRST_LOG_LEVEL: info\n'
     );
+    expect(
+      compose.startsWith(`# @auditor-supabase-schema: ${SUPABASE_DOCKER_SCHEMA_VERSION}\n`)
+    ).toBe(true);
+    expect(compose).not.toContain('PGRST_DB_USE_LEGACY_GUCS');
     expect(compose).toContain('/var/lib/postgresql/data');
     expect(compose).toContain('5433:5432');
     expect(compose).toContain('8001:80');

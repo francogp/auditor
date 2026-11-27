@@ -6,8 +6,12 @@
 
 export {
   DEFAULT_SUPABASE_DOCKER_CONFIG,
+  parseSupabaseSchemaHeader,
+  stampSupabaseSchemaHeader,
+  SUPABASE_DOCKER_SCHEMA_VERSION,
   SUPABASE_LITE_STORAGE_MODES,
   SUPABASE_PROFILE_KINDS,
+  SUPABASE_SCHEMA_HEADER_PREFIX,
   validateSupabaseDockerConfig,
   type SupabaseComposeTransformOptions,
   type SupabaseComposeTransformResult,

@@ -2,6 +2,7 @@ import { safeReadFile, safeResolve, safeWriteFile } from "../core/safePath.js";
 import { tryOrNull } from "../core/safeUtils.js";
 import { mergeOverlay } from "./composeAstEngine.js";
 import { isInsecurePlaceholder, parseEnvContent, signSupabaseJwtPair } from "./envOrchestrator.js";
+import { stampSupabaseSchemaHeader } from "./supabaseConfigTypes.js";
 import { SCHEMA_MIGRATIONS_BOOTSTRAP_SQL, randomAlphanumeric } from "./supabaseCryptoUtils.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -187,7 +188,6 @@ function generateLiteComposeYaml(target, creds, overlayYaml) {
 		["PGRST_JWT_SECRET", creds.jwtSecret],
 		["PGRST_SERVER_HOST", "0.0.0.0"],
 		["PGRST_ADMIN_SERVER_PORT", 3001],
-		["PGRST_DB_USE_LEGACY_GUCS", "false"],
 		["PGRST_APP_SETTINGS_JWT_SECRET", creds.jwtSecret],
 		["PGRST_APP_SETTINGS_JWT_EXP", 3600]
 	]);
@@ -228,9 +228,9 @@ function generateLiteComposeYaml(target, creds, overlayYaml) {
 	if (overlayYaml?.trim()) {
 		const doc = parseDocument(rawYaml);
 		mergeOverlay(doc, overlayYaml);
-		return doc.toString();
+		return stampSupabaseSchemaHeader(doc.toString());
 	}
-	return rawYaml;
+	return stampSupabaseSchemaHeader(rawYaml);
 }
 /**
 * Materializes `docker-compose.yml`, `nginx.conf`, and `.env` for a `lite` profile,

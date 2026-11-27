@@ -75,8 +75,8 @@
       "source": "fallow-rs/fallow-skills",
       "sourceType": "github",
       "skillPath": "fallow/skills/fallow/SKILL.md",
-      "computedHash": "7b709064078f732eb5fef080da700573536cd27e972af4973759417f25a0c6d4",
-      "commit": "1df652a50c949827b5e1f3243cc22c936f74567d"
+      "computedHash": "1772e9be5fed6c3b90f7f1908be7dfd3013f500a3807aea3276528375a145c3e",
+      "commit": "9b942b97ffca520bdfeb9f30210c597e9ebe3543"
     },
     "fallow-review": {
       "source": "fallow-rs/fallow-skills",

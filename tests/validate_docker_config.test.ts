@@ -224,5 +224,120 @@ describe('ValidateDockerConfigAuditor', () => {
         resetAuditConfig();
       }
     });
+
+    it('detects outdated or unversioned Supabase Docker artifacts in setup phase and passes once regenerated', async () => {
+      const { defineAuditConfig, setAuditConfig, resetAuditConfig } =
+        await import('../src/core/auditConfig.ts');
+      const { SUPABASE_DOCKER_SCHEMA_VERSION, stampSupabaseSchemaHeader } =
+        await import('../src/supabase/index.ts');
+
+      fs.writeFileSync(path.join(tmpDir, 'Dockerfile'), 'FROM node:26-alpine\n', 'utf8');
+      fs.writeFileSync(
+        path.join(tmpDir, '.dockerignore'),
+        `${CANONICAL_DOCKERIGNORE_CONTENT}\nsupabase/docker\nsupabase/generated\nsupabase/.env*\n`,
+        'utf8'
+      );
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Supabase Schema Check',
+          supabaseDocker: {
+            enabled: true,
+            projectSlug: 'demo',
+            upstreamRef: 'master',
+            supabaseDir: 'supabase',
+            masterEnvFile: '.env',
+            postgres: { expectedMajor: 17 },
+            profiles: {
+              remote: {
+                enabled: true,
+                includeLogs: false,
+                image: { user: 'u', repo: 'r', tag: 'latest' },
+                volumes: { shared: 's', dbData: 'd', dbConfig: 'c', storage: 'st' },
+                security: { bindLoopback: true }
+              },
+              lite: new Map([
+                [
+                  'test',
+                  {
+                    enabled: true,
+                    storage: 'tmpfs',
+                    images: {
+                      postgres: 'supabase/postgres:17.6.1.136',
+                      postgrest: 'postgrest/postgrest:v14.18',
+                      nginx: 'nginx:1.29-alpine'
+                    },
+                    ports: { postgres: 5433, gateway: 8001 },
+                    schemas: ['public'],
+                    autoSyncMigrations: false
+                  }
+                ]
+              ])
+            }
+          }
+        })
+      );
+
+      try {
+        // 1. No generated artifacts on disk yet (fresh CI checkout) -> not_applicable, passes cleanly
+        const freshResult = await new ValidateDockerConfigAuditor({ projectRoot: tmpDir }).audit();
+        expect(freshResult.status).toBe('passed');
+        expect(freshResult.summary.errors).toBe(0);
+
+        // 2. Legacy unversioned compose + v1 Dockerfile on disk -> fails loud
+        const remoteComposePath = path.join(tmpDir, 'supabase', 'generated', 'docker-compose.yml');
+        const dockerfilePath = path.join(tmpDir, 'supabase', 'docker', 'Dockerfile');
+        const liteComposePath = path.join(
+          tmpDir,
+          'supabase',
+          'generated',
+          'lite',
+          'test',
+          'docker-compose.yml'
+        );
+        fs.mkdirSync(path.dirname(remoteComposePath), { recursive: true });
+        fs.mkdirSync(path.dirname(dockerfilePath), { recursive: true });
+        fs.mkdirSync(path.dirname(liteComposePath), { recursive: true });
+        fs.writeFileSync(remoteComposePath, 'services:\n  db:\n    image: postgres:17\n', 'utf8');
+        fs.writeFileSync(
+          dockerfilePath,
+          '# @auditor-supabase-schema: 1\nFROM supabase/postgres:17.6.1.136\n',
+          'utf8'
+        );
+        fs.writeFileSync(
+          liteComposePath,
+          stampSupabaseSchemaHeader('services:\n  db:\n    image: postgres:17\n'),
+          'utf8'
+        );
+
+        const outdatedResult = await new ValidateDockerConfigAuditor({
+          projectRoot: tmpDir
+        }).audit();
+        expect(outdatedResult.status).toBe('failed');
+        const schemaViolations = outdatedResult.findings.filter(
+          (f) => f.ruleId === 'docker-supabase-schema-outdated'
+        );
+        expect(schemaViolations).toHaveLength(2);
+        expect(schemaViolations[0]?.message).toContain(`v${SUPABASE_DOCKER_SCHEMA_VERSION}`);
+        expect(schemaViolations[1]?.message).toContain('auditor:supabase -- clone');
+
+        // 3. Re-stamped with current SUPABASE_DOCKER_SCHEMA_VERSION -> passes
+        fs.writeFileSync(
+          remoteComposePath,
+          stampSupabaseSchemaHeader('services:\n  db:\n    image: postgres:17\n'),
+          'utf8'
+        );
+        fs.writeFileSync(
+          dockerfilePath,
+          stampSupabaseSchemaHeader('FROM supabase/postgres:17.6.1.136\n'),
+          'utf8'
+        );
+        const cleanResult = await new ValidateDockerConfigAuditor({ projectRoot: tmpDir }).audit();
+        expect(cleanResult.status).toBe('passed');
+        expect(cleanResult.summary.errors).toBe(0);
+      } finally {
+        resetAuditConfig();
+      }
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-export declare const DOCKER_CONFIG_RULES: readonly ["dockerignore-missing", "dockerignore-missing-pattern", "dockerignore-missing-supabase-pattern"];
+export declare const DOCKER_CONFIG_RULES: readonly ["dockerignore-missing", "dockerignore-missing-pattern", "dockerignore-missing-supabase-pattern", "docker-supabase-schema-outdated"];
 export type DockerConfigRuleId = (typeof DOCKER_CONFIG_RULES)[number];
 export declare const MANDATORY_DOCKER_IGNORE_PATTERNS: readonly string[];
 export declare const CANONICAL_DOCKERIGNORE_LINES: readonly ["# Ignored files and dependencies for Docker image builds", "node_modules", ".git", "dist", "scratch", ".env*", "*.log", ""];

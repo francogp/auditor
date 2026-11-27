@@ -14,6 +14,9 @@ import {
   generateCustomDbDockerfile,
   inspectUpstreamCompose,
   parsePostgresMajorVersion,
+  parseSupabaseSchemaHeader,
+  stampSupabaseSchemaHeader,
+  SUPABASE_DOCKER_SCHEMA_VERSION,
   validateSupabaseDockerConfig,
   type SupabaseDockerConfig
 } from '../src/supabase/index.ts';
@@ -65,6 +68,16 @@ services:
     expect(meta.gatewayService).toBe('api-gw');
 
     const dockerfile = generateCustomDbDockerfile(meta.postgresImage, 'demo-app');
+    expect(
+      dockerfile.startsWith(`# @auditor-supabase-schema: ${SUPABASE_DOCKER_SCHEMA_VERSION}\n`)
+    ).toBe(true);
+    expect(parseSupabaseSchemaHeader(dockerfile)).toBe(SUPABASE_DOCKER_SCHEMA_VERSION);
+    expect(parseSupabaseSchemaHeader('FROM postgres:17\n')).toBeNull();
+    expect(
+      parseSupabaseSchemaHeader(
+        stampSupabaseSchemaHeader('# @auditor-supabase-schema: 1\nFROM postgres:17\n')
+      )
+    ).toBe(SUPABASE_DOCKER_SCHEMA_VERSION);
     expect(dockerfile).toContain('FROM supabase/postgres:17.6.1.136');
     expect(dockerfile).toContain('COPY init/ /docker-entrypoint-initdb.d/');
     expect(dockerfile).not.toContain('COPY volumes/realtime /supabase-volumes/realtime');

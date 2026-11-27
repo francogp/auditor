@@ -5,6 +5,34 @@
 * Domain contracts and zero-hardcoding validation for `@francogp/auditor/supabase`.
 */
 const SUPABASE_LITE_STORAGE_MODES = ["volume", "tmpfs"];
+const SUPABASE_DOCKER_SCHEMA_VERSION = 3;
+const SUPABASE_SCHEMA_HEADER_PREFIX = "# @auditor-supabase-schema:";
+const SUPABASE_SCHEMA_HEADER_REGEX = /^#\s*@auditor-supabase-schema:\s*(\d+)\s*$/u;
+const SCHEMA_HEADER_SCAN_LINES = 5;
+/**
+* Stamps `# @auditor-supabase-schema: <version>` as the first line of a generated Supabase
+* Compose or Dockerfile artifact, replacing any prior schema header.
+*/
+function stampSupabaseSchemaHeader(content, version = 3) {
+	const lines = content.split(/\r?\n/u);
+	const startIdx = lines.length > 0 && SUPABASE_SCHEMA_HEADER_REGEX.test(lines[0] ?? "") ? 1 : 0;
+	const body = lines.slice(startIdx).join("\n");
+	return `${SUPABASE_SCHEMA_HEADER_PREFIX} ${version}\n${body}`;
+}
+/**
+* Parses the `# @auditor-supabase-schema: <N>` version header from the top of a generated
+* Supabase Docker artifact, returning `null` if missing or invalid.
+*/
+function parseSupabaseSchemaHeader(content) {
+	const lines = content.split(/\r?\n/u).slice(0, SCHEMA_HEADER_SCAN_LINES);
+	for (const line of lines) {
+		const match = SUPABASE_SCHEMA_HEADER_REGEX.exec(line.trim());
+		if (!match?.[1]) continue;
+		const parsed = Number.parseInt(match[1], 10);
+		if (Number.isInteger(parsed) && parsed > 0) return parsed;
+	}
+	return null;
+}
 const SUPABASE_PROFILE_KINDS = [
 	"remote",
 	"localFull",
@@ -76,4 +104,4 @@ function validateSupabaseDockerConfig(config) {
 	validateLiteProfiles(config.profiles?.lite, errors);
 	return errors;
 }
-export { DEFAULT_SUPABASE_DOCKER_CONFIG, MIN_POSTGRES_MAJOR, SUPABASE_LITE_STORAGE_MODES, SUPABASE_PROFILE_KINDS, validateSupabaseDockerConfig };
+export { DEFAULT_SUPABASE_DOCKER_CONFIG, MIN_POSTGRES_MAJOR, SUPABASE_DOCKER_SCHEMA_VERSION, SUPABASE_LITE_STORAGE_MODES, SUPABASE_PROFILE_KINDS, SUPABASE_SCHEMA_HEADER_PREFIX, parseSupabaseSchemaHeader, stampSupabaseSchemaHeader, validateSupabaseDockerConfig };

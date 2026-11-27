@@ -94,7 +94,7 @@ Architecture & Tooling Engineers.
 - [`validate_dead_css.ts`](./validate_dead_css.ts): Dead scoped CSS class detection in Vue components powered by shared AST analysis.
 - [`validate_dependency_vulnerabilities.ts`](./validate_dependency_vulnerabilities.ts): Dependency CVE security vulnerabilities analysis via `npm audit --json`.
 - [`validate_dependency_minimums.ts`](./validate_dependency_minimums.ts): Conditional minimum/maximum version validator, `dependency-lockfile-out-of-sync` parity check (`npm ci --dry-run`), and `npm run auditor:fix` lockfile auto-sync (`npm install`) for shared libraries with floors read from `peerDependencies`.
-- [`validate_docker_config.ts`](./validate_docker_config.ts): Docker configuration and .dockerignore hygiene verifier enforcing root isolation, automated scaffolding, and coverage over Dockerfile and Compose files.
+- [`validate_docker_config.ts`](./validate_docker_config.ts): Docker configuration, `.dockerignore` hygiene, and `phase: 'setup'` structural Supabase Docker schema version (`docker-supabase-schema-outdated` vs `SUPABASE_DOCKER_SCHEMA_VERSION`) verifier.
 - [`validate_editorconfig.ts`](./validate_editorconfig.ts): EditorConfig baseline integrity verifier enforcing charset, indentation, and newline hygiene.
 - [`validate_environment_engines.ts`](./validate_environment_engines.ts): Package.json engines declaration and active runtime alignment validator with automated setup repair.
 - [`validate_git_config.ts`](./validate_git_config.ts): Local Git repository configuration validator ensuring core.filemode, core.autocrlf, and core.eol standards with automated repair.
@@ -117,7 +117,7 @@ Architecture & Tooling Engineers.
 - [`validate_template_ids.ts`](./validate_template_ids.ts): Uniqueness of template element IDs for deterministic testing.
 - [`validate_test_fragmentation.ts`](./validate_test_fragmentation.ts): Vitest anti-fragmentation (bans micro-test files <60 LOC).
 - [`validate_test_coverage.ts`](./validate_test_coverage.ts): Test execution coverage and untracked file auditor.
-- [`validate_tsconfig.ts`](./validate_tsconfig.ts): TypeScript configuration (tsconfig.json) verifier enforcing strict compiler options and source file inclusion.
+- [`validate_tsconfig.ts`](./validate_tsconfig.ts): TypeScript configuration (`tsconfig.json` and `tsconfig.*.json`) verifier enforcing strict compiler options, source file inclusion, and automated pruning of non-existent literal `include`/`files` paths (`tsconfig-dead-include-entry`).
 - [`validate_magic_numbers.ts`](./validate_magic_numbers.ts): TypeScript AST sub-auditor detecting naked magic numbers outside constant declarations with shared AST reuse.
 - [`validate_stylelint_config.ts`](./validate_stylelint_config.ts): Stylelint configuration file integrity validator enforcing declaration-strict-value plugin and auto-repair.
 - [`validate_type_coverage.ts`](./validate_type_coverage.ts): TypeScript type coverage and untyped symbol threshold auditor.

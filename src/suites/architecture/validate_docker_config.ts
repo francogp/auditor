@@ -27,13 +27,19 @@ import {
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
+import {
+  parseSupabaseSchemaHeader,
+  SUPABASE_DOCKER_SCHEMA_VERSION,
+  type SupabaseDockerConfig
+} from '../../supabase/supabaseConfigTypes.ts';
 
 enableCompileCache();
 
 export const DOCKER_CONFIG_RULES = [
   'dockerignore-missing',
   'dockerignore-missing-pattern',
-  'dockerignore-missing-supabase-pattern'
+  'dockerignore-missing-supabase-pattern',
+  'docker-supabase-schema-outdated'
 ] as const;
 
 export type DockerConfigRuleId = (typeof DOCKER_CONFIG_RULES)[number];
@@ -174,7 +180,8 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
       ruleDescriptions: {
         'dockerignore-missing': 'Missing .dockerignore file',
         'dockerignore-missing-pattern': 'Missing critical pattern in .dockerignore',
-        'dockerignore-missing-supabase-pattern': 'Missing Supabase .dockerignore pattern'
+        'dockerignore-missing-supabase-pattern': 'Missing Supabase .dockerignore pattern',
+        'docker-supabase-schema-outdated': 'Outdated Supabase Docker artifact'
       },
       ruleRemediations: {
         'dockerignore-missing':
@@ -197,7 +204,14 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
           '2. Diagnosis: Inspect `.dockerignore` for `<supabaseDir>/docker`, `<supabaseDir>/generated`, and `<supabaseDir>/.env*`.\n' +
           '3. Canonical Solution: Run `npm run auditor:fix` to append missing Supabase exclusions under `# Supabase Docker managed artifacts`.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   `npm run auditor:fix`'
+          '   `npm run auditor:fix`',
+        'docker-supabase-schema-outdated':
+          '📖 REMEDIATION GUIDE: docker-supabase-schema-outdated\n' +
+          '1. Root Cause: A generated Supabase Compose or Dockerfile artifact was created by an older `@francogp/auditor/supabase` schema version.\n' +
+          '2. Diagnosis: Inspect the `# @auditor-supabase-schema:` header on the reported file.\n' +
+          '3. Canonical Solution: Re-run `npm run auditor:supabase -- clone && npm run auditor:supabase -- generate` to regenerate artifacts with the current structural schema.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:supabase -- clone && npm run auditor:supabase -- generate`'
       },
       coverage: {
         include: ['.dockerignore', ...DOCKER_TRIGGER_PATTERNS]
@@ -231,6 +245,7 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
           'dockerignore-missing-supabase-pattern',
           'Missing .dockerignore file'
         );
+        this.markRuleNotApplicable('docker-supabase-schema-outdated', 'Missing .dockerignore file');
         return;
       }
       configFile = ensured.resolvedPath;
@@ -253,6 +268,18 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
           message: `No se pudo leer ${relPath}.`
         });
       });
+      this.markRuleNotApplicable(
+        'dockerignore-missing-pattern',
+        'Could not read .dockerignore file'
+      );
+      this.markRuleNotApplicable(
+        'dockerignore-missing-supabase-pattern',
+        'Could not read .dockerignore file'
+      );
+      this.markRuleNotApplicable(
+        'docker-supabase-schema-outdated',
+        'Could not read .dockerignore file'
+      );
       return;
     }
 
@@ -332,6 +359,128 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
       }
       fs.appendFileSync(resolvedPath, addition, 'utf8');
     }
+
+    this.runSubAuditorSync('docker-supabase-schema-outdated', () => {
+      auditSupabaseSchemaVersion(this, supabaseDocker);
+    });
+  }
+}
+
+interface SupabaseArtifactEntry {
+  readonly absPath: string;
+  readonly isDockerfile: boolean;
+}
+
+function resolveWithinProjectRoot(
+  projectRoot: string,
+  ...segments: readonly string[]
+): string | null {
+  const root = path.resolve(projectRoot);
+  const resolved = path.resolve(root, ...segments);
+  const rel = path.relative(root, resolved);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  return resolved;
+}
+
+function pushCandidateArtifact(
+  candidates: SupabaseArtifactEntry[],
+  absPath: string | null,
+  isDockerfile: boolean
+): void {
+  if (absPath) {
+    candidates.push({ absPath, isDockerfile });
+  }
+}
+
+function collectExistingSupabaseArtifacts(
+  projectRoot: string,
+  config: SupabaseDockerConfig
+): readonly SupabaseArtifactEntry[] {
+  const candidates: SupabaseArtifactEntry[] = [];
+  if (config.profiles.remote?.enabled) {
+    pushCandidateArtifact(
+      candidates,
+      resolveWithinProjectRoot(projectRoot, config.supabaseDir, 'generated', 'docker-compose.yml'),
+      false
+    );
+    pushCandidateArtifact(
+      candidates,
+      resolveWithinProjectRoot(projectRoot, config.supabaseDir, 'docker', 'Dockerfile'),
+      true
+    );
+  }
+  if (config.profiles.localFull?.enabled) {
+    pushCandidateArtifact(
+      candidates,
+      resolveWithinProjectRoot(
+        projectRoot,
+        config.supabaseDir,
+        'generated',
+        'local-full',
+        'docker-compose.yml'
+      ),
+      false
+    );
+  }
+  if (config.profiles.lite) {
+    for (const [name, profile] of config.profiles.lite.entries()) {
+      if (!profile.enabled) continue;
+      pushCandidateArtifact(
+        candidates,
+        resolveWithinProjectRoot(
+          projectRoot,
+          config.supabaseDir,
+          'generated',
+          'lite',
+          name,
+          'docker-compose.yml'
+        ),
+        false
+      );
+    }
+  }
+  return candidates.filter((entry) => fs.existsSync(entry.absPath));
+}
+
+function auditSupabaseSchemaVersion(
+  auditor: ValidateDockerConfigAuditor,
+  supabaseDocker: SupabaseDockerConfig | undefined
+): void {
+  if (!supabaseDocker?.enabled || !supabaseDocker.supabaseDir.trim()) {
+    auditor.markRuleNotApplicable(
+      'docker-supabase-schema-outdated',
+      'supabaseDocker is not enabled'
+    );
+    return;
+  }
+
+  const artifacts = collectExistingSupabaseArtifacts(auditor.projectRoot, supabaseDocker);
+  if (artifacts.length === 0) {
+    auditor.markRuleNotApplicable(
+      'docker-supabase-schema-outdated',
+      'No generated Supabase Docker artifacts found on disk'
+    );
+    return;
+  }
+
+  for (const artifact of artifacts) {
+    const relArtifact = normalizePosixPath(path.relative(auditor.projectRoot, artifact.absPath));
+    const content = fs.readFileSync(artifact.absPath, 'utf8');
+    const foundVersion = parseSupabaseSchemaHeader(content);
+    if (foundVersion !== null && foundVersion >= SUPABASE_DOCKER_SCHEMA_VERSION) continue;
+
+    const foundLabel = foundVersion === null ? 'unversioned' : `v${foundVersion}`;
+    const fixCmd = artifact.isDockerfile
+      ? 'npm run auditor:supabase -- clone && npm run auditor:supabase -- generate'
+      : 'npm run auditor:supabase -- generate';
+    auditor.addViolation({
+      ruleId: 'docker-supabase-schema-outdated',
+      severity: 'error',
+      file: relArtifact,
+      line: 1,
+      message: `Supabase Docker artifact '${relArtifact}' uses schema ${foundLabel}, below required v${SUPABASE_DOCKER_SCHEMA_VERSION}. Regenerate with '${fixCmd}'.`,
+      context: foundLabel
+    });
   }
 }
 

@@ -5,6 +5,18 @@
  */
 export declare const SUPABASE_LITE_STORAGE_MODES: readonly ["volume", "tmpfs"];
 export type SupabaseLiteStorageMode = (typeof SUPABASE_LITE_STORAGE_MODES)[number];
+export declare const SUPABASE_DOCKER_SCHEMA_VERSION: 3;
+export declare const SUPABASE_SCHEMA_HEADER_PREFIX: "# @auditor-supabase-schema:";
+/**
+ * Stamps `# @auditor-supabase-schema: <version>` as the first line of a generated Supabase
+ * Compose or Dockerfile artifact, replacing any prior schema header.
+ */
+export declare function stampSupabaseSchemaHeader(content: string, version?: number): string;
+/**
+ * Parses the `# @auditor-supabase-schema: <N>` version header from the top of a generated
+ * Supabase Docker artifact, returning `null` if missing or invalid.
+ */
+export declare function parseSupabaseSchemaHeader(content: string): number | null;
 export declare const SUPABASE_PROFILE_KINDS: readonly ["remote", "localFull", "lite"];
 export type SupabaseProfileKind = (typeof SUPABASE_PROFILE_KINDS)[number];
 export type SupabaseComposeProfileKind = Exclude<SupabaseProfileKind, 'lite'>;

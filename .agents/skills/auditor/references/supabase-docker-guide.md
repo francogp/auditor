@@ -212,4 +212,5 @@ Whenever updating `@francogp/auditor`'s Docker + Supabase engine for new upstrea
 1. Review `changelog.md` and recent commits in the upstream `docker` directory.
 2. Diff `docker-compose.yml` and `.env.example` against `composeAstEngine.ts` and `envOrchestrator.ts`.
 3. Update AST rules and offline contract test fixtures in `@francogp/auditor` if structural changes occurred.
-4. Publish a new `@francogp/auditor` release and run `auditor-supabase clone` + `auditor-supabase generate` in consumer projects.
+4. **Structural Schema Bump (`SUPABASE_DOCKER_SCHEMA_VERSION`)**: Whenever AST transformations, generated `Dockerfile` layouts, or `lite` Compose schemas change structurally, increment `SUPABASE_DOCKER_SCHEMA_VERSION` in `src/supabase/supabaseConfigTypes.ts`. Generated `docker-compose.yml` and `Dockerfile` artifacts embed `# @auditor-supabase-schema: <N>`, and `validate_docker_config` (`phase: 'setup'`, rule `docker-supabase-schema-outdated`) blocks downstream projects holding older or unversioned artifacts on disk until regenerated via `auditor-supabase clone` / `generate`.
+5. Publish a new `@francogp/auditor` release and run `auditor-supabase clone` + `auditor-supabase generate` in consumer projects.

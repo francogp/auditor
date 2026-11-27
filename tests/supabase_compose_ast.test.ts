@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 
 import {
+  SUPABASE_DOCKER_SCHEMA_VERSION,
   extractComposeEnvPlaceholders,
   transformLocalFullComposeYaml,
   transformRemoteComposeYaml,
@@ -56,6 +57,9 @@ describe('composeAstEngine', () => {
     });
     expect(result.report.valid).toBe(true);
     expect(result.report.errors).toStrictEqual([]);
+    expect(
+      result.yaml.startsWith(`# @auditor-supabase-schema: ${SUPABASE_DOCKER_SCHEMA_VERSION}\n`)
+    ).toBe(true);
     expect(result.yaml).toContain('supabase-config-init');
     expect(result.yaml).toContain('cp -rf /supabase-volumes/api/envoy/* /etc/envoy/');
     expect(result.yaml).toContain('container_name: demo-supabase-db');
@@ -118,6 +122,9 @@ services:
     );
     const result = transformLocalFullComposeYaml(withLongAndAbsoluteMounts, BASE_CONFIG);
     expect(result.report.valid).toBe(true);
+    expect(
+      result.yaml.startsWith(`# @auditor-supabase-schema: ${SUPABASE_DOCKER_SCHEMA_VERSION}\n`)
+    ).toBe(true);
     expect(result.yaml).toContain('container_name: demo-supabase-db');
     expect(result.yaml).toContain('container_name: realtime-dev.demo-realtime');
     expect(result.yaml).toContain('8010:8000/tcp');

@@ -1,4 +1,5 @@
 import { tryCatchSync } from "../core/safeUtils.js";
+import { stampSupabaseSchemaHeader } from "./supabaseConfigTypes.js";
 import { inspectUpstreamCompose } from "./upstreamSync.js";
 import { execFileSync } from "node:child_process";
 import { isMap, isScalar, isSeq, parseDocument } from "yaml";
@@ -415,7 +416,7 @@ function transformRemoteComposeYaml(composeYaml, config, options) {
 	if (options?.overlayYaml) mergeOverlay(doc, options.overlayYaml);
 	errors.push(...collectResidualRelativeMounts(doc));
 	return {
-		yaml: doc.toString(),
+		yaml: stampSupabaseSchemaHeader(doc.toString()),
 		report: {
 			valid: errors.length === 0,
 			profile: "remote",
@@ -486,7 +487,7 @@ function transformLocalFullComposeYaml(composeYaml, config, options) {
 	], [`${localFull.ports.studio}:3000`]);
 	if (options?.overlayYaml) mergeOverlay(doc, options.overlayYaml);
 	return {
-		yaml: doc.toString(),
+		yaml: stampSupabaseSchemaHeader(doc.toString()),
 		report: {
 			valid: errors.length === 0,
 			profile: "localFull",

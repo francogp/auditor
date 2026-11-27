@@ -17,12 +17,13 @@ import {
 } from 'yaml';
 
 import { tryCatchSync } from '../core/safeUtils.ts';
-import type {
-  SupabaseComposeProfileKind,
-  SupabaseComposeTransformOptions,
-  SupabaseComposeTransformResult,
-  SupabaseDockerConfig,
-  SupabaseRemoteProfileConfig
+import {
+  stampSupabaseSchemaHeader,
+  type SupabaseComposeProfileKind,
+  type SupabaseComposeTransformOptions,
+  type SupabaseComposeTransformResult,
+  type SupabaseDockerConfig,
+  type SupabaseRemoteProfileConfig
 } from './supabaseConfigTypes.ts';
 import { inspectUpstreamCompose } from './upstreamSync.ts';
 
@@ -456,7 +457,7 @@ export function transformRemoteComposeYaml(
   errors.push(...collectResidualRelativeMounts(doc));
 
   return {
-    yaml: doc.toString(),
+    yaml: stampSupabaseSchemaHeader(doc.toString()),
     report: {
       valid: errors.length === 0,
       profile: 'remote',
@@ -543,7 +544,7 @@ export function transformLocalFullComposeYaml(
   }
 
   return {
-    yaml: doc.toString(),
+    yaml: stampSupabaseSchemaHeader(doc.toString()),
     report: {
       valid: errors.length === 0,
       profile: 'localFull',

@@ -7,6 +7,40 @@
 export const SUPABASE_LITE_STORAGE_MODES = ['volume', 'tmpfs'] as const;
 export type SupabaseLiteStorageMode = (typeof SUPABASE_LITE_STORAGE_MODES)[number];
 
+export const SUPABASE_DOCKER_SCHEMA_VERSION = 3 as const;
+export const SUPABASE_SCHEMA_HEADER_PREFIX = '# @auditor-supabase-schema:' as const;
+const SUPABASE_SCHEMA_HEADER_REGEX = /^#\s*@auditor-supabase-schema:\s*(\d+)\s*$/u;
+const SCHEMA_HEADER_SCAN_LINES = 5 as const;
+
+/**
+ * Stamps `# @auditor-supabase-schema: <version>` as the first line of a generated Supabase
+ * Compose or Dockerfile artifact, replacing any prior schema header.
+ */
+export function stampSupabaseSchemaHeader(
+  content: string,
+  version: number = SUPABASE_DOCKER_SCHEMA_VERSION
+): string {
+  const lines = content.split(/\r?\n/u);
+  const startIdx = lines.length > 0 && SUPABASE_SCHEMA_HEADER_REGEX.test(lines[0] ?? '') ? 1 : 0;
+  const body = lines.slice(startIdx).join('\n');
+  return `${SUPABASE_SCHEMA_HEADER_PREFIX} ${version}\n${body}`;
+}
+
+/**
+ * Parses the `# @auditor-supabase-schema: <N>` version header from the top of a generated
+ * Supabase Docker artifact, returning `null` if missing or invalid.
+ */
+export function parseSupabaseSchemaHeader(content: string): number | null {
+  const lines = content.split(/\r?\n/u).slice(0, SCHEMA_HEADER_SCAN_LINES);
+  for (const line of lines) {
+    const match = SUPABASE_SCHEMA_HEADER_REGEX.exec(line.trim());
+    if (!match?.[1]) continue;
+    const parsed = Number.parseInt(match[1], 10);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+  }
+  return null;
+}
+
 export const SUPABASE_PROFILE_KINDS = ['remote', 'localFull', 'lite'] as const;
 export type SupabaseProfileKind = (typeof SUPABASE_PROFILE_KINDS)[number];
 export type SupabaseComposeProfileKind = Exclude<SupabaseProfileKind, 'lite'>;

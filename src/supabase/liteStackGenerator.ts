@@ -13,12 +13,13 @@ import { safeReadFile, safeResolve, safeWriteFile } from '../core/safePath.ts';
 import { tryOrNull } from '../core/safeUtils.ts';
 import { mergeOverlay } from './composeAstEngine.ts';
 import { isInsecurePlaceholder, parseEnvContent, signSupabaseJwtPair } from './envOrchestrator.ts';
-import type {
-  SupabaseDockerConfig,
-  SupabaseLiteComposeTarget,
-  SupabaseLiteCredentials,
-  SupabaseLiteNginxConfig,
-  SupabaseLiteRuntimeEnv
+import {
+  stampSupabaseSchemaHeader,
+  type SupabaseDockerConfig,
+  type SupabaseLiteComposeTarget,
+  type SupabaseLiteCredentials,
+  type SupabaseLiteNginxConfig,
+  type SupabaseLiteRuntimeEnv
 } from './supabaseConfigTypes.ts';
 import { randomAlphanumeric, SCHEMA_MIGRATIONS_BOOTSTRAP_SQL } from './supabaseCryptoUtils.ts';
 
@@ -246,7 +247,6 @@ export function generateLiteComposeYaml(
     ['PGRST_JWT_SECRET', creds.jwtSecret],
     ['PGRST_SERVER_HOST', '0.0.0.0'],
     ['PGRST_ADMIN_SERVER_PORT', 3001],
-    ['PGRST_DB_USE_LEGACY_GUCS', 'false'],
     ['PGRST_APP_SETTINGS_JWT_SECRET', creds.jwtSecret],
     ['PGRST_APP_SETTINGS_JWT_EXP', 3600]
   ]);
@@ -294,9 +294,9 @@ export function generateLiteComposeYaml(
   if (overlayYaml?.trim()) {
     const doc = parseDocument(rawYaml);
     mergeOverlay(doc, overlayYaml);
-    return doc.toString();
+    return stampSupabaseSchemaHeader(doc.toString());
   }
-  return rawYaml;
+  return stampSupabaseSchemaHeader(rawYaml);
 }
 
 /**
