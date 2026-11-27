@@ -39,7 +39,9 @@ export {
   cloneUpstreamSupabaseDocker,
   generateCustomDbDockerfile,
   inspectUpstreamCompose,
-  parsePostgresMajorVersion
+  parsePostgresMajorVersion,
+  regenerateCustomDbDockerfile,
+  syncUpstreamDockerTree
 } from './upstreamSync.ts';
 
 export {

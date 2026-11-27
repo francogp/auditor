@@ -15,8 +15,10 @@ import {
   inspectUpstreamCompose,
   parsePostgresMajorVersion,
   parseSupabaseSchemaHeader,
+  regenerateCustomDbDockerfile,
   stampSupabaseSchemaHeader,
   SUPABASE_DOCKER_SCHEMA_VERSION,
+  syncUpstreamDockerTree,
   validateSupabaseDockerConfig,
   type SupabaseDockerConfig
 } from '../src/supabase/index.ts';
@@ -86,6 +88,7 @@ services:
     try {
       fs.mkdirSync(path.join(tmpDockerDir, 'volumes', 'api'), { recursive: true });
       fs.mkdirSync(path.join(tmpDockerDir, 'volumes', 'db'), { recursive: true });
+      fs.mkdirSync(path.join(tmpDockerDir, 'volumes', 'storage'), { recursive: true });
       fs.writeFileSync(path.join(tmpDockerDir, 'volumes', 'db', 'roles.sql'), '-- roles');
       const dynamicDf = generateCustomDbDockerfile(meta.postgresImage, 'demo-app', tmpDockerDir);
       expect(dynamicDf).toContain('COPY volumes/api /supabase-volumes/api');
@@ -93,6 +96,7 @@ services:
         'COPY volumes/db/roles.sql /docker-entrypoint-initdb.d/init-scripts/99-roles.sql'
       );
       expect(dynamicDf).not.toContain('volumes/logs');
+      expect(dynamicDf).not.toContain('volumes/storage');
       expect(dynamicDf).not.toContain('volumes/db/jwt.sql');
     } finally {
       fs.rmSync(tmpDockerDir, { recursive: true, force: true });
@@ -202,5 +206,112 @@ services:
     expect(devLite?.dbEnv?.get('PG_EXTRA')).toBe('1');
     expect(devLite?.restEnv?.get('PGRST_DB_MAX_ROWS')).toBe('500');
     expect(devLite?.customComposeOverlay).toBe('supabase/lite.overlay.yml');
+  });
+
+  it('syncUpstreamDockerTree preserves local runtime volumes, .env, init, and Dockerfile without EACCES', async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-sync-tree-'));
+    const srcDir = path.join(tmpRoot, 'upstream-docker');
+    const dstDir = path.join(tmpRoot, 'project-docker');
+    const lockedDataDir = path.join(dstDir, 'volumes', 'db', 'data');
+    try {
+      fs.mkdirSync(path.join(srcDir, 'volumes', 'api'), { recursive: true });
+      fs.mkdirSync(path.join(srcDir, 'volumes', 'db'), { recursive: true });
+      fs.writeFileSync(
+        path.join(srcDir, 'docker-compose.yml'),
+        'services:\n  db:\n    image: supabase/postgres:17.6.1.136\n'
+      );
+      fs.writeFileSync(path.join(srcDir, 'volumes', 'api', 'kong.yml'), '_format_version: "2.1"\n');
+      fs.writeFileSync(path.join(srcDir, 'volumes', 'db', 'roles.sql'), '-- new roles\n');
+      fs.mkdirSync(path.join(srcDir, 'init'), { recursive: true });
+      fs.writeFileSync(path.join(srcDir, '.env'), 'OVERWRITE=nope\n');
+      fs.writeFileSync(path.join(srcDir, 'Dockerfile'), 'FROM scratch\n');
+      fs.writeFileSync(path.join(srcDir, 'init', '00-custom.sql'), '-- overwrite nope\n');
+
+      fs.mkdirSync(lockedDataDir, { recursive: true });
+      fs.mkdirSync(path.join(dstDir, 'volumes', 'storage'), { recursive: true });
+      fs.mkdirSync(path.join(dstDir, 'volumes', 'obsolete-dir'), { recursive: true });
+      fs.mkdirSync(path.join(dstDir, 'init'), { recursive: true });
+      fs.writeFileSync(path.join(dstDir, 'docker-compose.yml'), 'stale-compose');
+      fs.writeFileSync(path.join(dstDir, 'obsolete-file.txt'), 'remove-me');
+      fs.writeFileSync(path.join(dstDir, 'volumes', 'obsolete-dir', 'old.txt'), 'remove-me');
+      fs.writeFileSync(path.join(dstDir, '.env'), 'LOCAL_SECRET=keep\n');
+      fs.writeFileSync(path.join(dstDir, 'Dockerfile'), 'FROM keep-local\n');
+      fs.writeFileSync(path.join(dstDir, 'init', '00-custom.sql'), '-- keep\n');
+      fs.writeFileSync(path.join(lockedDataDir, 'PG_VERSION'), '17\n');
+      fs.writeFileSync(path.join(dstDir, 'volumes', 'storage', 'blob.bin'), 'keep-storage');
+
+      if (process.platform !== 'win32') {
+        fs.chmodSync(lockedDataDir, 0o000);
+      }
+
+      await syncUpstreamDockerTree(srcDir, dstDir);
+
+      if (process.platform !== 'win32') {
+        fs.chmodSync(lockedDataDir, 0o755);
+      }
+
+      expect(fs.readFileSync(path.join(dstDir, 'docker-compose.yml'), 'utf8')).toContain(
+        'supabase/postgres:17.6.1.136'
+      );
+      expect(fs.readFileSync(path.join(dstDir, 'volumes', 'db', 'roles.sql'), 'utf8')).toBe(
+        '-- new roles\n'
+      );
+      expect(fs.existsSync(path.join(dstDir, 'obsolete-file.txt'))).toBe(false);
+      expect(fs.existsSync(path.join(dstDir, 'volumes', 'obsolete-dir'))).toBe(false);
+      expect(fs.readFileSync(path.join(dstDir, '.env'), 'utf8')).toBe('LOCAL_SECRET=keep\n');
+      expect(fs.readFileSync(path.join(dstDir, 'Dockerfile'), 'utf8')).toBe('FROM keep-local\n');
+      expect(fs.readFileSync(path.join(dstDir, 'init', '00-custom.sql'), 'utf8')).toBe('-- keep\n');
+      expect(fs.readFileSync(path.join(lockedDataDir, 'PG_VERSION'), 'utf8')).toBe('17\n');
+      expect(fs.readFileSync(path.join(dstDir, 'volumes', 'storage', 'blob.bin'), 'utf8')).toBe(
+        'keep-storage'
+      );
+
+      const freshDst = path.join(tmpRoot, 'nested', 'fresh-docker');
+      await syncUpstreamDockerTree(srcDir, freshDst);
+      expect(fs.readFileSync(path.join(freshDst, 'docker-compose.yml'), 'utf8')).toContain(
+        'supabase/postgres:17.6.1.136'
+      );
+    } finally {
+      if (process.platform !== 'win32' && fs.existsSync(lockedDataDir)) {
+        fs.chmodSync(lockedDataDir, 0o755);
+      }
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('regenerateCustomDbDockerfile stamps schema header on existing docker/ without cloning', async () => {
+    const tmpProject = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-regen-df-'));
+    const prevAuditRoot = process.env.AUDIT_PROJECT_ROOT;
+    process.env.AUDIT_PROJECT_ROOT = tmpProject;
+    try {
+      const dockerDir = path.join(tmpProject, 'supabase', 'docker');
+      fs.mkdirSync(path.join(dockerDir, 'volumes', 'api'), { recursive: true });
+      fs.writeFileSync(
+        path.join(dockerDir, 'docker-compose.yml'),
+        'services:\n  api-gw:\n    image: envoyproxy/envoy:v1.39.1\n  db:\n    image: supabase/postgres:17.6.1.136\n'
+      );
+      fs.writeFileSync(path.join(dockerDir, 'Dockerfile'), 'FROM supabase/postgres:17.6.1.136\n');
+
+      const cfg: SupabaseDockerConfig = {
+        ...DEFAULT_SUPABASE_DOCKER_CONFIG,
+        enabled: true,
+        projectSlug: 'regen-app',
+        upstreamRef: 'master',
+        supabaseDir: 'supabase',
+        masterEnvFile: '.env',
+        postgres: { expectedMajor: 17 },
+        profiles: {}
+      };
+
+      const meta = await regenerateCustomDbDockerfile(tmpProject, cfg);
+      expect(meta.postgresTag).toBe('17.6.1.136');
+      const updated = fs.readFileSync(path.join(dockerDir, 'Dockerfile'), 'utf8');
+      expect(parseSupabaseSchemaHeader(updated)).toBe(SUPABASE_DOCKER_SCHEMA_VERSION);
+      expect(updated).toContain('COPY volumes/api /supabase-volumes/api');
+    } finally {
+      if (prevAuditRoot === undefined) delete process.env.AUDIT_PROJECT_ROOT;
+      else process.env.AUDIT_PROJECT_ROOT = prevAuditRoot;
+      fs.rmSync(tmpProject, { recursive: true, force: true });
+    }
   });
 });

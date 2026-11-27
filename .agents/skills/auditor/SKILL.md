@@ -160,7 +160,6 @@ graph TD
 - Bypassed cleanly in `speed=light` (`npm run auditor:lint`) and production deployment builds (`AUDITOR_ENV=production` via `npm run build:deploy`). Skipping vector analysis in local development is strictly prohibited.
 
 ### 20. Fallow 100% Error Severity & Holistic Refactoring Targets
-
 - All Fallow findings map strictly to `severity: 'error'`. Downgrading to warning is prohibited.
 - Governed by holistic Fallow Refactoring Targets (`fallow-refactoring-targets`, `config.fallow.enforceTargets: true`), eliminating artificial function fragmentation.
 - Consistent with Fallow's native semantics (`resolve_hidden_coupling` / Git co-change coupling is advisory and never gates), temporal coupling targets (`category === 'resolve_hidden_coupling'`) are omitted by default (`config.fallow.enforceTemporalCoupling: false`) so client-server architectures (Vue/React + Node.js HTTP/SSE) are never falsely blocked; set `fallow.enforceTemporalCoupling: true` only when explicit temporal coupling gating is desired.
@@ -179,12 +178,10 @@ graph TD
 - Canonical templates export `LINT_RULE_CAPABILITIES` and `AST_RULE_CAPABILITIES`, or accept uniform presets via `createUniformRuleCapabilities(RULES, { ... })`.
 
 ### 21.3 Contract-Driven Auto-Fix Protocol & Function Deduplication Mandate
-
 - **Contract-Driven Zero False-Fix Protocol**: Auto-fix is 100% contract-driven. If a rule lacks an automated deterministic repair algorithm, it is strictly NOT fixable (`fix: 'none'`). Suites register repair functions via `ruleFixers` in `AuditorOptions` or via sub-auditors (`declareFileSubAuditor({ audit, fix })`, `declarePatternSubAuditor({ regex, replace })`, or `configFiles`). Manual boolean/string declarations in capabilities are prohibited; `BaseAuditor` dynamically derives `fixableRuleIds` and `capabilities.fix`. Violations without registered fixers unconditionally report `fixable: false`.
 - **Function Identity Deduplication Mandate (`Set<Function>`)**: When multiple sub-auditors share the exact same `audit` or `fix` function across rules, the engine executes it strictly ONCE per document, eliminating redundant passes. When `audit === fix`, running in `--fix` mode executes the function strictly ONCE instead of running audit and fix sequentially. Similarly, shared `ruleFixers` execute strictly once per run.
 
 ### 21.1 Speed Engine & Execution Tiers (`AuditExecutionSpeed`)
-
 - **3 Canonical Tiers**: `'light'` (`🐇`, fast static lint/AST with unified type-check), `'heavy'` (`🐢`, default workspace ceiling), `'full'` (`🐘`, exhaustive pre-build ceiling with heavy operations such as cascade expansion and vector deduplication).
 - **Execution Modes**: Cumulative Ceiling (`speed=light|heavy|full`) vs. Exact Isolation (`only-speed=tier`).
 - **LPT Task Scheduler & Multithreading**: Longest Processing Time first in `audit_full`; permanent cache & multithreading (`--threads ${os.availableParallelism()}`).
@@ -318,7 +315,7 @@ flowchart TD
   - **Inspection & Diagnosis Tool**: Always inspect via `auditor-dependencies` (or `npm run auditor:dependencies` / `auditor dependencies`). Use `auditor-dependencies --commands` to output ready-to-run grouped `npm install` and `npm install -D` commands.
   - **Conditional Scope**: Only libraries the host already declares are checked (declared range floor + `package-lock.json` version, `severity: 'error'`, lint-only); absent libraries are ignored.
   - **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED; always use `auditor-dependencies`. To raise a floor upstream, edit the auditor `peerDependencies` and release a new `vX.Y.Z` tag.
-- **Updates (`auditor-update` / `npm run auditor:update [targetVersion]`)**: Pull upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`). By default it resolves the latest tag upstream (including major version jumps like `v9.0.0`), or accepts an explicit version parameter (`npm run auditor:update v10.15.10`). It installs the pinned tag in `package.json`, updates `package-lock.json`, synchronizes `.agents/skills/`, updates setup scripts (`setup-windows.ps1`, `setup-linux.sh`), and runs `auditor fix`.
+- **Updates (`auditor-update` / `npm run auditor:update [targetVersion]`)**: Pull upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`). By default it resolves the latest tag upstream (including major version jumps like `v9.0.0`), or accepts an explicit version parameter (`npm run auditor:update v10.15.11`). It installs the pinned tag in `package.json`, updates `package-lock.json`, synchronizes `.agents/skills/`, updates setup scripts (`setup-windows.ps1`, `setup-linux.sh`), and runs `auditor fix`.
   - **Absolute Prohibition on Manual Version or Config Bumps in Consumer Repositories**: AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from manually editing (`write_file`, `edit_file`) `package.json`, `package-lock.json`, or `.auditor/audit.config.ts` (including `auditorVersion`) in consumer repositories to simulate or apply an update. Modifying versions or configs by hand desynchronizes lockfiles, shims, installed modules, satellite configs, and environment scripts. Upgrades MUST be executed exclusively through `npm run auditor:update` (or `auditor-update`) inside the consumer project, or `npm run auditor:update project=<path>` (`auditor-update --project <path>`) from the auditor workspace.
   - **Built-In Post-Update Minimum Library Enforcement (`auditor-dependencies` for Troubleshooting Only)**: `npm run auditor:update` automatically runs `auditor fix`, enforces and installs new `peerDependencies` version floors, and verifies `phase=setup`—so do **NOT** redundantly run `npm run auditor:dependencies` after a green update. Run `npm run auditor:dependencies` (and `npm run auditor:dependencies commands`) only for read-only inspection or if `auditor:update` / `phase=setup` reports an unresolved floor conflict (`dependency-below-minimum-range` or `dependency-below-minimum-installed`).
   - **Read-Only Version Checks & `"busca actualizaciones"` Protocol**: Never execute `auditor:update` during read-only diagnostics; use `npm run auditor:version` or `npm run auditor:update check`. When the user requests `"busca actualizaciones"` / `"check for updates"`, instantiate [update-discovery-task-template.md](./references/update-discovery-task-template.md) and follow [update-discovery-guide.md](./references/update-discovery-guide.md): invoke `/find-skills`, render the pending-libraries + changelog-summary table, and close with the **Required Project Changes** list scoped to the active repo (`@francogp/auditor` vs host project, listing `@francogp/auditor` itself as a pending library in host projects).
@@ -395,16 +392,11 @@ The configuration advisor (`auditor-config` / `npm run auditor:config`) compares
 ## 🛠️ Master Environment Setup & Update Scripts Governance
 Root lifecycle scripts (`setup-linux.sh`, `setup-windows.ps1`, `update-linux.sh`, `update-windows.ps1`) belong to `@francogp/auditor` and must be updated upstream via `syncEnvScripts`. See [setup-extension-guide.md](./references/setup-extension-guide.md).
 
----
-
 ## 🎭 Playwright E2E & Browser Runtime Governance (`validate_playwright_config`)
 - **Browser Binary Auto-Repair (`playwright-browser-missing`, `phase: 'setup'`)**: `validate_playwright_config` verifies the Chromium binary on disk; if missing, run `npm run auditor:fix` or `npm exec -- playwright install chromium` (never `npx`).
 - **Isolated Reproduction & `/playwright-cli`**: Use `/playwright-cli` (`npm exec -- playwright-cli open <url>`, `snapshot`, `console`, `requests`) or an isolated `<e2eRoot>/reproduce_<slug>.spec.ts` instead of heavy DB-coupled E2E matrices. See [playwright-e2e-guide.md](./references/playwright-e2e-guide.md).
 
----
-
 ## 🌐 Modern Web Guidance Pillar (`/modern-web-guidance`)
-
 - **Mandatory Web Pillar**: Treat `/modern-web-guidance` as a core pillar for HTML, CSS/SCSS, Vue UI, Accessibility, Performance, and client-side JS. If `modern-web-guidance-plugin` is missing or disabled, surface it via `search_marketplace` or guide the user to install/enable it in the IDE **Plugins Manager**.
 - **Active Audit & Advice Execution**: Whenever auditing web code or giving improvement advice (`auditor:config`, `auditor:motion`, `auditor:magic`), run its internal CLI tools via `npm exec --yes -- modern-web-guidance@latest` (never `npx`): `search`, `retrieve`, `list`, and `legacy-scan <path> --json` (verifying `keepWhen`/`dropWhen`). See [modern-web-guidance-guide.md](./references/modern-web-guidance-guide.md).
 
@@ -447,6 +439,12 @@ flowchart LR
 🐘 **Supabase Delegation**: Delegate SQL/RLS/Postgres authoring & tuning to `/supabase` and `/supabase-postgres-best-practices`; `validate_docker_config` enforces `SUPABASE_DOCKER_SCHEMA_VERSION` (`docker-supabase-schema-outdated`) in `phase: 'setup'`. See [supabase-docker-guide.md](./references/supabase-docker-guide.md).
 
 ---
+
+## 🔄 Update Discovery Protocol ("busca actualizaciones")
+For any update-discovery request (`"busca actualizaciones"`, `"buscar actualizaciones"`, `"revisar actualizaciones"`, `"check for updates"`, `"changelogs"`, including typos or compound prompts like `"busca actualizaciones y corregí errores nuevos"`):
+1. **Mandatory Protocol & Task Ledger**: Immediately read [`references/update-discovery-guide.md`](./references/update-discovery-guide.md) and instantiate `task.md` from [`references/update-discovery-task-template.md`](./references/update-discovery-task-template.md) (`Status: IN_PROGRESS`). Read from `.agents/skills/auditor/references/` — NEVER grep inside `node_modules/@francogp/auditor/`.
+2. **Compound Prompts & Approval Gate**: Even when fixing audit errors in the same prompt, NEVER skip Phases 0–3, NEVER use `node -e` to read `package.json`, and NEVER mutate `package.json` / `package-lock.json` before Phase 4 user approval.
+3. **Required Output & Guardrails**: Include `/find-skills` + `skills check` (marking skills covered by `/auditor` as `REDUNDANT`), **Pending Libraries & Changelogs** with real **Changelog Summary** entries (marking `AUDITOR_MAXIMUM_VERSIONS` / `vite-plus`-pinned packages as `HOLD / PINNED`), and **Required Project Changes**.
 
 ## 🚫 Zero-Hardcoding Mandate for AST Rules & Linter Plugins
 

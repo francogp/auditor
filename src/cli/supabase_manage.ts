@@ -55,7 +55,10 @@ import {
   type SupabaseDockerConfig
 } from '../supabase/supabaseConfigTypes.ts';
 import { runUpgradePostgres } from '../supabase/upgradePostgres.ts';
-import { cloneUpstreamSupabaseDocker } from '../supabase/upstreamSync.ts';
+import {
+  cloneUpstreamSupabaseDocker,
+  regenerateCustomDbDockerfile
+} from '../supabase/upstreamSync.ts';
 import { isMainModule } from './cliUtils.ts';
 
 enableCompileCache();
@@ -374,6 +377,15 @@ async function runGenerate(
       ? await safeReadFile(safeResolve(projectRoot, config.extensions.customComposeOverlay))
       : undefined
   };
+
+  const wantsRemote =
+    (!profileFilter || profileFilter === 'remote') && Boolean(config.profiles.remote?.enabled);
+  const wantsLocalFull =
+    (!profileFilter || profileFilter === 'localFull') &&
+    Boolean(config.profiles.localFull?.enabled);
+  if ((wantsRemote || wantsLocalFull) && fs.existsSync(ctx.dockerComposePath)) {
+    await regenerateCustomDbDockerfile(projectRoot, config);
+  }
 
   if (!profileFilter || profileFilter === 'remote') {
     await generateRemoteProfile(ctx, strictKeys);

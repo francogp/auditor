@@ -10,7 +10,7 @@ import path from 'node:path';
 
 import { parseDocument } from 'yaml';
 
-import { safeReadFile, safeResolve, safeWriteFile } from '../core/safePath.ts';
+import { normalizePosixPath, safeReadFile, safeResolve, safeWriteFile } from '../core/safePath.ts';
 import {
   stampSupabaseSchemaHeader,
   type SupabaseDockerConfig,
@@ -20,6 +20,13 @@ import {
 const UPSTREAM_SUPABASE_REPO = 'https://github.com/supabase/supabase.git' as const;
 const LEADING_MAJOR_REGEX = /^v?(\d+)/u;
 const GIT_SHA_REGEX = /^[0-9a-f]{7,40}$/iu;
+
+const PRESERVED_RUNTIME_VOLUME_SUBPATHS: ReadonlySet<string> = new Set([
+  'volumes/db/data',
+  'volumes/storage'
+]);
+const PRESERVED_ROOT_ENTRIES: ReadonlySet<string> = new Set(['.env', 'init', 'Dockerfile']);
+const NON_ASSET_VOLUME_DIRS: ReadonlySet<string> = new Set(['db', 'storage']);
 
 const UPSTREAM_DB_SQL_MAPPINGS: ReadonlyArray<readonly [string, string]> = [
   ['volumes/db/realtime.sql', '/docker-entrypoint-initdb.d/migrations/99-realtime.sql'],
@@ -91,7 +98,7 @@ function resolveAssetVolumeCopyLines(dockerDir?: string): readonly string[] {
   if (volumesDir && fs.existsSync(volumesDir)) {
     return fs
       .readdirSync(volumesDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && entry.name !== 'db')
+      .filter((entry) => entry.isDirectory() && !NON_ASSET_VOLUME_DIRS.has(entry.name))
       .map((entry) => entry.name)
       .sort((a, b) => a.localeCompare(b))
       .map((dirName) => `COPY volumes/${dirName} /supabase-volumes/${dirName}`);
@@ -166,6 +173,153 @@ function setDockerSparseCheckout(cloneDir: string): void {
   });
 }
 
+function isPreservedRelativePath(relPosix: string): boolean {
+  if (!relPosix) return false;
+  if (PRESERVED_ROOT_ENTRIES.has(relPosix)) return true;
+  for (const preserved of PRESERVED_RUNTIME_VOLUME_SUBPATHS) {
+    if (relPosix === preserved || relPosix.startsWith(`${preserved}/`)) return true;
+  }
+  return false;
+}
+
+function hasPreservedDescendant(relPosix: string): boolean {
+  const prefix = relPosix ? `${relPosix}/` : '';
+  for (const preserved of PRESERVED_RUNTIME_VOLUME_SUBPATHS) {
+    if (preserved.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+async function tryLstat(targetPath: string): Promise<fs.Stats | null> {
+  try {
+    return await fs.promises.lstat(targetPath);
+  } catch {
+    return null;
+  }
+}
+
+async function removeOrPruneEntry(
+  isDirectory: boolean,
+  targetPath: string,
+  relPath: string
+): Promise<void> {
+  if (isDirectory && hasPreservedDescendant(relPath)) {
+    await pruneDirectoryPreserving(targetPath, relPath);
+    return;
+  }
+  await fs.promises.rm(targetPath, { recursive: true, force: true });
+}
+
+async function pruneDirectoryPreserving(dstDir: string, relBase: string): Promise<void> {
+  const entries = await fs.promises.readdir(dstDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const childRel = normalizePosixPath(path.posix.join(relBase, entry.name));
+    if (isPreservedRelativePath(childRel)) continue;
+    await removeOrPruneEntry(entry.isDirectory(), path.join(dstDir, entry.name), childRel);
+  }
+}
+
+async function clearConflictingDest(
+  dstPath: string,
+  childRel: string,
+  expectDirectory: boolean
+): Promise<boolean> {
+  const dstStat = await tryLstat(dstPath);
+  if (!dstStat) return true;
+  if (expectDirectory && dstStat.isDirectory() && !dstStat.isSymbolicLink()) return true;
+  if (dstStat.isDirectory() && hasPreservedDescendant(childRel)) return false;
+  await fs.promises.rm(dstPath, { recursive: true, force: true });
+  return true;
+}
+
+async function syncSourceEntry(
+  srcEntry: fs.Dirent,
+  srcCurr: string,
+  dstCurr: string,
+  childRel: string
+): Promise<void> {
+  const srcPath = path.join(srcCurr, srcEntry.name);
+  const dstPath = path.join(dstCurr, srcEntry.name);
+
+  if (srcEntry.isSymbolicLink()) {
+    if (!(await clearConflictingDest(dstPath, childRel, false))) return;
+    const linkTarget = await fs.promises.readlink(srcPath);
+    await fs.promises.symlink(linkTarget, dstPath);
+    return;
+  }
+
+  if (srcEntry.isDirectory()) {
+    if (!(await clearConflictingDest(dstPath, childRel, true))) return;
+    await syncDirRecursive(srcPath, dstPath, childRel);
+    return;
+  }
+
+  if (!(await clearConflictingDest(dstPath, childRel, false))) return;
+  await fs.promises.copyFile(srcPath, dstPath);
+}
+
+async function syncDirRecursive(srcCurr: string, dstCurr: string, relBase: string): Promise<void> {
+  await fs.promises.mkdir(dstCurr, { recursive: true });
+  const srcEntries = await fs.promises.readdir(srcCurr, { withFileTypes: true });
+  const srcNames = new Set(srcEntries.map((entry) => entry.name));
+  const dstEntries = await fs.promises.readdir(dstCurr, { withFileTypes: true });
+
+  for (const dstEntry of dstEntries) {
+    if (srcNames.has(dstEntry.name)) continue;
+    const childRel = normalizePosixPath(path.posix.join(relBase, dstEntry.name));
+    if (isPreservedRelativePath(childRel)) continue;
+    await removeOrPruneEntry(dstEntry.isDirectory(), path.join(dstCurr, dstEntry.name), childRel);
+  }
+
+  for (const srcEntry of srcEntries) {
+    const childRel = normalizePosixPath(path.posix.join(relBase, srcEntry.name));
+    if (isPreservedRelativePath(childRel)) continue;
+    await syncSourceEntry(srcEntry, srcCurr, dstCurr, childRel);
+  }
+}
+
+/**
+ * Selectively synchronizes upstream `docker/` files into `targetDir` while preserving
+ * local runtime data volumes (`volumes/db/data`, `volumes/storage`), `.env`, `init/`, and `Dockerfile`.
+ */
+export async function syncUpstreamDockerTree(sourceDir: string, targetDir: string): Promise<void> {
+  if (!fs.existsSync(targetDir)) {
+    await fs.promises.mkdir(path.dirname(targetDir), { recursive: true });
+    try {
+      await fs.promises.rename(sourceDir, targetDir);
+      return;
+    } catch (error) {
+      const code = error instanceof Error && 'code' in error ? error.code : undefined;
+      if (code !== 'EXDEV') throw error;
+    }
+  }
+  await syncDirRecursive(sourceDir, targetDir, '');
+}
+
+/**
+ * Regenerates `<supabaseDir>/docker/Dockerfile` and syncs `init/` SQL scripts from the
+ * already-cloned `<supabaseDir>/docker/docker-compose.yml` without touching GitHub or data volumes.
+ */
+export async function regenerateCustomDbDockerfile(
+  projectRoot: string,
+  config: SupabaseDockerConfig
+): Promise<SupabaseUpstreamMetadata> {
+  const supabaseDir = safeResolve(projectRoot, config.supabaseDir);
+  const dockerDir = path.join(supabaseDir, 'docker');
+  const composeContent = await safeReadFile(path.join(dockerDir, 'docker-compose.yml'));
+  const metadata = inspectUpstreamCompose(composeContent);
+
+  await syncInitSqlDir(projectRoot, config, path.join(dockerDir, 'init'));
+  const dockerfile = generateCustomDbDockerfile(
+    metadata.postgresImage,
+    config.projectSlug,
+    dockerDir
+  );
+  await safeWriteFile(path.join(dockerDir, 'Dockerfile'), dockerfile);
+
+  return metadata;
+}
+
 /**
  * Performs a clean sparse clone of `supabase/supabase` `docker/` at `upstreamRef` inside `scratch/` and emits `Dockerfile`.
  */
@@ -215,20 +369,8 @@ export async function cloneUpstreamSupabaseDocker(
     setDockerSparseCheckout(tempCloneDir);
   }
 
-  await fs.promises.rm(dockerDir, { recursive: true, force: true });
-  await fs.promises.rename(path.join(tempCloneDir, 'docker'), dockerDir);
+  await syncUpstreamDockerTree(path.join(tempCloneDir, 'docker'), dockerDir);
   await fs.promises.rm(tempCloneDir, { recursive: true, force: true });
 
-  const composeContent = await safeReadFile(path.join(dockerDir, 'docker-compose.yml'));
-  const metadata = inspectUpstreamCompose(composeContent);
-
-  await syncInitSqlDir(projectRoot, config, path.join(dockerDir, 'init'));
-  const dockerfile = generateCustomDbDockerfile(
-    metadata.postgresImage,
-    config.projectSlug,
-    dockerDir
-  );
-  await safeWriteFile(path.join(dockerDir, 'Dockerfile'), dockerfile);
-
-  return metadata;
+  return await regenerateCustomDbDockerfile(projectRoot, config);
 }

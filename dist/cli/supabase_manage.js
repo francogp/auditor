@@ -8,7 +8,7 @@ import { generateLiteBootstrapSql, resolveLiteCredentials, writeLiteProfileArtif
 import { applyBootstrapSql, buildCustomDbImage, composeDown, composeRestart, composeUp, detectContainerPostgresMajor, getDetailedStackStatus, publishCustomDbImage, resolveProfileDbContainerName, syncDatabaseMigrations } from "../supabase/runtimeOrchestrator.js";
 import { validateSupabaseDockerConfig } from "../supabase/supabaseConfigTypes.js";
 import { runUpgradePostgres } from "../supabase/upgradePostgres.js";
-import { cloneUpstreamSupabaseDocker } from "../supabase/upstreamSync.js";
+import { cloneUpstreamSupabaseDocker, regenerateCustomDbDockerfile } from "../supabase/upstreamSync.js";
 import { isMainModule } from "./cliUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -200,6 +200,9 @@ async function runGenerate(projectRoot, config, options = {}) {
 		logsComposePath: safeResolve(projectRoot, config.supabaseDir, "docker", "docker-compose.logs.yml"),
 		overlayYaml: config.extensions?.customComposeOverlay ? await safeReadFile(safeResolve(projectRoot, config.extensions.customComposeOverlay)) : void 0
 	};
+	const wantsRemote = (!profileFilter || profileFilter === "remote") && Boolean(config.profiles.remote?.enabled);
+	const wantsLocalFull = (!profileFilter || profileFilter === "localFull") && Boolean(config.profiles.localFull?.enabled);
+	if ((wantsRemote || wantsLocalFull) && fs.existsSync(ctx.dockerComposePath)) await regenerateCustomDbDockerfile(projectRoot, config);
 	if (!profileFilter || profileFilter === "remote") await generateRemoteProfile(ctx, strictKeys);
 	if (!profileFilter || profileFilter === "localFull") await generateLocalFullProfile(ctx);
 	await generateLiteProfiles(projectRoot, config, profileFilter);
