@@ -4,12 +4,14 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vite-plus/test';
 
+import { buildQuietNodeEnv, NODE_PERMISSION_WARNING_FLAGS } from '../src/cli/cliUtils.ts';
 import { defineAuditConfig } from '../src/core/auditConfig.ts';
 import {
   CORE_GITIGNORE_REQUIREMENTS,
   resolveGitIgnoreRequirement
 } from '../src/core/gitIgnoreRegistry.ts';
 import {
+  buildUpstreamCloneGitSteps,
   DEFAULT_SUPABASE_DOCKER_CONFIG,
   generateCustomDbDockerfile,
   inspectUpstreamCompose,
@@ -313,5 +315,47 @@ services:
       else process.env.AUDIT_PROJECT_ROOT = prevAuditRoot;
       fs.rmSync(tmpProject, { recursive: true, force: true });
     }
+  });
+
+  it('buildUpstreamCloneGitSteps uses --filter=blob:none and quiet git flags for commit SHAs and branches', () => {
+    const shaSteps = buildUpstreamCloneGitSteps(
+      '832d238af3ff9750c388b1bb93a131ea4ddf5702',
+      '/tmp/supa-clone'
+    );
+    expect(shaSteps[0]?.args).toStrictEqual(['-c', 'init.defaultBranch=main', 'init']);
+    expect(shaSteps[2]?.args).toStrictEqual(['sparse-checkout', 'set', 'docker']);
+    expect(shaSteps[3]?.args).toStrictEqual([
+      'fetch',
+      '--depth',
+      '1',
+      '--filter=blob:none',
+      'origin',
+      '832d238af3ff9750c388b1bb93a131ea4ddf5702'
+    ]);
+    expect(shaSteps[4]?.args).toStrictEqual([
+      '-c',
+      'advice.detachedHead=false',
+      'checkout',
+      'FETCH_HEAD'
+    ]);
+
+    const branchSteps = buildUpstreamCloneGitSteps('master', '/tmp/supa-clone');
+    expect(branchSteps[0]?.cwdMode).toBe('project');
+    expect(branchSteps[0]?.args).toContain('--filter=blob:none');
+    expect(branchSteps[0]?.args).toContain('--sparse');
+    expect(branchSteps[1]?.args).toStrictEqual(['sparse-checkout', 'set', 'docker']);
+  });
+
+  it('buildQuietNodeEnv appends missing Node permission warning flags without duplication', () => {
+    const cleanEnv = buildQuietNodeEnv({ NODE_OPTIONS: '--max-old-space-size=4096' });
+    for (const flag of NODE_PERMISSION_WARNING_FLAGS) {
+      expect(cleanEnv.NODE_OPTIONS).toContain(flag);
+    }
+    expect(cleanEnv.NODE_OPTIONS).toContain('--max-old-space-size=4096');
+
+    const alreadyQuiet = buildQuietNodeEnv({
+      NODE_OPTIONS: NODE_PERMISSION_WARNING_FLAGS.join(' ')
+    });
+    expect(alreadyQuiet.NODE_OPTIONS).toBe(NODE_PERMISSION_WARNING_FLAGS.join(' '));
   });
 });

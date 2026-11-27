@@ -221,6 +221,25 @@ export interface ExecuteNodeCliOptions {
   timeout?: number;
 }
 
+export const NODE_PERMISSION_WARNING_FLAGS = [
+  '--disable-warning=PERM0001',
+  '--disable-warning=PERM0002',
+  '--disable-warning=ExperimentalWarning'
+] as const;
+
+/**
+ * Returns an env copy with Node.js permission warning suppressions appended to `NODE_OPTIONS`.
+ */
+export function buildQuietNodeEnv(baseEnv: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const existing = baseEnv.NODE_OPTIONS?.trim() ?? '';
+  const missing = NODE_PERMISSION_WARNING_FLAGS.filter((flag) => !existing.includes(flag));
+  if (missing.length === 0) return { ...baseEnv };
+  return {
+    ...baseEnv,
+    NODE_OPTIONS: [existing, ...missing].filter(Boolean).join(' ')
+  };
+}
+
 /**
  * Runs a Node.js CLI binary with standard permission warning suppressions and returns combined stdout + stderr.
  */
@@ -229,22 +248,12 @@ export function executeNodeCli(
   args: string[],
   options?: ExecuteNodeCliOptions
 ): string {
-  const proc = spawnSync(
-    'node',
-    [
-      '--disable-warning=PERM0001',
-      '--disable-warning=PERM0002',
-      '--disable-warning=ExperimentalWarning',
-      binPath,
-      ...args
-    ],
-    {
-      cwd: options?.cwd || process.cwd(),
-      encoding: 'utf-8',
-      maxBuffer: options?.maxBuffer ?? DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
-      timeout: options?.timeout ?? DEFAULT_SUBPROCESS_TIMEOUT_MS
-    }
-  );
+  const proc = spawnSync('node', [...NODE_PERMISSION_WARNING_FLAGS, binPath, ...args], {
+    cwd: options?.cwd || process.cwd(),
+    encoding: 'utf-8',
+    maxBuffer: options?.maxBuffer ?? DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+    timeout: options?.timeout ?? DEFAULT_SUBPROCESS_TIMEOUT_MS
+  });
   return `${proc.stdout || ''}\n${proc.stderr || ''}`;
 }
 

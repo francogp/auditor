@@ -36,12 +36,16 @@ export {
 } from './supabaseConfigTypes.ts';
 
 export {
+  buildUpstreamCloneGitSteps,
   cloneUpstreamSupabaseDocker,
   generateCustomDbDockerfile,
   inspectUpstreamCompose,
   parsePostgresMajorVersion,
   regenerateCustomDbDockerfile,
-  syncUpstreamDockerTree
+  syncUpstreamDockerTree,
+  UPSTREAM_GIT_CWD_MODES,
+  type UpstreamGitCwdMode,
+  type UpstreamGitStep
 } from './upstreamSync.ts';
 
 export {

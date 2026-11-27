@@ -59,7 +59,7 @@ import {
   cloneUpstreamSupabaseDocker,
   regenerateCustomDbDockerfile
 } from '../supabase/upstreamSync.ts';
-import { isMainModule } from './cliUtils.ts';
+import { buildQuietNodeEnv, isMainModule } from './cliUtils.ts';
 
 enableCompileCache();
 
@@ -247,7 +247,8 @@ function runPostGenerateCommand(projectRoot: string, command?: string): void {
     (m) => m[1] ?? m[2] ?? m[3] ?? ''
   );
   const [cmd, ...args] = tokens.filter(Boolean);
-  if (cmd) execFileSync(cmd, args, { cwd: projectRoot, stdio: 'inherit' });
+  if (cmd)
+    execFileSync(cmd, args, { cwd: projectRoot, stdio: 'inherit', env: buildQuietNodeEnv() });
 }
 
 function resolveLocalFullEnvFile(

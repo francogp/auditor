@@ -9,7 +9,7 @@ import { applyBootstrapSql, buildCustomDbImage, composeDown, composeRestart, com
 import { validateSupabaseDockerConfig } from "../supabase/supabaseConfigTypes.js";
 import { runUpgradePostgres } from "../supabase/upgradePostgres.js";
 import { cloneUpstreamSupabaseDocker, regenerateCustomDbDockerfile } from "../supabase/upstreamSync.js";
-import { isMainModule } from "./cliUtils.js";
+import { buildQuietNodeEnv, isMainModule } from "./cliUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -125,7 +125,8 @@ function runPostGenerateCommand(projectRoot, command) {
 	const [cmd, ...args] = [...command.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/gu)].map((m) => m[1] ?? m[2] ?? m[3] ?? "").filter(Boolean);
 	if (cmd) execFileSync(cmd, args, {
 		cwd: projectRoot,
-		stdio: "inherit"
+		stdio: "inherit",
+		env: buildQuietNodeEnv()
 	});
 }
 function resolveLocalFullEnvFile(projectRoot, config) {

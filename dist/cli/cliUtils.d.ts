@@ -42,6 +42,11 @@ export interface ExecuteNodeCliOptions {
   maxBuffer?: number;
   timeout?: number;
 }
+export declare const NODE_PERMISSION_WARNING_FLAGS: readonly ["--disable-warning=PERM0001", "--disable-warning=PERM0002", "--disable-warning=ExperimentalWarning"];
+/**
+ * Returns an env copy with Node.js permission warning suppressions appended to `NODE_OPTIONS`.
+ */
+export declare function buildQuietNodeEnv(baseEnv?: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
 /**
  * Runs a Node.js CLI binary with standard permission warning suppressions and returns combined stdout + stderr.
  */

@@ -126,15 +126,79 @@ async function syncInitSqlDir(projectRoot, config, dockerInitDir) {
 	}
 	if ((await fs.promises.readdir(dockerInitDir)).length === 0) await safeWriteFile(path.join(dockerInitDir, ".gitkeep"), "");
 }
-function setDockerSparseCheckout(cloneDir) {
-	execFileSync("git", [
-		"sparse-checkout",
-		"set",
-		"docker"
-	], {
-		cwd: cloneDir,
-		stdio: "inherit"
-	});
+const UPSTREAM_GIT_CWD_MODES = ["project", "clone"];
+/**
+* Builds the deterministic sparse partial-clone Git commands for either a commit SHA or branch/tag ref.
+*/
+function buildUpstreamCloneGitSteps(targetRef, tempCloneDir) {
+	if (GIT_SHA_REGEX.test(targetRef)) return [
+		{
+			cwdMode: "clone",
+			args: [
+				"-c",
+				"init.defaultBranch=main",
+				"init"
+			]
+		},
+		{
+			cwdMode: "clone",
+			args: [
+				"remote",
+				"add",
+				"origin",
+				UPSTREAM_SUPABASE_REPO
+			]
+		},
+		{
+			cwdMode: "clone",
+			args: [
+				"sparse-checkout",
+				"set",
+				"docker"
+			]
+		},
+		{
+			cwdMode: "clone",
+			args: [
+				"fetch",
+				"--depth",
+				"1",
+				"--filter=blob:none",
+				"origin",
+				targetRef
+			]
+		},
+		{
+			cwdMode: "clone",
+			args: [
+				"-c",
+				"advice.detachedHead=false",
+				"checkout",
+				"FETCH_HEAD"
+			]
+		}
+	];
+	return [{
+		cwdMode: "project",
+		args: [
+			"clone",
+			"--depth",
+			"1",
+			"--branch",
+			targetRef,
+			"--filter=blob:none",
+			"--sparse",
+			UPSTREAM_SUPABASE_REPO,
+			tempCloneDir
+		]
+	}, {
+		cwdMode: "clone",
+		args: [
+			"sparse-checkout",
+			"set",
+			"docker"
+		]
+	}];
 }
 function isPreservedRelativePath(relPosix) {
 	if (!relPosix) return false;
@@ -260,53 +324,11 @@ async function cloneUpstreamSupabaseDocker(projectRoot, config, refOverride) {
 	});
 	await fs.promises.mkdir(supabaseDir, { recursive: true });
 	await fs.promises.mkdir(path.dirname(tempCloneDir), { recursive: true });
-	if (GIT_SHA_REGEX.test(targetRef)) {
-		await fs.promises.mkdir(tempCloneDir, { recursive: true });
-		execFileSync("git", ["init"], {
-			cwd: tempCloneDir,
-			stdio: "inherit"
-		});
-		execFileSync("git", [
-			"remote",
-			"add",
-			"origin",
-			UPSTREAM_SUPABASE_REPO
-		], {
-			cwd: tempCloneDir,
-			stdio: "inherit"
-		});
-		setDockerSparseCheckout(tempCloneDir);
-		execFileSync("git", [
-			"fetch",
-			"--depth",
-			"1",
-			"origin",
-			targetRef
-		], {
-			cwd: tempCloneDir,
-			stdio: "inherit"
-		});
-		execFileSync("git", ["checkout", "FETCH_HEAD"], {
-			cwd: tempCloneDir,
-			stdio: "inherit"
-		});
-	} else {
-		execFileSync("git", [
-			"clone",
-			"--depth",
-			"1",
-			"--branch",
-			targetRef,
-			"--filter=blob:none",
-			"--sparse",
-			UPSTREAM_SUPABASE_REPO,
-			tempCloneDir
-		], {
-			cwd: projectRoot,
-			stdio: "inherit"
-		});
-		setDockerSparseCheckout(tempCloneDir);
-	}
+	if (GIT_SHA_REGEX.test(targetRef)) await fs.promises.mkdir(tempCloneDir, { recursive: true });
+	for (const step of buildUpstreamCloneGitSteps(targetRef, tempCloneDir)) execFileSync("git", [...step.args], {
+		cwd: step.cwdMode === "project" ? projectRoot : tempCloneDir,
+		stdio: "inherit"
+	});
 	await syncUpstreamDockerTree(path.join(tempCloneDir, "docker"), dockerDir);
 	await fs.promises.rm(tempCloneDir, {
 		recursive: true,
@@ -314,4 +336,4 @@ async function cloneUpstreamSupabaseDocker(projectRoot, config, refOverride) {
 	});
 	return await regenerateCustomDbDockerfile(projectRoot, config);
 }
-export { cloneUpstreamSupabaseDocker, generateCustomDbDockerfile, inspectUpstreamCompose, parsePostgresMajorVersion, regenerateCustomDbDockerfile, syncUpstreamDockerTree };
+export { UPSTREAM_GIT_CWD_MODES, buildUpstreamCloneGitSteps, cloneUpstreamSupabaseDocker, generateCustomDbDockerfile, inspectUpstreamCompose, parsePostgresMajorVersion, regenerateCustomDbDockerfile, syncUpstreamDockerTree };

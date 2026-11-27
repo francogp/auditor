@@ -12,6 +12,16 @@ export declare function inspectUpstreamCompose(composeYaml: string): SupabaseUps
  * Inspects `dockerDir` when present so `COPY` statements strictly match existing upstream `volumes/` entries.
  */
 export declare function generateCustomDbDockerfile(postgresImage: string, projectSlug: string, dockerDir?: string): string;
+export declare const UPSTREAM_GIT_CWD_MODES: readonly ["project", "clone"];
+export type UpstreamGitCwdMode = (typeof UPSTREAM_GIT_CWD_MODES)[number];
+export interface UpstreamGitStep {
+  readonly args: readonly string[];
+  readonly cwdMode: UpstreamGitCwdMode;
+}
+/**
+ * Builds the deterministic sparse partial-clone Git commands for either a commit SHA or branch/tag ref.
+ */
+export declare function buildUpstreamCloneGitSteps(targetRef: string, tempCloneDir: string): readonly UpstreamGitStep[];
 /**
  * Selectively synchronizes upstream `docker/` files into `targetDir` while preserving
  * local runtime data volumes (`volumes/db/data`, `volumes/storage`), `.env`, `init/`, and `Dockerfile`.

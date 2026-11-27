@@ -137,14 +137,29 @@ function isHumanConsoleMode(options, argv = process.argv) {
 	if (options?.human === true || options?.verbose === true || options?.format === "human" || options?.format === "verbose") return true;
 	return argv.some((arg) => HUMAN_CONSOLE_FLAGS.has(arg));
 }
+const NODE_PERMISSION_WARNING_FLAGS = [
+	"--disable-warning=PERM0001",
+	"--disable-warning=PERM0002",
+	"--disable-warning=ExperimentalWarning"
+];
+/**
+* Returns an env copy with Node.js permission warning suppressions appended to `NODE_OPTIONS`.
+*/
+function buildQuietNodeEnv(baseEnv = process.env) {
+	const existing = baseEnv.NODE_OPTIONS?.trim() ?? "";
+	const missing = NODE_PERMISSION_WARNING_FLAGS.filter((flag) => !existing.includes(flag));
+	if (missing.length === 0) return { ...baseEnv };
+	return {
+		...baseEnv,
+		NODE_OPTIONS: [existing, ...missing].filter(Boolean).join(" ")
+	};
+}
 /**
 * Runs a Node.js CLI binary with standard permission warning suppressions and returns combined stdout + stderr.
 */
 function executeNodeCli(binPath, args, options) {
 	const proc = spawnSync("node", [
-		"--disable-warning=PERM0001",
-		"--disable-warning=PERM0002",
-		"--disable-warning=ExperimentalWarning",
+		...NODE_PERMISSION_WARNING_FLAGS,
 		binPath,
 		...args
 	], {
@@ -293,4 +308,4 @@ function executeFallowJsonCommand(fallowBin, subCommandArgs, projectRoot = proce
 		rawOutput: (proc.stderr || proc.stdout || "").trim()
 	};
 }
-export { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, HUMAN_CONSOLE_FLAGS, bootstrapCliProject, executeCliAndReadJson, executeCliToFile, executeFallowJsonCommand, executeNodeCli, isHumanConsoleMode, isMainModule, resolveCoverageArgs, resolveNodeModuleBin, resolvePackageBin, stripProjectCliArgs };
+export { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, HUMAN_CONSOLE_FLAGS, NODE_PERMISSION_WARNING_FLAGS, bootstrapCliProject, buildQuietNodeEnv, executeCliAndReadJson, executeCliToFile, executeFallowJsonCommand, executeNodeCli, isHumanConsoleMode, isMainModule, resolveCoverageArgs, resolveNodeModuleBin, resolvePackageBin, stripProjectCliArgs };
