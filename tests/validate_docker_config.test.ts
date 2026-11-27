@@ -339,5 +339,75 @@ describe('ValidateDockerConfigAuditor', () => {
         resetAuditConfig();
       }
     });
+
+    it('activates and scans .dockerignore in clean CI checkout when only .dockerignore exists (no Dockerfile/compose)', async () => {
+      fs.writeFileSync(path.join(tmpDir, '.dockerignore'), CANONICAL_DOCKERIGNORE_CONTENT, 'utf8');
+      const prevRunId = process.env['AUDIT_COVERAGE_RUN_ID'];
+      const prevRunMode = process.env['AUDIT_COVERAGE_RUN_MODE'];
+      process.env['AUDIT_COVERAGE_RUN_ID'] = `test-docker-ci-${Date.now()}`;
+      process.env['AUDIT_COVERAGE_RUN_MODE'] = 'full';
+      try {
+        const result = await new ValidateDockerConfigAuditor({ projectRoot: tmpDir }).audit();
+        expect(result.status).toBe('passed');
+        expect(result.summary.errors).toBe(0);
+        const ledgerPath = path.join(
+          tmpDir,
+          'scratch',
+          'audits',
+          'coverage',
+          'validate_docker_config.json'
+        );
+        const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8')) as {
+          scanned: string[];
+        };
+        expect(ledger.scanned).toContain('.dockerignore');
+      } finally {
+        if (prevRunId === undefined) delete process.env['AUDIT_COVERAGE_RUN_ID'];
+        else process.env['AUDIT_COVERAGE_RUN_ID'] = prevRunId;
+        if (prevRunMode === undefined) delete process.env['AUDIT_COVERAGE_RUN_MODE'];
+        else process.env['AUDIT_COVERAGE_RUN_MODE'] = prevRunMode;
+      }
+    });
+
+    it('activates when supabaseDocker.enabled is true in clean CI checkout without generated artifacts on disk', async () => {
+      const { defineAuditConfig, setAuditConfig, resetAuditConfig } =
+        await import('../src/core/auditConfig.ts');
+      fs.writeFileSync(
+        path.join(tmpDir, '.dockerignore'),
+        `${CANONICAL_DOCKERIGNORE_CONTENT}\nsupabase/docker\nsupabase/generated\nsupabase/.env*\n`,
+        'utf8'
+      );
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Supabase CI Clean Checkout',
+          supabaseDocker: {
+            enabled: true,
+            projectSlug: 'demo',
+            upstreamRef: 'master',
+            supabaseDir: 'supabase',
+            masterEnvFile: '.env',
+            postgres: { expectedMajor: 17 },
+            profiles: {
+              remote: {
+                enabled: true,
+                includeLogs: false,
+                image: { user: 'u', repo: 'r', tag: 'latest' },
+                volumes: { shared: 's', dbData: 'd', dbConfig: 'c', storage: 'st' },
+                security: { bindLoopback: true }
+              }
+            }
+          }
+        })
+      );
+
+      try {
+        const result = await new ValidateDockerConfigAuditor({ projectRoot: tmpDir }).audit();
+        expect(result.status).toBe('passed');
+        expect(result.summary.errors).toBe(0);
+      } finally {
+        resetAuditConfig();
+      }
+    });
   });
 });

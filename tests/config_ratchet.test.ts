@@ -83,12 +83,7 @@ describe('configRatchet', () => {
   it('detects unauthorized relaxations in .auditor/audit.config.ts against git HEAD', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-ratchet-test-'));
     try {
-      childProcess.spawnSync('git', ['init'], { cwd: tempDir, stdio: 'ignore' });
-      childProcess.spawnSync('git', ['config', 'user.email', 'test@example.com'], {
-        cwd: tempDir,
-        stdio: 'ignore'
-      });
-      childProcess.spawnSync('git', ['config', 'user.name', 'Test User'], {
+      childProcess.spawnSync('git', ['-c', 'init.defaultBranch=main', 'init'], {
         cwd: tempDir,
         stdio: 'ignore'
       });
@@ -113,10 +108,24 @@ export default defineAuditConfig({
       );
 
       childProcess.spawnSync('git', ['add', '.'], { cwd: tempDir, stdio: 'ignore' });
-      childProcess.spawnSync('git', ['commit', '-m', 'chore: initial audit config'], {
-        cwd: tempDir,
-        stdio: 'ignore'
-      });
+      childProcess.spawnSync(
+        'git',
+        [
+          '-c',
+          'user.email=test@example.com',
+          '-c',
+          'user.name=Test User',
+          'commit',
+          '--no-verify',
+          '--no-gpg-sign',
+          '-m',
+          'chore: initial audit config'
+        ],
+        {
+          cwd: tempDir,
+          stdio: 'ignore'
+        }
+      );
 
       const localRelaxedConfig = {
         name: 'ratchet-test',

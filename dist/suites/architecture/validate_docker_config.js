@@ -80,8 +80,8 @@ function discoverDockerTriggerFiles(projectRoot) {
 	});
 	return [...new Set(matches.map((entry) => normalizePosixPath(entry)))].sort();
 }
-function isDockerProjectContext(projectRoot) {
-	return discoverDockerTriggerFiles(projectRoot).length > 0;
+function isDockerProjectContext(projectRoot, supabaseDocker) {
+	return discoverDockerTriggerFiles(projectRoot).length > 0 || fs.existsSync(path.join(projectRoot, ".dockerignore")) || Boolean(supabaseDocker?.enabled);
 }
 const DOCKER_CONFIG_REQUIREMENT = {
 	id: "docker-config",
@@ -89,7 +89,7 @@ const DOCKER_CONFIG_REQUIREMENT = {
 	candidateFiles: [".dockerignore"],
 	description: "Docker exclusions configuration (.dockerignore)",
 	ruleId: "dockerignore-missing",
-	isApplicable: (_config, projectRoot) => isDockerProjectContext(projectRoot),
+	isApplicable: (config, projectRoot) => isDockerProjectContext(projectRoot, config.supabaseDocker),
 	generateDefaultContent: () => CANONICAL_DOCKERIGNORE_CONTENT
 };
 function collectMissingDockerignorePatterns(patterns, existingPatterns) {
@@ -148,12 +148,14 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 		});
 	}
 	async runAudit() {
+		const supabaseDocker = getAuditConfig().supabaseDocker;
 		const triggerFiles = discoverDockerTriggerFiles(this.projectRoot);
-		if (triggerFiles.length === 0) {
-			this.markSkipped("No Dockerfile or Docker configuration detected in project");
+		const hasDockerignore = fs.existsSync(path.join(this.projectRoot, DOCKER_CONFIG_REQUIREMENT.file));
+		if (triggerFiles.length === 0 && !hasDockerignore && !supabaseDocker?.enabled) {
+			this.markSkipped("No Dockerfile, .dockerignore, or Supabase Docker configuration detected in project");
 			return;
 		}
-		this.recordScannedMany(triggerFiles);
+		if (triggerFiles.length > 0) this.recordScannedMany(triggerFiles);
 		const isFix = this.isFixActive();
 		let configFile = null;
 		this.runSubAuditorSync("dockerignore-missing", () => {
@@ -208,7 +210,6 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 			});
 		});
 		const supabaseToAppend = [];
-		const supabaseDocker = getAuditConfig().supabaseDocker;
 		const trimmedSupabaseDir = supabaseDocker?.supabaseDir?.trim() ?? "";
 		if (supabaseDocker?.enabled && supabaseDocker.profiles.remote?.enabled && trimmedSupabaseDir) {
 			const baseDir = normalizePosixPath(trimmedSupabaseDir).replace(/\/+$/u, "");

@@ -1,5 +1,6 @@
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { SupabaseDockerConfig } from "../../supabase/supabaseConfigTypes.js";
 export declare const DOCKER_CONFIG_RULES: readonly ["dockerignore-missing", "dockerignore-missing-pattern", "dockerignore-missing-supabase-pattern", "docker-supabase-schema-outdated"];
 export type DockerConfigRuleId = (typeof DOCKER_CONFIG_RULES)[number];
 export declare const MANDATORY_DOCKER_IGNORE_PATTERNS: readonly string[];
@@ -8,7 +9,7 @@ export declare const CANONICAL_DOCKERIGNORE_CONTENT: string;
 export declare const DOCKER_TRIGGER_PATTERNS: readonly string[];
 export declare const DOCKER_FILE_CANDIDATES: readonly string[];
 export declare function discoverDockerTriggerFiles(projectRoot: string): string[];
-export declare function isDockerProjectContext(projectRoot: string): boolean;
+export declare function isDockerProjectContext(projectRoot: string, supabaseDocker?: SupabaseDockerConfig): boolean;
 export declare const DOCKER_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<DockerConfigRuleId>;
 export interface DockerConfigAuditorOptions {
   readonly projectRoot?: string;
