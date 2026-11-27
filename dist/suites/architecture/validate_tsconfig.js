@@ -30,6 +30,7 @@ const TSCONFIG_RULES = [
 	"tsconfig-missing-strict-compiler-option",
 	"tsconfig-banned-option",
 	"tsconfig-missing-source-include",
+	"tsconfig-dead-include-entry",
 	"tsconfig-undeclared-config-entry"
 ];
 const CANONICAL_TSCONFIG = {
@@ -95,7 +96,8 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			fixableRuleIds: [
 				"tsconfig-missing-strict-compiler-option",
 				"tsconfig-banned-option",
-				"tsconfig-missing-source-include"
+				"tsconfig-missing-source-include",
+				"tsconfig-dead-include-entry"
 			],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -125,6 +127,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 				"tsconfig-missing-strict-compiler-option": "Missing strict compiler option",
 				"tsconfig-banned-option": "Banned option in tsconfig",
 				"tsconfig-missing-source-include": "Include does not cover src sources",
+				"tsconfig-dead-include-entry": "Dead literal path in include or files",
 				"tsconfig-undeclared-config-entry": "Undeclared entry in config"
 			},
 			ruleRemediations: {
@@ -133,6 +136,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 				"tsconfig-missing-strict-compiler-option": "📖 REMEDIATION GUIDE: tsconfig-missing-strict-compiler-option\n1. Root Cause: Mandatory strict options are omitted or downgraded (`strict`, `noImplicitAny`, `noUncheckedIndexedAccess`, `target >= ES2025`).\n2. Diagnosis: Check `compilerOptions` in `tsconfig.json` against required strict settings.\n3. Canonical Solution: Run `npm run auditor:fix` to re-inject strict compiler defaults, or configure them manually.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"tsconfig-banned-option": "📖 REMEDIATION GUIDE: tsconfig-banned-option\n1. Root Cause: A banned permissive option was detected (e.g., `suppressImplicitAnyIndexErrors`, `noImplicitThis: false`).\n2. Diagnosis: Look for permissive overrides in `compilerOptions`.\n3. Canonical Solution: Run `npm run auditor:fix` to remove banned options and resolve underlying type errors properly.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"tsconfig-missing-source-include": "📖 REMEDIATION GUIDE: tsconfig-missing-source-include\n1. Root Cause: The `include` array in `tsconfig.json` does not cover primary source directories (`src/**/*`).\n2. Diagnosis: Check the `include` glob patterns in `tsconfig.json`.\n3. Canonical Solution: Add `\"src/**/*\"` to `include` in `tsconfig.json` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"tsconfig-dead-include-entry": "📖 REMEDIATION GUIDE: tsconfig-dead-include-entry\n1. Root Cause: `tsconfig.json` (or `tsconfig.*.json`) references a literal file/path in `include` or `files` that no longer exists on disk.\n2. Diagnosis: Inspect the reported path in `include` or `files`.\n3. Canonical Solution: Run `npm run auditor:fix` to prune dead literal paths automatically.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"tsconfig-undeclared-config-entry": "📖 REMEDIATION GUIDE: tsconfig-undeclared-config-entry\n1. Root Cause: tsconfig.json declares exclusions in `exclude` that are not authorized in .auditor/audit.config.ts (SSoT violation).\n2. Diagnosis: Inspect the diagnostic message to identify the undeclared exclusion pattern in tsconfig.json.\n3. Canonical Solution: If the exclusion is genuine, declare it in .auditor/audit.config.ts under `paths.ignoreGlobs`. Otherwise, remove it from tsconfig.json.\n4. Example / Auto-fix command:\n   Declare in .auditor/audit.config.ts: paths: { ignoreGlobs: ['path/**'] }"
 			},
 			coverage: { include: ["tsconfig*.json"] },
@@ -154,6 +158,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 				this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "Missing tsconfig.json file");
 				this.markRuleNotApplicable("tsconfig-banned-option", "Missing tsconfig.json file");
 				this.markRuleNotApplicable("tsconfig-missing-source-include", "Missing tsconfig.json file");
+				this.markRuleNotApplicable("tsconfig-dead-include-entry", "Missing tsconfig.json file");
 				this.markRuleNotApplicable("tsconfig-undeclared-config-entry", "Missing tsconfig.json file");
 				return;
 			}
@@ -174,6 +179,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "Could not read file");
 			this.markRuleNotApplicable("tsconfig-banned-option", "Could not read file");
 			this.markRuleNotApplicable("tsconfig-missing-source-include", "Could not read file");
+			this.markRuleNotApplicable("tsconfig-dead-include-entry", "Could not read file");
 			this.markRuleNotApplicable("tsconfig-undeclared-config-entry", "Could not read file");
 			return;
 		}
@@ -217,6 +223,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "Invalid JSON syntax");
 			this.markRuleNotApplicable("tsconfig-banned-option", "Invalid JSON syntax");
 			this.markRuleNotApplicable("tsconfig-missing-source-include", "Invalid JSON syntax");
+			this.markRuleNotApplicable("tsconfig-dead-include-entry", "Invalid JSON syntax");
 			this.markRuleNotApplicable("tsconfig-undeclared-config-entry", "Invalid JSON syntax");
 			return;
 		}
@@ -325,18 +332,6 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 						message: "The include array in tsconfig.json must cover the src/ directory."
 					});
 				}
-				if (isFix) {
-					const deadLegacyConfigs = [
-						"vitest.config.ts",
-						"vitest.config.js",
-						"vitest.config.mjs"
-					];
-					const filtered = parsedConfig.include.filter((p) => !deadLegacyConfigs.some((f) => f === p) || fs.existsSync(path.resolve(this.projectRoot, p)));
-					if (filtered.length !== parsedConfig.include.length) {
-						parsedConfig.include = filtered;
-						modified = true;
-					}
-				}
 			} else if (parsedConfig.include !== void 0) {
 				if (isFix) {
 					parsedConfig.include = ["src/**/*", "tests/**/*"];
@@ -348,6 +343,22 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 					line: 1,
 					message: "The include property must be an array of glob patterns."
 				});
+			}
+		});
+		this.runSubAuditorSync("tsconfig-dead-include-entry", () => {
+			if (auditDeadTsconfigPathEntries(parsedConfig, {
+				fullPath: resolvedPath,
+				relFile: relPath,
+				isFix
+			}, this)) modified = true;
+			for (const [extraFile, extraCfg] of extraParsed.entries()) {
+				const extraFullPath = path.resolve(this.projectRoot, extraFile);
+				const extraModified = auditDeadTsconfigPathEntries(extraCfg, {
+					fullPath: extraFullPath,
+					relFile: extraFile,
+					isFix
+				}, this);
+				if (isFix && extraModified) fs.writeFileSync(extraFullPath, JSON.stringify(extraCfg, null, 2) + "\n", "utf8");
 			}
 		});
 		this.runSubAuditorSync("tsconfig-undeclared-config-entry", () => {
@@ -409,6 +420,53 @@ function validateUndeclaredTsconfigEntries(config, relFile, auditor) {
 			context: entry
 		});
 	});
+}
+function isDeadLiteralTsconfigEntry(entry, baseDir) {
+	return typeof entry === "string" && entry.trim().length > 0 && !/[*?[{]/u.test(entry) && !fs.existsSync(path.resolve(baseDir, entry));
+}
+function auditDeadTsconfigField(entries, target, auditor) {
+	const baseDir = path.dirname(target.fullPath);
+	const kept = [];
+	let changed = false;
+	for (const entry of entries) {
+		if (typeof entry !== "string") continue;
+		if (!isDeadLiteralTsconfigEntry(entry, baseDir)) {
+			kept.push(entry);
+			continue;
+		}
+		if (target.isFix) {
+			changed = true;
+			continue;
+		}
+		auditor.addViolation({
+			ruleId: "tsconfig-dead-include-entry",
+			severity: "error",
+			file: target.relFile,
+			line: 1,
+			message: `Dead literal path '${entry}' in '${target.field}' of ${path.basename(target.relFile)} does not exist on disk. Remove it or run 'npm run auditor:fix'.`,
+			context: entry
+		});
+		kept.push(entry);
+	}
+	return {
+		changed,
+		kept
+	};
+}
+function auditDeadTsconfigPathEntries(config, target, auditor) {
+	let changed = false;
+	for (const field of ["include", "files"]) {
+		const entries = config[field];
+		if (!Array.isArray(entries)) continue;
+		const result = auditDeadTsconfigField(entries, {
+			...target,
+			field
+		}, auditor);
+		if (!target.isFix || !result.changed) continue;
+		config[field] = result.kept;
+		changed = true;
+	}
+	return changed;
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateTsconfigAuditor());
 export { BANNED_COMPILER_OPTIONS, CANONICAL_TSCONFIG, MANDATORY_STRICT_OPTIONS, TSCONFIG_REQUIREMENT, TSCONFIG_RULES, VALID_MODULE_RESOLUTIONS, VALID_TARGETS, ValidateTsconfigAuditor };

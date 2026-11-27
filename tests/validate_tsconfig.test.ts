@@ -333,5 +333,51 @@ describe('ValidateTsconfigAuditor', () => {
         "Undeclared exclusion 'src/unauthorized_broken_dir/**'"
       );
     });
+
+    it('Canary 11 (Dead Include/Files Entries): detects non-existent literal paths in tsconfig.json and tsconfig.*.json and prunes them in fix mode while preserving globs and existing files', async () => {
+      const tsconfigPath = path.join(tmpDir, 'tsconfig.json');
+      const tsconfigNodePath = path.join(tmpDir, 'tsconfig.node.json');
+      const existingFile = path.join(tmpDir, 'vite.config.ts');
+      fs.writeFileSync(existingFile, 'export default {};', 'utf8');
+
+      const rootCfg: TsConfigShape = {
+        ...CANONICAL_TSCONFIG,
+        include: ['src/**/*', 'supabase/setup_supabase.ts', 'vite.config.ts'],
+        files: ['missing/entry.ts', 'vite.config.ts']
+      };
+      const nodeCfg: TsConfigShape = {
+        compilerOptions: {
+          strict: true
+        },
+        include: ['vite.config.ts', 'scripts/deleted_helper.ts']
+      };
+      fs.writeFileSync(tsconfigPath, JSON.stringify(rootCfg, null, 2), 'utf8');
+      fs.writeFileSync(tsconfigNodePath, JSON.stringify(nodeCfg, null, 2), 'utf8');
+
+      const checkAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
+      expect(checkResult.status).toBe('failed');
+      const deadViolations = checkResult.findings.filter(
+        (f) => f.ruleId === 'tsconfig-dead-include-entry'
+      );
+      expect(deadViolations).toHaveLength(3);
+      expect(deadViolations.map((v) => v.context)).toStrictEqual([
+        'supabase/setup_supabase.ts',
+        'missing/entry.ts',
+        'scripts/deleted_helper.ts'
+      ]);
+
+      const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
+      const fixResult = await fixAuditor.fix();
+      expect(fixResult.status).toBe('passed');
+      expect(fixResult.summary.errors).toBe(0);
+
+      const repairedRoot = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as TsConfigShape;
+      expect(repairedRoot.include).toStrictEqual(['src/**/*', 'vite.config.ts']);
+      expect(repairedRoot.files).toStrictEqual(['vite.config.ts']);
+
+      const repairedNode = JSON.parse(fs.readFileSync(tsconfigNodePath, 'utf8')) as TsConfigShape;
+      expect(repairedNode.include).toStrictEqual(['vite.config.ts']);
+    });
   });
 });
