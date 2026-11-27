@@ -192,4 +192,44 @@ describe('envOrchestrator & upgradePostgres', () => {
     expect(withBare).not.toContain('# === [ SERVIDOR: bare ] ===');
     expect(withBare).toContain('SERVER_bare_HOST=10.0.0.5\nSERVER_bare_REGION=sa-east-1');
   });
+
+  it('generates 16-byte hex REALTIME_DB_ENC_KEY, validates its byte length, and auto-heals 32-char keys', async () => {
+    const { ensureServerKeys } = await import('../src/supabase/envOrchestrator.ts');
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-rt-key-'));
+    tempDirs.push(tmpRoot);
+    process.env.AUDIT_PROJECT_ROOT = tmpRoot;
+
+    try {
+      const cfg: SupabaseDockerConfig = {
+        enabled: true,
+        projectSlug: 'demo',
+        upstreamRef: 'master',
+        supabaseDir: 'supabase',
+        masterEnvFile: '.env',
+        postgres: { expectedMajor: 17 },
+        profiles: {}
+      };
+      const keys = generateSupabaseKeys(tmpRoot, cfg);
+      const generatedRtKey = keys.get('REALTIME_DB_ENC_KEY') ?? '';
+      expect(generatedRtKey).toMatch(/^[0-9a-f]{16}$/u);
+      expect(Buffer.byteLength(generatedRtKey, 'utf8')).toBe(16);
+
+      const invalid32 = new Map(keys);
+      invalid32.set('REALTIME_DB_ENC_KEY', '0123456789abcdef0123456789abcdef');
+      const errs = validateEnvSecrets(invalid32);
+      expect(errs.some((e) => e.includes('REALTIME_DB_ENC_KEY'))).toBe(true);
+
+      const healed = ensureServerKeys(tmpRoot, cfg, invalid32);
+      expect(healed.mutated).toBe(true);
+      const healedKey = healed.vars.get('REALTIME_DB_ENC_KEY') ?? '';
+      expect(healedKey).toMatch(/^[0-9a-f]{16}$/u);
+      expect(validateEnvSecrets(healed.vars)).toStrictEqual([]);
+
+      const preserved = ensureServerKeys(tmpRoot, cfg, healed.vars);
+      expect(preserved.mutated).toBe(false);
+      expect(preserved.vars.get('REALTIME_DB_ENC_KEY')).toBe(healedKey);
+    } finally {
+      delete process.env.AUDIT_PROJECT_ROOT;
+    }
+  });
 });

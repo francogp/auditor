@@ -15,6 +15,8 @@ import type { SupabaseDockerConfig } from './supabaseConfigTypes.ts';
 import { randomAlphanumeric } from './supabaseCryptoUtils.ts';
 
 const PASSWORD_BYTES_LENGTH = 32 as const;
+const REALTIME_DB_ENC_KEY_BYTES = 16 as const;
+const REALTIME_DB_ENC_KEY_RANDOM_BYTES = 8 as const;
 const JWT_TTL_FIVE_YEARS_SECONDS = 60 * 60 * 24 * 365 * 5;
 const SERVER_HEADER_REGEX =
   /^#\s*(?:===|---)\s*\[\s*SERVIDOR(?:\s+\d+)?:\s*([a-zA-Z0-9_-]+)\s*\]\s*(?:===|---)/gmu;
@@ -230,6 +232,12 @@ export function validateEnvSecrets(
   if (dashPass && isInsecurePlaceholder(dashPass)) {
     errors.push("Secret 'DASHBOARD_PASSWORD' still contains an insecure upstream placeholder.");
   }
+  const realtimeEncKey = envVars.get('REALTIME_DB_ENC_KEY');
+  if (realtimeEncKey && Buffer.byteLength(realtimeEncKey, 'utf8') !== REALTIME_DB_ENC_KEY_BYTES) {
+    errors.push(
+      `'REALTIME_DB_ENC_KEY' must be exactly ${REALTIME_DB_ENC_KEY_BYTES} bytes (16 ASCII/hex characters) for Supabase Realtime AES-128-ECB.`
+    );
+  }
 
   for (const reqKey of requiredPlaceholders) {
     if (!envVars.has(reqKey)) {
@@ -365,7 +373,7 @@ export function generateSupabaseKeys(
     ['SECRET_KEY_BASE', crypto.randomBytes(48).toString('hex')],
     ['VAULT_ENC_KEY', crypto.randomBytes(16).toString('hex')],
     ['PG_META_CRYPTO_KEY', crypto.randomBytes(16).toString('hex')],
-    ['REALTIME_DB_ENC_KEY', crypto.randomBytes(16).toString('hex')],
+    ['REALTIME_DB_ENC_KEY', crypto.randomBytes(REALTIME_DB_ENC_KEY_RANDOM_BYTES).toString('hex')],
     ['SUPABASE_PUBLISHABLE_KEY', `sb_publishable_${crypto.randomBytes(24).toString('hex')}`],
     ['SUPABASE_SECRET_KEY', `sb_secret_${crypto.randomBytes(24).toString('hex')}`],
     ['JWT_JWKS', jwksPayload],
@@ -435,7 +443,11 @@ export function ensureServerKeys(
 
   for (const key of REQUIRED_CRYPTO_KEYS) {
     const val = next.get(key) ?? '';
-    if (!val || isInsecurePlaceholder(val)) {
+    const invalidRealtimeLength =
+      key === 'REALTIME_DB_ENC_KEY' &&
+      val.length > 0 &&
+      Buffer.byteLength(val, 'utf8') !== REALTIME_DB_ENC_KEY_BYTES;
+    if (!val || isInsecurePlaceholder(val) || invalidRealtimeLength) {
       const freshVal = getGenerated().get(key);
       if (freshVal) {
         next.set(key, freshVal);

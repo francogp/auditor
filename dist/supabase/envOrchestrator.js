@@ -12,6 +12,8 @@ import crypto from "node:crypto";
 * Master `.env` parser, multi-server inventory manager, and Upstream-First key generator.
 */
 const PASSWORD_BYTES_LENGTH = 32;
+const REALTIME_DB_ENC_KEY_BYTES = 16;
+const REALTIME_DB_ENC_KEY_RANDOM_BYTES = 8;
 const JWT_TTL_FIVE_YEARS_SECONDS = 15768e4;
 const SERVER_HEADER_REGEX = /^#\s*(?:===|---)\s*\[\s*SERVIDOR(?:\s+\d+)?:\s*([a-zA-Z0-9_-]+)\s*\]\s*(?:===|---)/gmu;
 const KNOWN_SERVER_KEY_SUFFIX_REGEX = /^SERVER_([a-zA-Z0-9_-]+?)_(?:ID|NAME|REGION|TENANT_ID|DEPLOY_MODE|IS_CLOUD|IS_DEFAULT|PREFER_FOR|POSTGRES_PASSWORD|JWT_SECRET|ANON_KEY|SERVICE_ROLE_KEY|API_EXTERNAL_URL|SUPABASE_PUBLIC_URL|SITE_URL|DASHBOARD_USERNAME|DASHBOARD_PASSWORD|API_GW_HTTP_PORT|POOLER_TENANT_ID|STORAGE_TENANT_ID)$/u;
@@ -175,6 +177,8 @@ function validateEnvSecrets(envVars, requiredPlaceholders = []) {
 	if (pgPass && !ALPHANUMERIC_PASSWORD_REGEX.test(pgPass)) errors.push("'POSTGRES_PASSWORD' must contain only ASCII letters and digits (upstream interpolates it unencoded in URIs).");
 	const dashPass = envVars.get("DASHBOARD_PASSWORD");
 	if (dashPass && isInsecurePlaceholder(dashPass)) errors.push("Secret 'DASHBOARD_PASSWORD' still contains an insecure upstream placeholder.");
+	const realtimeEncKey = envVars.get("REALTIME_DB_ENC_KEY");
+	if (realtimeEncKey && Buffer.byteLength(realtimeEncKey, "utf8") !== REALTIME_DB_ENC_KEY_BYTES) errors.push(`'REALTIME_DB_ENC_KEY' must be exactly ${REALTIME_DB_ENC_KEY_BYTES} bytes (16 ASCII/hex characters) for Supabase Realtime AES-128-ECB.`);
 	for (const reqKey of requiredPlaceholders) if (!envVars.has(reqKey)) errors.push(`Generated .env is missing required Compose placeholder '${reqKey}'.`);
 	return errors;
 }
@@ -277,7 +281,7 @@ function generateSupabaseKeys(projectRoot, config) {
 		["SECRET_KEY_BASE", crypto.randomBytes(48).toString("hex")],
 		["VAULT_ENC_KEY", crypto.randomBytes(16).toString("hex")],
 		["PG_META_CRYPTO_KEY", crypto.randomBytes(16).toString("hex")],
-		["REALTIME_DB_ENC_KEY", crypto.randomBytes(16).toString("hex")],
+		["REALTIME_DB_ENC_KEY", crypto.randomBytes(REALTIME_DB_ENC_KEY_RANDOM_BYTES).toString("hex")],
 		["SUPABASE_PUBLISHABLE_KEY", `sb_publishable_${crypto.randomBytes(24).toString("hex")}`],
 		["SUPABASE_SECRET_KEY", `sb_secret_${crypto.randomBytes(24).toString("hex")}`],
 		["JWT_JWKS", jwksPayload],
@@ -323,7 +327,8 @@ function ensureServerKeys(projectRoot, config, existingVars) {
 	};
 	for (const key of REQUIRED_CRYPTO_KEYS) {
 		const val = next.get(key) ?? "";
-		if (!val || isInsecurePlaceholder(val)) {
+		const invalidRealtimeLength = key === "REALTIME_DB_ENC_KEY" && val.length > 0 && Buffer.byteLength(val, "utf8") !== REALTIME_DB_ENC_KEY_BYTES;
+		if (!val || isInsecurePlaceholder(val) || invalidRealtimeLength) {
 			const freshVal = getGenerated().get(key);
 			if (freshVal) {
 				next.set(key, freshVal);
